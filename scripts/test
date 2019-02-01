@@ -1,0 +1,25 @@
+#!/bin/sh -e
+
+export PREFIX=""
+if [ -d 'venv' ] ; then
+    export PREFIX="venv/bin/"
+fi
+
+export VERSION_SCRIPT="import sys; print('%s.%s' % sys.version_info[0:2])"
+export PYTHON_VERSION=`python -c "$VERSION_SCRIPT"`
+
+if [ -z "$TEST_DATABASE_URLS" ] ; then
+    echo "Variable TEST_DATABASE_URLS must be set."
+    exit 1
+fi
+
+set -x
+
+PYTHONPATH=. ${PREFIX}pytest --ignore venv -W ignore::DeprecationWarning --cov=databases --cov=tests --cov-fail-under=100 --cov-report=term-missing ${@}
+${PREFIX}mypy databases --ignore-missing-imports --disallow-untyped-defs
+${PREFIX}autoflake --recursive databases tests
+if [ "${PYTHON_VERSION}" = '3.7' ]; then
+    echo "Skipping 'black' on 3.7. See issue https://github.com/ambv/black/issues/494"
+else
+    ${PREFIX}black databases tests --check
+fi
