@@ -3,7 +3,7 @@ from urllib.parse import SplitResult, parse_qsl, urlencode, urlsplit
 
 
 class DatabaseURL:
-    def __init__(self, url: typing.Union[str, DatabaseURL]):
+    def __init__(self, url: typing.Union[str, "DatabaseURL"]):
         if isinstance(url, DatabaseURL):
             self._url = str(url)
         else:
@@ -85,3 +85,19 @@ class DatabaseURL:
         if self.password:
             url = str(self.replace(password="********"))
         return f"{self.__class__.__name__}({repr(url)})"
+
+
+class Database:
+    def __init__(self, url: typing.Union[str, DatabaseURL]):
+        from databases.backends.postgres import PostgresBackend
+        self.url = DatabaseURL(url)
+        self.backend = PostgresBackend(self.url)
+
+    async def connect(self):
+        await self.backend.startup()
+
+    async def disconnect(self):
+        await self.backend.shutdown()
+
+    def session(self):
+        return self.backend.session()
