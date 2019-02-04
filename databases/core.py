@@ -1,4 +1,5 @@
 import typing
+from types import TracebackType
 from urllib.parse import SplitResult, parse_qsl, urlencode, urlsplit
 
 
@@ -26,15 +27,15 @@ class DatabaseURL:
         return self.components.scheme.split("+", 1)[1]
 
     @property
-    def username(self) -> typing.Union[None, str]:
+    def username(self) -> typing.Optional[str]:
         return self.components.username
 
     @property
-    def password(self) -> typing.Union[None, str]:
+    def password(self) -> typing.Optional[str]:
         return self.components.password
 
     @property
-    def hostname(self) -> typing.Union[None, str]:
+    def hostname(self) -> typing.Optional[str]:
         return self.components.hostname
 
     @property
@@ -42,7 +43,7 @@ class DatabaseURL:
         return self.components.port
 
     @property
-    def database_name(self) -> str:
+    def database(self) -> str:
         return self.components.path.lstrip("/")
 
     def replace(self, **kwargs: typing.Any) -> "DatabaseURL":
@@ -71,11 +72,13 @@ class DatabaseURL:
         if "database" in kwargs:
             kwargs["path"] = "/" + kwargs.pop("database")
 
+        if "dialect" in kwargs or "driver" in kwargs:
+            dialect = kwargs.pop("dialect", self.dialect)
+            driver = kwargs.pop("driver", self.driver)
+            kwargs["scheme"] = f"{dialect}+{driver}" if driver else dialect
+
         components = self.components._replace(**kwargs)
         return self.__class__(components.geturl())
-
-    def __eq__(self, other: typing.Any) -> bool:
-        return str(self) == str(other)
 
     def __str__(self) -> str:
         return self._url
@@ -92,12 +95,28 @@ class Database:
         from databases.backends.postgres import PostgresBackend
         self.url = DatabaseURL(url)
         self.backend = PostgresBackend(self.url)
+        self.connected = False
 
     async def connect(self):
-        await self.backend.startup()
+        if not self.connected:
+            await self.backend.startup()
+            self.connected = True
 
     async def disconnect(self):
-        await self.backend.shutdown()
+        if self.connected:
+            await self.backend.shutdown()
+            self.connected = False
 
-    def session(self):
-        return self.backend.session()
+    def session(self, rollback_isolation: bool=False):
+        return self.backend.session(rollback_isolation=rollback_isolation)
+
+    async def __aenter__(self):
+        await self.connect()
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: typing.Type[BaseException] = None,
+        exc_value: BaseException = None,
+        traceback: TracebackType = None):
+        await self.disconnect()
