@@ -1,11 +1,12 @@
 import importlib
+import typing
 
 
 class ImportFromStringError(Exception):
     pass
 
 
-def import_from_string(import_str):
+def import_from_string(import_str: str) -> typing.Any:
     module_str, _, attrs_str = import_str.partition(":")
     if not module_str or not attrs_str:
         message = (

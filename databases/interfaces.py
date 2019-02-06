@@ -1,4 +1,3 @@
-import functools
 import typing
 from types import TracebackType
 

@@ -44,6 +44,7 @@ def async_adapter(wrapped_func):
         loop = asyncio.get_event_loop()
         task = wrapped_func(*args, **kwargs)
         return loop.run_until_complete(task)
+
     return run_sync
 
 
@@ -58,8 +59,8 @@ async def test_queries():
             # executemany()
             query = notes.insert()
             data = [
-                {'text': 'example2', 'completed': False},
-                {'text': 'example3', 'completed': True}
+                {"text": "example2", "completed": False},
+                {"text": "example3", "completed": True},
             ]
             await session.executemany(query, data)
 
@@ -67,18 +68,18 @@ async def test_queries():
             query = notes.select()
             results = await session.fetchall(query=query)
             assert len(results) == 3
-            assert results[0]['text'] == 'example1'
-            assert results[0]['completed'] == True
-            assert results[1]['text'] == 'example2'
-            assert results[1]['completed'] == False
-            assert results[2]['text'] == 'example3'
-            assert results[2]['completed'] == True
+            assert results[0]["text"] == "example1"
+            assert results[0]["completed"] == True
+            assert results[1]["text"] == "example2"
+            assert results[1]["completed"] == False
+            assert results[2]["text"] == "example3"
+            assert results[2]["completed"] == True
 
             # fetchone()
             query = notes.select()
             result = await session.fetchone(query=query)
-            assert result['text'] == 'example1'
-            assert result['completed'] == True
+            assert result["text"] == "example1"
+            assert result["completed"] == True
 
 
 @async_adapter

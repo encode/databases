@@ -9,12 +9,8 @@ from sqlalchemy.dialects.mysql import pymysql
 from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.sql import ClauseElement
 
-from databases.interfaces import (
-    DatabaseBackend,
-    DatabaseSession,
-    DatabaseTransaction,
-)
 from databases.core import DatabaseURL
+from databases.interfaces import DatabaseBackend, DatabaseSession, DatabaseTransaction
 
 logger = logging.getLogger("databases")
 
@@ -44,7 +40,7 @@ class MySQLBackend(DatabaseBackend):
         await self.pool.wait_closed()
         self.pool = None
 
-    def session(self, rollback_isolation: bool=False) -> "MysqlSession":
+    def session(self, rollback_isolation: bool = False) -> "MysqlSession":
         assert self.pool is not None, "DatabaseBackend is not running"
         return MysqlSession(self.pool, self.dialect, rollback_isolation)
 
@@ -68,7 +64,12 @@ class Record:
 
 
 class MysqlSession(DatabaseSession):
-    def __init__(self, pool: aiomysql.pool.Pool, dialect: Dialect, rollback_isolation: bool=False):
+    def __init__(
+        self,
+        pool: aiomysql.pool.Pool,
+        dialect: Dialect,
+        rollback_isolation: bool = False,
+    ):
         self.pool = pool
         self.dialect = dialect
         self.conn = None
@@ -78,7 +79,7 @@ class MysqlSession(DatabaseSession):
         if rollback_isolation:
             self._rollback_transaction = self.transaction()
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> DatabaseSession:
         if self._rollback_transaction is not None:
             await self._rollback_transaction.start()
         return self
@@ -87,7 +88,8 @@ class MysqlSession(DatabaseSession):
         self,
         exc_type: typing.Type[BaseException] = None,
         exc_value: BaseException = None,
-        traceback: TracebackType = None):
+        traceback: TracebackType = None,
+    ) -> None:
         if self._rollback_transaction is not None:
             await self._rollback_transaction.rollback()
 
