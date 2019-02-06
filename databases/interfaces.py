@@ -34,7 +34,7 @@ class DatabaseSession:
 
 class DatabaseTransaction:
     async def __aenter__(self) -> None:
-        raise NotImplementedError()  # pragma: no cover
+        await self.start()
 
     async def __aexit__(
         self,
@@ -42,7 +42,10 @@ class DatabaseTransaction:
         exc_value: BaseException = None,
         traceback: TracebackType = None,
     ) -> None:
-        raise NotImplementedError()  # pragma: no cover
+        if exc_type is not None:
+            await self.rollback()
+        else:
+            await self.commit()
 
     async def start(self) -> None:
         raise NotImplementedError()  # pragma: no cover

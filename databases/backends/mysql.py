@@ -170,20 +170,6 @@ class MySQLTransaction(DatabaseTransaction):
         self.session = session
         self.is_root = False
 
-    async def __aenter__(self) -> None:
-        await self.start()
-
-    async def __aexit__(
-        self,
-        exc_type: typing.Type[BaseException] = None,
-        exc_value: BaseException = None,
-        traceback: TracebackType = None,
-    ) -> None:
-        if exc_type is not None:
-            await self.rollback()
-        else:
-            await self.commit()
-
     async def start(self) -> None:
         if self.session.has_root_transaction is False:
             self.session.has_root_transaction = True
