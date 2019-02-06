@@ -80,6 +80,7 @@ async def test_queries():
             assert result['text'] == 'example1'
             assert result['completed'] == True
 
+
 @async_adapter
 async def test_rollback_isolation():
     async with Database(DATABASE_URL) as database:

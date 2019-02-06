@@ -1,6 +1,8 @@
 import typing
 from types import TracebackType
 from urllib.parse import SplitResult, parse_qsl, urlencode, urlsplit
+from databases.importer import import_from_string
+from databases.interfaces import DatabaseBackend
 
 
 class DatabaseURL:
@@ -91,10 +93,17 @@ class DatabaseURL:
 
 
 class Database:
+    backends = {
+        "postgresql": "databases.backends.postgres:PostgresBackend",
+        "mysql": "databases.backends.mysql:MySQLBackend",
+    }
+
     def __init__(self, url: typing.Union[str, DatabaseURL]):
-        from databases.backends.postgres import PostgresBackend
         self.url = DatabaseURL(url)
-        self.backend = PostgresBackend(self.url)
+        backend_str = self.backends[self.url.dialect]
+        backend_cls = import_from_string(backend_str)
+        assert issubclass(backend_cls, DatabaseBackend)
+        self.backend = backend_cls(self.url)
         self.connected = False
 
     async def connect(self):

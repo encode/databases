@@ -20,10 +20,10 @@ logger = logging.getLogger("databases")
 class PostgresBackend(DatabaseBackend):
     def __init__(self, database_url: typing.Union[str, DatabaseURL]) -> None:
         self.database_url = DatabaseURL(database_url)
-        self.dialect = self.get_dialect()
+        self.dialect = self._get_dialect()
         self.pool = None
 
-    def get_dialect(self) -> Dialect:
+    def _get_dialect(self) -> Dialect:
         dialect = pypostgresql.dialect(paramstyle="pyformat")
 
         dialect.implicit_returning = True
