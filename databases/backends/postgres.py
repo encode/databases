@@ -7,12 +7,8 @@ from sqlalchemy.dialects.postgresql import pypostgresql
 from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.sql import ClauseElement
 
-from databases.interfaces import (
-    DatabaseBackend,
-    DatabaseSession,
-    DatabaseTransaction,
-)
 from databases.core import DatabaseURL
+from databases.interfaces import DatabaseBackend, DatabaseSession, DatabaseTransaction
 
 logger = logging.getLogger("databases")
 
@@ -43,13 +39,20 @@ class PostgresBackend(DatabaseBackend):
         await self.pool.close()
         self.pool = None
 
-    def session(self, rollback_isolation: bool=False) -> "PostgresSession":
+    def session(self, rollback_isolation: bool = False) -> "PostgresSession":
         assert self.pool is not None, "DatabaseBackend is not running"
-        return PostgresSession(self.pool, self.dialect, rollback_isolation=rollback_isolation)
+        return PostgresSession(
+            self.pool, self.dialect, rollback_isolation=rollback_isolation
+        )
 
 
 class PostgresSession(DatabaseSession):
-    def __init__(self, pool: asyncpg.pool.Pool, dialect: Dialect, rollback_isolation: bool=False):
+    def __init__(
+        self,
+        pool: asyncpg.pool.Pool,
+        dialect: Dialect,
+        rollback_isolation: bool = False,
+    ):
         self.pool = pool
         self.dialect = dialect
         self.conn = None
@@ -67,7 +70,8 @@ class PostgresSession(DatabaseSession):
         self,
         exc_type: typing.Type[BaseException] = None,
         exc_value: BaseException = None,
-        traceback: TracebackType = None):
+        traceback: TracebackType = None,
+    ):
         if self._rollback_transaction is not None:
             await self._rollback_transaction.rollback()
 

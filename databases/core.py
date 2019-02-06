@@ -1,6 +1,7 @@
 import typing
 from types import TracebackType
-from urllib.parse import SplitResult, parse_qsl, urlencode, urlsplit
+from urllib.parse import SplitResult, urlsplit
+
 from databases.importer import import_from_string
 from databases.interfaces import DatabaseBackend
 
@@ -116,7 +117,7 @@ class Database:
             await self.backend.shutdown()
             self.connected = False
 
-    def session(self, rollback_isolation: bool=False):
+    def session(self, rollback_isolation: bool = False):
         return self.backend.session(rollback_isolation=rollback_isolation)
 
     async def __aenter__(self):
@@ -127,5 +128,6 @@ class Database:
         self,
         exc_type: typing.Type[BaseException] = None,
         exc_value: BaseException = None,
-        traceback: TracebackType = None):
+        traceback: TracebackType = None,
+    ):
         await self.disconnect()
