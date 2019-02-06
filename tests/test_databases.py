@@ -106,3 +106,35 @@ async def test_rollback_isolation(database_url):
             query = notes.select()
             results = await session.fetchall(query=query)
             assert len(results) == 0
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_transaction_commit(database_url):
+    async with Database(database_url) as database:
+        async with database.session(rollback_isolation=True) as session:
+            async with session.transaction():
+                query = notes.insert().values(text="example1", completed=True)
+                await session.execute(query)
+
+            query = notes.select()
+            results = await session.fetchall(query=query)
+            assert len(results) == 1
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_transaction_rollback(database_url):
+    async with Database(database_url) as database:
+        async with database.session(rollback_isolation=True) as session:
+            try:
+                async with session.transaction():
+                    query = notes.insert().values(text="example1", completed=True)
+                    await session.execute(query)
+                    raise RuntimeError()
+            except RuntimeError:
+                pass
+
+            query = notes.select()
+            results = await session.fetchall(query=query)
+            assert len(results) == 0
