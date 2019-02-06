@@ -61,7 +61,7 @@ class PostgresSession(DatabaseSession):
         if rollback_isolation:
             self._rollback_transaction = self.transaction()
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> DatabaseSession:
         if self._rollback_transaction is not None:
             await self._rollback_transaction.start()
         return self
@@ -71,7 +71,7 @@ class PostgresSession(DatabaseSession):
         exc_type: typing.Type[BaseException] = None,
         exc_value: BaseException = None,
         traceback: TracebackType = None,
-    ):
+    ) -> None:
         if self._rollback_transaction is not None:
             await self._rollback_transaction.rollback()
 
