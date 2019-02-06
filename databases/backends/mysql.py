@@ -24,7 +24,7 @@ class MySQLBackend(DatabaseBackend):
     def _get_dialect(self) -> Dialect:
         return pymysql.dialect(paramstyle="pyformat")
 
-    async def startup(self) -> None:
+    async def connect(self) -> None:
         db = self.database_url
         self.pool = await aiomysql.create_pool(
             host=db.hostname,
@@ -34,15 +34,15 @@ class MySQLBackend(DatabaseBackend):
             db=db.database,
         )
 
-    async def shutdown(self) -> None:
+    async def disconnect(self) -> None:
         assert self.pool is not None, "DatabaseBackend is not running"
         self.pool.close()
         await self.pool.wait_closed()
         self.pool = None
 
-    def session(self, rollback_isolation: bool = False) -> "MysqlSession":
+    def session(self, rollback_isolation: bool = False) -> "MySQLSession":
         assert self.pool is not None, "DatabaseBackend is not running"
-        return MysqlSession(self.pool, self.dialect, rollback_isolation)
+        return MySQLSession(self.pool, self.dialect, rollback_isolation)
 
 
 class Record:
@@ -59,7 +59,7 @@ class Record:
         return col[-1].python_type(raw)
 
 
-class MysqlSession(DatabaseSession):
+class MySQLSession(DatabaseSession):
     def __init__(
         self,
         pool: aiomysql.pool.Pool,
@@ -145,7 +145,7 @@ class MysqlSession(DatabaseSession):
             await self.release_connection()
 
     def transaction(self) -> DatabaseTransaction:
-        return MysqlTransaction(self)
+        return MySQLTransaction(self)
 
     async def acquire_connection(self) -> aiomysql.Connection:
         """
@@ -165,8 +165,8 @@ class MysqlSession(DatabaseSession):
             self.conn = None
 
 
-class MysqlTransaction(DatabaseTransaction):
-    def __init__(self, session: MysqlSession):
+class MySQLTransaction(DatabaseTransaction):
+    def __init__(self, session: MySQLSession):
         self.session = session
         self.is_root = False
 

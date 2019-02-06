@@ -31,10 +31,10 @@ class PostgresBackend(DatabaseBackend):
 
         return dialect
 
-    async def startup(self) -> None:
+    async def connect(self) -> None:
         self.pool = await asyncpg.create_pool(str(self.database_url))
 
-    async def shutdown(self) -> None:
+    async def disconnect(self) -> None:
         assert self.pool is not None, "DatabaseBackend is not running"
         await self.pool.close()
         self.pool = None

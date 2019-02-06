@@ -5,10 +5,10 @@ from sqlalchemy.sql import ClauseElement
 
 
 class DatabaseBackend:
-    async def startup(self) -> None:
+    async def connect(self) -> None:
         raise NotImplementedError()  # pragma: no cover
 
-    async def shutdown(self) -> None:
+    async def disconnect(self) -> None:
         raise NotImplementedError()  # pragma: no cover
 
     def session(self) -> "DatabaseSession":

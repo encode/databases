@@ -105,17 +105,17 @@ class Database:
         backend_cls = import_from_string(backend_str)
         assert issubclass(backend_cls, DatabaseBackend)
         self.backend = backend_cls(self.url)
-        self.connected = False
+        self.is_connected = False
 
     async def connect(self) -> None:
-        if not self.connected:
-            await self.backend.startup()
-            self.connected = True
+        if not self.is_connected:
+            await self.backend.connect()
+            self.is_connected = True
 
     async def disconnect(self) -> None:
-        if self.connected:
-            await self.backend.shutdown()
-            self.connected = False
+        if self.is_connected:
+            await self.backend.disconnect()
+            self.is_connected = False
 
     def session(self, rollback_isolation: bool = False) -> DatabaseSession:
         return self.backend.session(rollback_isolation=rollback_isolation)
