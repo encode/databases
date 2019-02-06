@@ -48,9 +48,10 @@ def async_adapter(wrapped_func):
     return run_sync
 
 
+@pytest.mark.parametrize("database_url", [DATABASE_URL])
 @async_adapter
-async def test_queries():
-    async with Database(DATABASE_URL) as database:
+async def test_queries(database_url):
+    async with Database(database_url) as database:
         async with database.session(rollback_isolation=True) as session:
             # execute()
             query = notes.insert().values(text="example1", completed=True)
@@ -82,9 +83,10 @@ async def test_queries():
             assert result["completed"] == True
 
 
+@pytest.mark.parametrize("database_url", [DATABASE_URL])
 @async_adapter
-async def test_rollback_isolation():
-    async with Database(DATABASE_URL) as database:
+async def test_rollback_isolation(database_url):
+    async with Database(database_url) as database:
         # Perform some INSERT operations on the database.
         async with database.session(rollback_isolation=True) as session:
             query = notes.insert().values(text="example1", completed=True)
