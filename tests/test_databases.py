@@ -5,7 +5,7 @@ import os
 import pytest
 import sqlalchemy
 
-from databases import Database
+from databases import Database, DatabaseURL
 
 # from starlette.applications import Starlette
 # from starlette.database import transaction
@@ -16,7 +16,7 @@ from databases import Database
 
 assert "TEST_DATABASE_URLS" in os.environ, "TEST_DATABASE_URLS is not set."
 
-DATABASE_URL = os.environ["TEST_DATABASE_URLS"]
+DATABASE_URLS = [url.strip() for url in os.environ["TEST_DATABASE_URLS"].split(",")]
 
 
 metadata = sqlalchemy.MetaData()
@@ -32,10 +32,19 @@ notes = sqlalchemy.Table(
 
 @pytest.fixture(autouse=True, scope="module")
 def create_test_database():
-    engine = sqlalchemy.create_engine(DATABASE_URL)
-    metadata.create_all(engine)
+    for url in DATABASE_URLS:
+        database_url = DatabaseURL(url)
+        if database_url.dialect == "mysql":
+            url = str(database_url.replace(driver="pymysql"))
+        engine = sqlalchemy.create_engine(url)
+        metadata.create_all(engine)
     yield
-    engine.execute("DROP TABLE notes")
+    for url in DATABASE_URLS:
+        database_url = DatabaseURL(url)
+        if database_url.dialect == "mysql":
+            url = str(database_url.replace(driver="pymysql"))
+        engine = sqlalchemy.create_engine(url)
+        metadata.drop_all(engine)
 
 
 def async_adapter(wrapped_func):
@@ -48,7 +57,7 @@ def async_adapter(wrapped_func):
     return run_sync
 
 
-@pytest.mark.parametrize("database_url", [DATABASE_URL])
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
 async def test_queries(database_url):
     async with Database(database_url) as database:
@@ -83,7 +92,7 @@ async def test_queries(database_url):
             assert result["completed"] == True
 
 
-@pytest.mark.parametrize("database_url", [DATABASE_URL])
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
 async def test_rollback_isolation(database_url):
     async with Database(database_url) as database:
