@@ -1,13 +1,15 @@
 language: python
 
+dist: xenial
+
 cache: pip
 
 python:
     - "3.6"
-    - "3.7-dev"
+    - "3.7"
 
 env:
-    - STARLETTE_TEST_DATABASES="postgresql://localhost/starlette, mysql://localhost/starlette"
+    - TEST_DATABASE_URLS="postgresql://localhost/test_database"
 
 services:
     - postgresql
@@ -17,7 +19,7 @@ install:
     - pip install -U -r requirements.txt
 
 before_script:
-    - psql -c 'create database starlette;' -U postgres
+    - psql -c 'create database test_database;' -U postgres
 
 script:
     - scripts/test
