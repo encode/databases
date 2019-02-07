@@ -1,6 +1,5 @@
 import logging
 import typing
-from types import TracebackType
 
 import asyncpg
 from sqlalchemy.dialects.postgresql import pypostgresql
@@ -39,41 +38,17 @@ class PostgresBackend(DatabaseBackend):
         await self.pool.close()
         self.pool = None
 
-    def session(self, rollback_isolation: bool = False) -> "PostgresSession":
+    def session(self) -> "PostgresSession":
         assert self.pool is not None, "DatabaseBackend is not running"
-        return PostgresSession(
-            self.pool, self.dialect, rollback_isolation=rollback_isolation
-        )
+        return PostgresSession(self.pool, self.dialect)
 
 
 class PostgresSession(DatabaseSession):
-    def __init__(
-        self,
-        pool: asyncpg.pool.Pool,
-        dialect: Dialect,
-        rollback_isolation: bool = False,
-    ):
+    def __init__(self, pool: asyncpg.pool.Pool, dialect: Dialect):
         self.pool = pool
         self.dialect = dialect
         self.conn = None
         self.connection_holders = 0
-        self._rollback_transaction = None
-        if rollback_isolation:
-            self._rollback_transaction = self.transaction()
-
-    async def __aenter__(self) -> DatabaseSession:
-        if self._rollback_transaction is not None:
-            await self._rollback_transaction.start()
-        return self
-
-    async def __aexit__(
-        self,
-        exc_type: typing.Type[BaseException] = None,
-        exc_value: BaseException = None,
-        traceback: TracebackType = None,
-    ) -> None:
-        if self._rollback_transaction is not None:
-            await self._rollback_transaction.rollback()
 
     def _compile(self, query: ClauseElement) -> typing.Tuple[str, list]:
         compiled = query.compile(dialect=self.dialect)
@@ -111,7 +86,9 @@ class PostgresSession(DatabaseSession):
         finally:
             await self.release_connection()
 
-    async def execute(self, query: ClauseElement) -> None:
+    async def execute(self, query: ClauseElement, values: dict = None) -> None:
+        if values is not None:
+            query = query.values(values)
         query, args = self._compile(query)
 
         conn = await self.acquire_connection()
@@ -133,8 +110,8 @@ class PostgresSession(DatabaseSession):
         finally:
             await self.release_connection()
 
-    def transaction(self) -> DatabaseTransaction:
-        return PostgresTransaction(session=self)
+    def transaction(self, force_rollback: bool = False) -> DatabaseTransaction:
+        return PostgresTransaction(session=self, force_rollback=force_rollback)
 
     async def acquire_connection(self) -> asyncpg.Connection:
         """
@@ -155,8 +132,9 @@ class PostgresSession(DatabaseSession):
 
 
 class PostgresTransaction(DatabaseTransaction):
-    def __init__(self, session: PostgresSession):
+    def __init__(self, session: PostgresSession, force_rollback: bool = False):
         self.session = session
+        super().__init__(force_rollback=force_rollback)
 
     async def start(self) -> None:
         conn = await self.session.acquire_connection()

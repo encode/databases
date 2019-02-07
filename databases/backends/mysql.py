@@ -2,7 +2,6 @@ import getpass
 import logging
 import typing
 import uuid
-from types import TracebackType
 
 import aiomysql
 from sqlalchemy.dialects.mysql import pymysql
@@ -40,9 +39,9 @@ class MySQLBackend(DatabaseBackend):
         await self.pool.wait_closed()
         self.pool = None
 
-    def session(self, rollback_isolation: bool = False) -> "MySQLSession":
+    def session(self) -> "MySQLSession":
         assert self.pool is not None, "DatabaseBackend is not running"
-        return MySQLSession(self.pool, self.dialect, rollback_isolation)
+        return MySQLSession(self.pool, self.dialect)
 
 
 class Record:
@@ -60,34 +59,12 @@ class Record:
 
 
 class MySQLSession(DatabaseSession):
-    def __init__(
-        self,
-        pool: aiomysql.pool.Pool,
-        dialect: Dialect,
-        rollback_isolation: bool = False,
-    ):
+    def __init__(self, pool: aiomysql.pool.Pool, dialect: Dialect):
         self.pool = pool
         self.dialect = dialect
         self.conn = None
         self.connection_holders = 0
         self.has_root_transaction = False
-        self._rollback_transaction = None
-        if rollback_isolation:
-            self._rollback_transaction = self.transaction()
-
-    async def __aenter__(self) -> DatabaseSession:
-        if self._rollback_transaction is not None:
-            await self._rollback_transaction.start()
-        return self
-
-    async def __aexit__(
-        self,
-        exc_type: typing.Type[BaseException] = None,
-        exc_value: BaseException = None,
-        traceback: TracebackType = None,
-    ) -> None:
-        if self._rollback_transaction is not None:
-            await self._rollback_transaction.rollback()
 
     def _compile(self, query: ClauseElement) -> typing.Tuple[str, list, tuple]:
         compiled = query.compile(dialect=self.dialect)
@@ -121,7 +98,9 @@ class MySQLSession(DatabaseSession):
             await cursor.close()
             await self.release_connection()
 
-    async def execute(self, query: ClauseElement) -> None:
+    async def execute(self, query: ClauseElement, values: dict = None) -> None:
+        if values is not None:
+            query = query.values(values)
         query, args, result_columns = self._compile(query)
 
         conn = await self.acquire_connection()
@@ -144,8 +123,8 @@ class MySQLSession(DatabaseSession):
             await cursor.close()
             await self.release_connection()
 
-    def transaction(self) -> DatabaseTransaction:
-        return MySQLTransaction(self)
+    def transaction(self, force_rollback: bool = False) -> DatabaseTransaction:
+        return MySQLTransaction(self, force_rollback=force_rollback)
 
     async def acquire_connection(self) -> aiomysql.Connection:
         """
@@ -166,9 +145,10 @@ class MySQLSession(DatabaseSession):
 
 
 class MySQLTransaction(DatabaseTransaction):
-    def __init__(self, session: MySQLSession):
+    def __init__(self, session: MySQLSession, force_rollback: bool = False):
         self.session = session
         self.is_root = False
+        super().__init__(force_rollback=force_rollback)
 
     async def start(self) -> None:
         if self.session.has_root_transaction is False:

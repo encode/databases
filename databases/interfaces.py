@@ -22,17 +22,20 @@ class DatabaseSession:
     async def fetchone(self, query: ClauseElement) -> typing.Any:
         raise NotImplementedError()  # pragma: no cover
 
-    async def execute(self, query: ClauseElement) -> None:
+    async def execute(self, query: ClauseElement, values: dict = None) -> None:
         raise NotImplementedError()  # pragma: no cover
 
     async def executemany(self, query: ClauseElement, values: list) -> None:
         raise NotImplementedError()  # pragma: no cover
 
-    def transaction(self) -> "DatabaseTransaction":
+    def transaction(self, force_rollback: bool = False) -> "DatabaseTransaction":
         raise NotImplementedError()  # pragma: no cover
 
 
 class DatabaseTransaction:
+    def __init__(self, force_rollback: bool = False):
+        self.force_rollback = force_rollback
+
     async def __aenter__(self) -> None:
         await self.start()
 
@@ -42,7 +45,7 @@ class DatabaseTransaction:
         exc_value: BaseException = None,
         traceback: TracebackType = None,
     ) -> None:
-        if exc_type is not None:
+        if exc_type is not None or self.force_rollback:
             await self.rollback()
         else:
             await self.commit()
