@@ -40,9 +40,9 @@ class MySQLBackend(DatabaseBackend):
         await self.pool.wait_closed()
         self.pool = None
 
-    def session(self, rollback_isolation: bool = False) -> "MySQLSession":
+    def session(self) -> "MySQLSession":
         assert self.pool is not None, "DatabaseBackend is not running"
-        return MySQLSession(self.pool, self.dialect, rollback_isolation)
+        return MySQLSession(self.pool, self.dialect)
 
 
 class Record:
@@ -64,30 +64,12 @@ class MySQLSession(DatabaseSession):
         self,
         pool: aiomysql.pool.Pool,
         dialect: Dialect,
-        rollback_isolation: bool = False,
     ):
         self.pool = pool
         self.dialect = dialect
         self.conn = None
         self.connection_holders = 0
         self.has_root_transaction = False
-        self._rollback_transaction = None
-        if rollback_isolation:
-            self._rollback_transaction = self.transaction()
-
-    async def __aenter__(self) -> DatabaseSession:
-        if self._rollback_transaction is not None:
-            await self._rollback_transaction.start()
-        return self
-
-    async def __aexit__(
-        self,
-        exc_type: typing.Type[BaseException] = None,
-        exc_value: BaseException = None,
-        traceback: TracebackType = None,
-    ) -> None:
-        if self._rollback_transaction is not None:
-            await self._rollback_transaction.rollback()
 
     def _compile(self, query: ClauseElement) -> typing.Tuple[str, list, tuple]:
         compiled = query.compile(dialect=self.dialect)

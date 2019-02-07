@@ -120,9 +120,6 @@ class Database:
             await self.backend.disconnect()
             self.is_connected = False
 
-    def session(self, rollback_isolation: bool = False) -> DatabaseSession:
-        return self.backend.session(rollback_isolation=rollback_isolation)
-
     async def __aenter__(self) -> "Database":
         await self.connect()
         return self

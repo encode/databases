@@ -39,11 +39,9 @@ class PostgresBackend(DatabaseBackend):
         await self.pool.close()
         self.pool = None
 
-    def session(self, rollback_isolation: bool = False) -> "PostgresSession":
+    def session(self) -> "PostgresSession":
         assert self.pool is not None, "DatabaseBackend is not running"
-        return PostgresSession(
-            self.pool, self.dialect, rollback_isolation=rollback_isolation
-        )
+        return PostgresSession(self.pool, self.dialect)
 
 
 class PostgresSession(DatabaseSession):
@@ -51,29 +49,11 @@ class PostgresSession(DatabaseSession):
         self,
         pool: asyncpg.pool.Pool,
         dialect: Dialect,
-        rollback_isolation: bool = False,
     ):
         self.pool = pool
         self.dialect = dialect
         self.conn = None
         self.connection_holders = 0
-        self._rollback_transaction = None
-        if rollback_isolation:
-            self._rollback_transaction = self.transaction()
-
-    async def __aenter__(self) -> DatabaseSession:
-        if self._rollback_transaction is not None:
-            await self._rollback_transaction.start()
-        return self
-
-    async def __aexit__(
-        self,
-        exc_type: typing.Type[BaseException] = None,
-        exc_value: BaseException = None,
-        traceback: TracebackType = None,
-    ) -> None:
-        if self._rollback_transaction is not None:
-            await self._rollback_transaction.rollback()
 
     def _compile(self, query: ClauseElement) -> typing.Tuple[str, list]:
         compiled = query.compile(dialect=self.dialect)
