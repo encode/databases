@@ -86,7 +86,9 @@ class PostgresSession(DatabaseSession):
         finally:
             await self.release_connection()
 
-    async def execute(self, query: ClauseElement) -> None:
+    async def execute(self, query: ClauseElement, values: dict = None) -> None:
+        if values is not None:
+            query = query.values(values)
         query, args = self._compile(query)
 
         conn = await self.acquire_connection()

@@ -68,16 +68,17 @@ async def test_queries(database_url):
 
         async with database.transaction(force_rollback=True):
             # execute()
-            query = notes.insert().values(text="example1", completed=True)
-            await database.execute(query)
+            query = notes.insert()
+            values = {"text": "example1", "completed": True}
+            await database.execute(query, values)
 
             # executemany()
             query = notes.insert()
-            data = [
+            values = [
                 {"text": "example2", "completed": False},
                 {"text": "example3", "completed": True},
             ]
-            await database.executemany(query, data)
+            await database.executemany(query, values)
 
             # fetchall()
             query = notes.select()
