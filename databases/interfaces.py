@@ -5,10 +5,10 @@ from sqlalchemy.sql import ClauseElement
 
 
 class DatabaseBackend:
-    async def startup(self) -> None:
+    async def connect(self) -> None:
         raise NotImplementedError()  # pragma: no cover
 
-    async def shutdown(self) -> None:
+    async def disconnect(self) -> None:
         raise NotImplementedError()  # pragma: no cover
 
     def session(self) -> "DatabaseSession":
@@ -34,7 +34,7 @@ class DatabaseSession:
 
 class DatabaseTransaction:
     async def __aenter__(self) -> None:
-        raise NotImplementedError()  # pragma: no cover
+        await self.start()
 
     async def __aexit__(
         self,
@@ -42,7 +42,10 @@ class DatabaseTransaction:
         exc_value: BaseException = None,
         traceback: TracebackType = None,
     ) -> None:
-        raise NotImplementedError()  # pragma: no cover
+        if exc_type is not None:
+            await self.rollback()
+        else:
+            await self.commit()
 
     async def start(self) -> None:
         raise NotImplementedError()  # pragma: no cover

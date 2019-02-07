@@ -31,10 +31,10 @@ class PostgresBackend(DatabaseBackend):
 
         return dialect
 
-    async def startup(self) -> None:
+    async def connect(self) -> None:
         self.pool = await asyncpg.create_pool(str(self.database_url))
 
-    async def shutdown(self) -> None:
+    async def disconnect(self) -> None:
         assert self.pool is not None, "DatabaseBackend is not running"
         await self.pool.close()
         self.pool = None
@@ -157,20 +157,6 @@ class PostgresSession(DatabaseSession):
 class PostgresTransaction(DatabaseTransaction):
     def __init__(self, session: PostgresSession):
         self.session = session
-
-    async def __aenter__(self) -> None:
-        await self.start()
-
-    async def __aexit__(
-        self,
-        exc_type: typing.Type[BaseException] = None,
-        exc_value: BaseException = None,
-        traceback: TracebackType = None,
-    ) -> None:
-        if exc_type is not None:
-            await self.rollback()
-        else:
-            await self.commit()
 
     async def start(self) -> None:
         conn = await self.session.acquire_connection()
