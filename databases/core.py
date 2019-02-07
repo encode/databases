@@ -141,7 +141,7 @@ class Database:
         with SessionContext(self.session_context, self.backend) as session:
             return await session.fetchone(query=query)
 
-    async def execute(self, query: ClauseElement, values: dict=None) -> None:
+    async def execute(self, query: ClauseElement, values: dict = None) -> None:
         with SessionContext(self.session_context, self.backend) as session:
             return await session.execute(query=query, values=values)
 

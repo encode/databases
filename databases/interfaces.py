@@ -22,7 +22,7 @@ class DatabaseSession:
     async def fetchone(self, query: ClauseElement) -> typing.Any:
         raise NotImplementedError()  # pragma: no cover
 
-    async def execute(self, query: ClauseElement, values: dict=None) -> None:
+    async def execute(self, query: ClauseElement, values: dict = None) -> None:
         raise NotImplementedError()  # pragma: no cover
 
     async def executemany(self, query: ClauseElement, values: list) -> None:

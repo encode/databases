@@ -98,7 +98,7 @@ class MySQLSession(DatabaseSession):
             await cursor.close()
             await self.release_connection()
 
-    async def execute(self, query: ClauseElement, values: dict=None) -> None:
+    async def execute(self, query: ClauseElement, values: dict = None) -> None:
         if values is not None:
             query = query.values(values)
         query, args, result_columns = self._compile(query)
