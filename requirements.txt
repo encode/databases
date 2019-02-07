@@ -1,4 +1,5 @@
 sqlalchemy
+contextvars;python_version<"3.7"
 
 # Async database drivers
 asyncpg

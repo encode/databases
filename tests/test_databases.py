@@ -61,10 +61,15 @@ def async_adapter(wrapped_func):
 @async_adapter
 async def test_queries(database_url):
     async with Database(database_url) as database:
-        async with database.session(rollback_isolation=True) as session:
+        # fetchall()
+        query = notes.select()
+        results = await database.fetchall(query=query)
+        assert len(results) == 0
+
+        async with database.transaction(force_rollback=True):
             # execute()
             query = notes.insert().values(text="example1", completed=True)
-            await session.execute(query)
+            await database.execute(query)
 
             # executemany()
             query = notes.insert()
@@ -72,11 +77,11 @@ async def test_queries(database_url):
                 {"text": "example2", "completed": False},
                 {"text": "example3", "completed": True},
             ]
-            await session.executemany(query, data)
+            await database.executemany(query, data)
 
             # fetchall()
             query = notes.select()
-            results = await session.fetchall(query=query)
+            results = await database.fetchall(query=query)
             assert len(results) == 3
             assert results[0]["text"] == "example1"
             assert results[0]["completed"] == True
@@ -87,9 +92,14 @@ async def test_queries(database_url):
 
             # fetchone()
             query = notes.select()
-            result = await session.fetchone(query=query)
+            result = await database.fetchone(query=query)
             assert result["text"] == "example1"
             assert result["completed"] == True
+
+        # fetchall()
+        query = notes.select()
+        results = await database.fetchall(query=query)
+        assert len(results) == 0
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
@@ -97,28 +107,27 @@ async def test_queries(database_url):
 async def test_rollback_isolation(database_url):
     async with Database(database_url) as database:
         # Perform some INSERT operations on the database.
-        async with database.session(rollback_isolation=True) as session:
+        async with database.transaction(force_rollback=True):
             query = notes.insert().values(text="example1", completed=True)
-            await session.execute(query)
+            await database.execute(query)
 
         # Ensure INSERT operations have been rolled back.
-        async with database.session() as session:
-            query = notes.select()
-            results = await session.fetchall(query=query)
-            assert len(results) == 0
+        query = notes.select()
+        results = await database.fetchall(query=query)
+        assert len(results) == 0
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
 async def test_transaction_commit(database_url):
     async with Database(database_url) as database:
-        async with database.session(rollback_isolation=True) as session:
-            async with session.transaction():
+        async with database.transaction(force_rollback=True):
+            async with database.transaction():
                 query = notes.insert().values(text="example1", completed=True)
-                await session.execute(query)
+                await database.execute(query)
 
             query = notes.select()
-            results = await session.fetchall(query=query)
+            results = await database.fetchall(query=query)
             assert len(results) == 1
 
 
@@ -126,15 +135,15 @@ async def test_transaction_commit(database_url):
 @async_adapter
 async def test_transaction_rollback(database_url):
     async with Database(database_url) as database:
-        async with database.session(rollback_isolation=True) as session:
+        async with database.transaction(force_rollback=True):
             try:
-                async with session.transaction():
+                async with database.transaction():
                     query = notes.insert().values(text="example1", completed=True)
-                    await session.execute(query)
+                    await database.execute(query)
                     raise RuntimeError()
             except RuntimeError:
                 pass
 
             query = notes.select()
-            results = await session.fetchall(query=query)
+            results = await database.fetchall(query=query)
             assert len(results) == 0

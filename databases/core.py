@@ -1,9 +1,11 @@
 import typing
+from contextvars import ContextVar
+from sqlalchemy.sql import ClauseElement
 from types import TracebackType
 from urllib.parse import SplitResult, urlsplit
 
 from databases.importer import import_from_string
-from databases.interfaces import DatabaseBackend, DatabaseSession
+from databases.interfaces import DatabaseBackend, DatabaseSession, DatabaseTransaction
 
 
 class DatabaseURL:
@@ -106,6 +108,7 @@ class Database:
         assert issubclass(backend_cls, DatabaseBackend)
         self.backend = backend_cls(self.url)
         self.is_connected = False
+        self.session_context = ContextVar('session_context')
 
     async def connect(self) -> None:
         if not self.is_connected:
@@ -131,3 +134,68 @@ class Database:
         traceback: TracebackType = None,
     ) -> None:
         await self.disconnect()
+
+    async def fetchall(self, query: ClauseElement) -> typing.Any:
+        with SessionContext(self.session_context, self.backend) as session:
+            return await session.fetchall(query=query)
+
+    async def fetchone(self, query: ClauseElement) -> typing.Any:
+        with SessionContext(self.session_context, self.backend) as session:
+            return await session.fetchone(query=query)
+
+    async def execute(self, query: ClauseElement) -> None:
+        with SessionContext(self.session_context, self.backend) as session:
+            return await session.execute(query=query)
+
+    async def executemany(self, query: ClauseElement, values: list) -> None:
+        with SessionContext(self.session_context, self.backend) as session:
+            return await session.executemany(query=query, values=values)
+
+    def transaction(self, force_rollback: bool=False) -> DatabaseTransaction:
+        return TransactionContext(self.session_context, self.backend, force_rollback)
+
+
+class SessionContext:
+    def __init__(self, context: ContextVar, backend: DatabaseBackend) -> None:
+        self.context = context
+        self.backend = backend
+        self.session = None
+
+    def __enter__(self) -> DatabaseSession:
+        current_session, counter = self.context.get((None, 0))
+        if current_session is None:
+            self.session = self.backend.session()
+        else:
+            self.session = current_session
+        counter += 1
+        self.context.set((self.session, counter))
+        return self.session
+
+    def __exit__(self, *args: typing.Any, **kwargs: typing.Any) -> None:
+        current_session, counter = self.context.get((None, 0))
+        assert current_session is self.session
+        assert counter > 0
+        counter -= 1
+        if counter == 0:
+            current_session = None
+        self.context.set((current_session, counter))
+
+
+class TransactionContext(DatabaseTransaction):
+    def __init__(self, context: ContextVar, backend: DatabaseBackend, force_rollback: bool) -> None:
+        self.session_context = SessionContext(context, backend)
+        self.transaction = None
+        super().__init__(force_rollback)
+
+    async def start(self) -> None:
+        session = self.session_context.__enter__()
+        self.transaction = session.transaction(force_rollback=self.force_rollback)
+        await self.transaction.start()
+
+    async def commit(self) -> None:
+        await self.transaction.commit()
+        self.session_context.__exit__()
+
+    async def rollback(self) -> None:
+        await self.transaction.rollback()
+        self.session_context.__exit__()

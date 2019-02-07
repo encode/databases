@@ -133,8 +133,8 @@ class PostgresSession(DatabaseSession):
         finally:
             await self.release_connection()
 
-    def transaction(self) -> DatabaseTransaction:
-        return PostgresTransaction(session=self)
+    def transaction(self, force_rollback: bool=False) -> DatabaseTransaction:
+        return PostgresTransaction(session=self, force_rollback=force_rollback)
 
     async def acquire_connection(self) -> asyncpg.Connection:
         """
@@ -155,8 +155,9 @@ class PostgresSession(DatabaseSession):
 
 
 class PostgresTransaction(DatabaseTransaction):
-    def __init__(self, session: PostgresSession):
+    def __init__(self, session: PostgresSession, force_rollback: bool=False):
         self.session = session
+        super().__init__(force_rollback=force_rollback)
 
     async def start(self) -> None:
         conn = await self.session.acquire_connection()
