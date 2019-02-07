@@ -1,6 +1,5 @@
 import logging
 import typing
-from types import TracebackType
 
 import asyncpg
 from sqlalchemy.dialects.postgresql import pypostgresql
@@ -45,11 +44,7 @@ class PostgresBackend(DatabaseBackend):
 
 
 class PostgresSession(DatabaseSession):
-    def __init__(
-        self,
-        pool: asyncpg.pool.Pool,
-        dialect: Dialect,
-    ):
+    def __init__(self, pool: asyncpg.pool.Pool, dialect: Dialect):
         self.pool = pool
         self.dialect = dialect
         self.conn = None
@@ -113,7 +108,7 @@ class PostgresSession(DatabaseSession):
         finally:
             await self.release_connection()
 
-    def transaction(self, force_rollback: bool=False) -> DatabaseTransaction:
+    def transaction(self, force_rollback: bool = False) -> DatabaseTransaction:
         return PostgresTransaction(session=self, force_rollback=force_rollback)
 
     async def acquire_connection(self) -> asyncpg.Connection:
@@ -135,7 +130,7 @@ class PostgresSession(DatabaseSession):
 
 
 class PostgresTransaction(DatabaseTransaction):
-    def __init__(self, session: PostgresSession, force_rollback: bool=False):
+    def __init__(self, session: PostgresSession, force_rollback: bool = False):
         self.session = session
         super().__init__(force_rollback=force_rollback)
 

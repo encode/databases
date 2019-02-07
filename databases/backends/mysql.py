@@ -2,7 +2,6 @@ import getpass
 import logging
 import typing
 import uuid
-from types import TracebackType
 
 import aiomysql
 from sqlalchemy.dialects.mysql import pymysql
@@ -60,11 +59,7 @@ class Record:
 
 
 class MySQLSession(DatabaseSession):
-    def __init__(
-        self,
-        pool: aiomysql.pool.Pool,
-        dialect: Dialect,
-    ):
+    def __init__(self, pool: aiomysql.pool.Pool, dialect: Dialect):
         self.pool = pool
         self.dialect = dialect
         self.conn = None
@@ -126,7 +121,7 @@ class MySQLSession(DatabaseSession):
             await cursor.close()
             await self.release_connection()
 
-    def transaction(self, force_rollback: bool=False) -> DatabaseTransaction:
+    def transaction(self, force_rollback: bool = False) -> DatabaseTransaction:
         return MySQLTransaction(self, force_rollback=force_rollback)
 
     async def acquire_connection(self) -> aiomysql.Connection:
@@ -148,7 +143,7 @@ class MySQLSession(DatabaseSession):
 
 
 class MySQLTransaction(DatabaseTransaction):
-    def __init__(self, session: MySQLSession, force_rollback: bool=False):
+    def __init__(self, session: MySQLSession, force_rollback: bool = False):
         self.session = session
         self.is_root = False
         super().__init__(force_rollback=force_rollback)

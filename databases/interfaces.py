@@ -28,12 +28,12 @@ class DatabaseSession:
     async def executemany(self, query: ClauseElement, values: list) -> None:
         raise NotImplementedError()  # pragma: no cover
 
-    def transaction(self, force_rollback: bool=False) -> "DatabaseTransaction":
+    def transaction(self, force_rollback: bool = False) -> "DatabaseTransaction":
         raise NotImplementedError()  # pragma: no cover
 
 
 class DatabaseTransaction:
-    def __init__(self, force_rollback: bool=False):
+    def __init__(self, force_rollback: bool = False):
         self.force_rollback = force_rollback
 
     async def __aenter__(self) -> None:
