@@ -13,11 +13,18 @@
 </p>
 
 Databases gives you simple asyncio support for a range of databases.
+
 Currently PostgreSQL and MySQL are supported.
+
+**Requirements**: Python 3.6+
+
+## Installation
 
 ```shell
 $ pip install databases
 ```
+
+## Getting started
 
 Declare your tables using SQLAlchemy:
 
@@ -35,6 +42,12 @@ notes = sqlalchemy.Table(
     sqlalchemy.Column("completed", sqlalchemy.Boolean),
 )
 ```
+
+You can use any of the sqlalchemy column types, such as `sqlalchemy.JSON`, or
+use custom column types. Marshalling between python datatypes and the underlying
+database encoding will be correctly handled for you.
+
+## Queries
 
 You can now use SQLAlchemy core queries:
 
@@ -73,6 +86,8 @@ query = notes.select()
 row = await database.fetch_one(query)
 ```
 
+## Transactions
+
 Transactions are managed by async context blocks:
 
 ```python
@@ -99,3 +114,6 @@ to a clean state between each test case:
 async with database.transaction(force_rollback=True):
     ...
 ```
+
+Transaction blocks are managed as task-local state. Nested transactions
+are fully supported, and are implemented using database savepoints.
