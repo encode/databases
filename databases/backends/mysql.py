@@ -72,7 +72,7 @@ class MySQLSession(DatabaseSession):
         logger.debug(compiled.string, args)
         return compiled.string, args, compiled._result_columns
 
-    async def fetchall(self, query: ClauseElement) -> typing.Any:
+    async def fetch_all(self, query: ClauseElement) -> typing.Any:
         query, args, result_columns = self._compile(query)
 
         conn = await self.acquire_connection()
@@ -85,7 +85,7 @@ class MySQLSession(DatabaseSession):
             await cursor.close()
             await self.release_connection()
 
-    async def fetchone(self, query: ClauseElement) -> typing.Any:
+    async def fetch_one(self, query: ClauseElement) -> typing.Any:
         query, args, result_columns = self._compile(query)
 
         conn = await self.acquire_connection()
@@ -111,7 +111,7 @@ class MySQLSession(DatabaseSession):
             await cursor.close()
             await self.release_connection()
 
-    async def executemany(self, query: ClauseElement, values: list) -> None:
+    async def execute_many(self, query: ClauseElement, values: list) -> None:
         conn = await self.acquire_connection()
         cursor = await conn.cursor()
         try:
