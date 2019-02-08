@@ -24,6 +24,13 @@ Currently PostgreSQL and MySQL are supported.
 $ pip install databases
 ```
 
+You can install the required database drivers with:
+
+```shell
+$ pip install databases[postgresql]
+$ pip install databases[mysql]
+```
+
 ## Getting started
 
 Declare your tables using SQLAlchemy:
