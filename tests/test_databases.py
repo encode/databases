@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import functools
 import os
 
@@ -29,6 +30,14 @@ notes = sqlalchemy.Table(
     sqlalchemy.Column("completed", sqlalchemy.Boolean),
 )
 
+articles = sqlalchemy.Table(
+    "articles",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("title", sqlalchemy.String(length=100)),
+    sqlalchemy.Column("published", sqlalchemy.DateTime),
+)
+
 session = sqlalchemy.Table(
     "session",
     metadata,
@@ -39,13 +48,18 @@ session = sqlalchemy.Table(
 
 @pytest.fixture(autouse=True, scope="module")
 def create_test_database():
+    # Create test databases
     for url in DATABASE_URLS:
         database_url = DatabaseURL(url)
         if database_url.dialect == "mysql":
             url = str(database_url.replace(driver="pymysql"))
         engine = sqlalchemy.create_engine(url)
         metadata.create_all(engine)
+
+    # Run the test suite
     yield
+
+    # Drop test databases
     for url in DATABASE_URLS:
         database_url = DatabaseURL(url)
         if database_url.dialect == "mysql":
@@ -55,6 +69,9 @@ def create_test_database():
 
 
 def async_adapter(wrapped_func):
+    """
+    Decorator used to run async test cases.
+    """
     @functools.wraps(wrapped_func)
     def run_sync(*args, **kwargs):
         loop = asyncio.get_event_loop()
@@ -67,12 +84,12 @@ def async_adapter(wrapped_func):
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
 async def test_queries(database_url):
-    async with Database(database_url) as database:
-        # fetch_all()
-        query = notes.select()
-        results = await database.fetch_all(query=query)
-        assert len(results) == 0
+    """
+    Test that the basic `execute()`, `execute_many()`, `fetch_all()``, and
+    `fetch_one()` interfaces are all supported.
+    """
 
+    async with Database(database_url) as database:
         async with database.transaction(force_rollback=True):
             # execute()
             query = notes.insert()
@@ -104,15 +121,14 @@ async def test_queries(database_url):
             assert result["text"] == "example1"
             assert result["completed"] == True
 
-        # fetch_all()
-        query = notes.select()
-        results = await database.fetch_all(query=query)
-        assert len(results) == 0
-
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
 async def test_rollback_isolation(database_url):
+    """
+    Ensure that `database.transaction(force_rollback=True)` provides strict isolation.
+    """
+
     async with Database(database_url) as database:
         # Perform some INSERT operations on the database.
         async with database.transaction(force_rollback=True):
@@ -128,6 +144,10 @@ async def test_rollback_isolation(database_url):
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
 async def test_transaction_commit(database_url):
+    """
+    Ensure that transaction commit is supported.
+    """
+
     async with Database(database_url) as database:
         async with database.transaction(force_rollback=True):
             async with database.transaction():
@@ -142,6 +162,10 @@ async def test_transaction_commit(database_url):
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
 async def test_transaction_rollback(database_url):
+    """
+    Ensure that transaction rollback is supported.
+    """
+
     async with Database(database_url) as database:
         async with database.transaction(force_rollback=True):
             try:
@@ -160,6 +184,10 @@ async def test_transaction_rollback(database_url):
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
 async def test_transaction_commit_low_level(database_url):
+    """
+    Ensure that an explicit `await transaction.commit()` is supported.
+    """
+
     async with Database(database_url) as database:
         async with database.transaction(force_rollback=True):
             transaction = await database.transaction()
@@ -179,6 +207,10 @@ async def test_transaction_commit_low_level(database_url):
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
 async def test_transaction_rollback_low_level(database_url):
+    """
+    Ensure that an explicit `await transaction.rollback()` is supported.
+    """
+
     async with Database(database_url) as database:
         async with database.transaction(force_rollback=True):
             transaction = await database.transaction()
@@ -198,7 +230,35 @@ async def test_transaction_rollback_low_level(database_url):
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
+async def test_datetime_field(database_url):
+    """
+    Test DataTime fields, to ensure records are coerced to proper Python types.
+    """
+
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            now = datetime.datetime.now()
+
+            # execute()
+            query = articles.insert()
+            values = {"title": "Hello, world", "published": now}
+            await database.execute(query, values)
+
+            # fetch_all()
+            query = articles.select()
+            results = await database.fetch_all(query=query)
+            assert len(results) == 1
+            assert results[0]["title"] == "Hello, world"
+            assert results[0]["published"] == now
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
 async def test_json_field(database_url):
+    """
+    Test JSON fields, to ensure correct cross-database support.
+    """
+
     async with Database(database_url) as database:
         async with database.transaction(force_rollback=True):
             # execute()
