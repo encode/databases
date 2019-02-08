@@ -7,11 +7,14 @@ import aiomysql
 from sqlalchemy.dialects.mysql import pymysql
 from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.sql import ClauseElement
+from sqlalchemy.types import TypeEngine
 
 from databases.core import DatabaseURL
 from databases.interfaces import DatabaseBackend, DatabaseSession, DatabaseTransaction
 
 logger = logging.getLogger("databases")
+
+_result_processors = {}  # type: dict
 
 
 class MySQLBackend(DatabaseBackend):
@@ -45,17 +48,36 @@ class MySQLBackend(DatabaseBackend):
 
 
 class Record:
-    def __init__(self, row: tuple, result_columns: tuple) -> None:
+    def __init__(
+        self,
+        row: tuple,
+        result_columns: tuple,
+        cursor_description: tuple,
+        dialect: Dialect,
+    ) -> None:
         self._row = row
         self._result_columns = result_columns
+        # Cursor Desscription: https://www.python.org/dev/peps/pep-0249/#description
+        self._cursor_description = cursor_description
+        self._dialect = dialect
         self._column_map = {
-            col[0]: (idx, col) for idx, col in enumerate(self._result_columns)
+            column_name: (idx, datatype)
+            for idx, (column_name, _, _, datatype) in enumerate(self._result_columns)
         }
 
     def __getitem__(self, key: str) -> typing.Any:
-        idx, col = self._column_map[key]
+        idx, datatype = self._column_map[key]
         raw = self._row[idx]
-        return col[-1].python_type(raw)
+        description = self._cursor_description[idx]
+        try:
+            processor = _result_processors[datatype]
+        except KeyError:
+            processor = datatype.result_processor(self._dialect, description[1])
+            _result_processors[datatype] = processor
+
+        if processor is not None:
+            return processor(raw)
+        return raw
 
 
 class MySQLSession(DatabaseSession):
@@ -80,7 +102,10 @@ class MySQLSession(DatabaseSession):
         try:
             await cursor.execute(query, args)
             rows = await cursor.fetchall()
-            return [Record(row, result_columns) for row in rows]
+            return [
+                Record(row, result_columns, cursor.description, self.dialect)
+                for row in rows
+            ]
         finally:
             await cursor.close()
             await self.release_connection()
@@ -93,7 +118,7 @@ class MySQLSession(DatabaseSession):
         try:
             await cursor.execute(query, args)
             row = await cursor.fetchone()
-            return Record(row, result_columns)
+            return Record(row, result_columns, cursor.description, self.dialect)
         finally:
             await cursor.close()
             await self.release_connection()
