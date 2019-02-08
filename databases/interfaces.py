@@ -50,6 +50,13 @@ class DatabaseTransaction:
         else:
             await self.commit()
 
+    def __await__(self) -> typing.Generator:
+        return self._start().__await__()
+
+    async def _start(self) -> "DatabaseTransaction":
+        await self.start()
+        return self
+
     async def start(self) -> None:
         raise NotImplementedError()  # pragma: no cover
 

@@ -148,3 +148,42 @@ async def test_transaction_rollback(database_url):
             query = notes.select()
             results = await database.fetch_all(query=query)
             assert len(results) == 0
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_transaction_commit_low_level(database_url):
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            transaction = await database.transaction()
+            try:
+                query = notes.insert().values(text="example1", completed=True)
+                await database.execute(query)
+            except:  # pragma: no cover
+                await transaction.rollback()
+            else:
+                await transaction.commit()
+
+            query = notes.select()
+            results = await database.fetch_all(query=query)
+            assert len(results) == 1
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_transaction_rollback_low_level(database_url):
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            transaction = await database.transaction()
+            try:
+                query = notes.insert().values(text="example1", completed=True)
+                await database.execute(query)
+                raise RuntimeError()
+            except:
+                await transaction.rollback()
+            else:  # pragma: no cover
+                await transaction.commit()
+
+            query = notes.select()
+            results = await database.fetch_all(query=query)
+            assert len(results) == 0
