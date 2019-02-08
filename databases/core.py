@@ -9,9 +9,9 @@ from databases.importer import import_from_string
 from databases.interfaces import DatabaseBackend, DatabaseSession, DatabaseTransaction
 
 
-if sys.version_info >= (3, 7):
+if sys.version_info >= (3, 7):  # pragma: no cover
     from contextvars import ContextVar
-else:
+else:  # pragma: no cover
     from aiocontextvars import ContextVar
 
 
