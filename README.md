@@ -65,12 +65,12 @@ await database.execute_many(query, values)
 
 # Fetch multiple rows
 query = notes.select()
-rows = await database.fetch_all()
+rows = await database.fetch_all(query)
 
 
 # Fetch single row
 query = notes.select()
-row = await database.fetch_one()
+row = await database.fetch_one(query)
 ```
 
 Transactions are managed by async context blocks:
