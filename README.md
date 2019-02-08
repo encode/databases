@@ -48,17 +48,17 @@ values = [
     {"text": "example2", "completed": False},
     {"text": "example3", "completed": True},
 ]
-await database.executemany(query, values)
+await database.execute_many(query, values)
 
 
 # Fetch multiple rows
 query = notes.select()
-rows = await database.fetchall()
+rows = await database.fetch_all()
 
 
 # Fetch single row
 query = notes.select()
-row = await database.fetchone()
+row = await database.fetch_one()
 ```
 
 Transactions are managed by async context blocks:

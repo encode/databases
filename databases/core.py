@@ -133,21 +133,21 @@ class Database:
     ) -> None:
         await self.disconnect()
 
-    async def fetchall(self, query: ClauseElement) -> typing.Any:
+    async def fetch_all(self, query: ClauseElement) -> typing.Any:
         with SessionContext(self.session_context, self.backend) as session:
-            return await session.fetchall(query=query)
+            return await session.fetch_all(query=query)
 
-    async def fetchone(self, query: ClauseElement) -> typing.Any:
+    async def fetch_one(self, query: ClauseElement) -> typing.Any:
         with SessionContext(self.session_context, self.backend) as session:
-            return await session.fetchone(query=query)
+            return await session.fetch_one(query=query)
 
     async def execute(self, query: ClauseElement, values: dict = None) -> None:
         with SessionContext(self.session_context, self.backend) as session:
             return await session.execute(query=query, values=values)
 
-    async def executemany(self, query: ClauseElement, values: list) -> None:
+    async def execute_many(self, query: ClauseElement, values: list) -> None:
         with SessionContext(self.session_context, self.backend) as session:
-            return await session.executemany(query=query, values=values)
+            return await session.execute_many(query=query, values=values)
 
     def transaction(self, force_rollback: bool = False) -> DatabaseTransaction:
         return TransactionContext(self.session_context, self.backend, force_rollback)

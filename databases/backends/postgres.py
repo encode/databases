@@ -68,7 +68,7 @@ class PostgresSession(DatabaseSession):
         logger.debug(compiled_query, args)
         return compiled_query, args
 
-    async def fetchall(self, query: ClauseElement) -> typing.Any:
+    async def fetch_all(self, query: ClauseElement) -> typing.Any:
         query, args = self._compile(query)
 
         conn = await self.acquire_connection()
@@ -77,7 +77,7 @@ class PostgresSession(DatabaseSession):
         finally:
             await self.release_connection()
 
-    async def fetchone(self, query: ClauseElement) -> typing.Any:
+    async def fetch_one(self, query: ClauseElement) -> typing.Any:
         query, args = self._compile(query)
 
         conn = await self.acquire_connection()
@@ -97,7 +97,7 @@ class PostgresSession(DatabaseSession):
         finally:
             await self.release_connection()
 
-    async def executemany(self, query: ClauseElement, values: list) -> None:
+    async def execute_many(self, query: ClauseElement, values: list) -> None:
         conn = await self.acquire_connection()
         try:
             # asyncpg uses prepared statements under the hood, so we just

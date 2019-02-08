@@ -61,9 +61,9 @@ def async_adapter(wrapped_func):
 @async_adapter
 async def test_queries(database_url):
     async with Database(database_url) as database:
-        # fetchall()
+        # fetch_all()
         query = notes.select()
-        results = await database.fetchall(query=query)
+        results = await database.fetch_all(query=query)
         assert len(results) == 0
 
         async with database.transaction(force_rollback=True):
@@ -72,17 +72,17 @@ async def test_queries(database_url):
             values = {"text": "example1", "completed": True}
             await database.execute(query, values)
 
-            # executemany()
+            # execute_many()
             query = notes.insert()
             values = [
                 {"text": "example2", "completed": False},
                 {"text": "example3", "completed": True},
             ]
-            await database.executemany(query, values)
+            await database.execute_many(query, values)
 
-            # fetchall()
+            # fetch_all()
             query = notes.select()
-            results = await database.fetchall(query=query)
+            results = await database.fetch_all(query=query)
             assert len(results) == 3
             assert results[0]["text"] == "example1"
             assert results[0]["completed"] == True
@@ -91,15 +91,15 @@ async def test_queries(database_url):
             assert results[2]["text"] == "example3"
             assert results[2]["completed"] == True
 
-            # fetchone()
+            # fetch_one()
             query = notes.select()
-            result = await database.fetchone(query=query)
+            result = await database.fetch_one(query=query)
             assert result["text"] == "example1"
             assert result["completed"] == True
 
-        # fetchall()
+        # fetch_all()
         query = notes.select()
-        results = await database.fetchall(query=query)
+        results = await database.fetch_all(query=query)
         assert len(results) == 0
 
 
@@ -114,7 +114,7 @@ async def test_rollback_isolation(database_url):
 
         # Ensure INSERT operations have been rolled back.
         query = notes.select()
-        results = await database.fetchall(query=query)
+        results = await database.fetch_all(query=query)
         assert len(results) == 0
 
 
@@ -128,7 +128,7 @@ async def test_transaction_commit(database_url):
                 await database.execute(query)
 
             query = notes.select()
-            results = await database.fetchall(query=query)
+            results = await database.fetch_all(query=query)
             assert len(results) == 1
 
 
@@ -146,5 +146,5 @@ async def test_transaction_rollback(database_url):
                 pass
 
             query = notes.select()
-            results = await database.fetchall(query=query)
+            results = await database.fetch_all(query=query)
             assert len(results) == 0

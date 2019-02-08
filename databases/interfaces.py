@@ -16,16 +16,16 @@ class DatabaseBackend:
 
 
 class DatabaseSession:
-    async def fetchall(self, query: ClauseElement) -> typing.Any:
+    async def fetch_all(self, query: ClauseElement) -> typing.Any:
         raise NotImplementedError()  # pragma: no cover
 
-    async def fetchone(self, query: ClauseElement) -> typing.Any:
+    async def fetch_one(self, query: ClauseElement) -> typing.Any:
         raise NotImplementedError()  # pragma: no cover
 
     async def execute(self, query: ClauseElement, values: dict = None) -> None:
         raise NotImplementedError()  # pragma: no cover
 
-    async def executemany(self, query: ClauseElement, values: list) -> None:
+    async def execute_many(self, query: ClauseElement, values: list) -> None:
         raise NotImplementedError()  # pragma: no cover
 
     def transaction(self, force_rollback: bool = False) -> "DatabaseTransaction":
