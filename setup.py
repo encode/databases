@@ -48,7 +48,10 @@ setup(
     package_data={"databases": ["py.typed"]},
     data_files=[("", ["LICENSE.md"])],
     install_requires=["sqlalchemy", 'aiocontextvars;python_version<"3.7"'],
-    extras_require={},
+    extras_require={
+        "postgresql": ["asyncpg", "psycopg2-binary"],
+        "mysql": ["aiomysql", "pymysql"]
+    },
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Environment :: Web Environment",

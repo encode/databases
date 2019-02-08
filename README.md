@@ -18,6 +18,8 @@ Currently PostgreSQL and MySQL are supported.
 
 **Requirements**: Python 3.6+
 
+---
+
 ## Installation
 
 ```shell
@@ -50,13 +52,13 @@ notes = sqlalchemy.Table(
 )
 ```
 
-You can use any of the SQLAlchemy column types such as `sqlalchemy.JSON`, or
-use custom column types. Marshalling between python datatypes and the underlying
-database encoding will be correctly handled for you.
+
+You can use any of the sqlalchemy column types such as `sqlalchemy.JSON`, or
+custom column types.
 
 ## Queries
 
-You can now use [SQLAlchemy core](https://docs.sqlalchemy.org/en/latest/core/) queries:
+You can now use any [SQLAlchemy core](https://docs.sqlalchemy.org/en/latest/core/) queries:
 
 ```python
 from databases import Database
