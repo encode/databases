@@ -8,12 +8,6 @@ import sqlalchemy
 
 from databases import Database, DatabaseURL
 
-# from starlette.applications import Starlette
-# from starlette.database import transaction
-# from starlette.datastructures import CommaSeparatedStrings, DatabaseURL
-# from starlette.middleware.database import DatabaseMiddleware
-# from starlette.responses import JSONResponse
-# from starlette.testclient import TestClient
 
 assert "TEST_DATABASE_URLS" in os.environ, "TEST_DATABASE_URLS is not set."
 
