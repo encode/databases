@@ -1,5 +1,17 @@
 # Databases
 
+<p>
+<a href="https://travis-ci.org/encode/databases">
+    <img src="https://travis-ci.org/encode/databases.svg?branch=master" alt="Build Status">
+</a>
+<a href="https://codecov.io/gh/encode/databases">
+    <img src="https://codecov.io/gh/encode/databases/branch/master/graph/badge.svg" alt="Coverage">
+</a>
+<a href="https://pypi.org/project/databases/">
+    <img src="https://badge.fury.io/py/databases.svg" alt="Package version">
+</a>
+</p>
+
 Databases gives you simple asyncio support for a range of databases.
 Currently PostgreSQL and MySQL are supported.
 
