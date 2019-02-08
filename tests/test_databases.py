@@ -247,6 +247,7 @@ async def test_datetime_field(database_url):
             assert results[0]["published"] == now
 
 
+@pytest.mark.xfail
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
 async def test_json_field(database_url):
