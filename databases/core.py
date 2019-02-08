@@ -1,5 +1,5 @@
+import sys
 import typing
-from contextvars import ContextVar
 from types import TracebackType
 from urllib.parse import SplitResult, urlsplit
 
@@ -7,6 +7,12 @@ from sqlalchemy.sql import ClauseElement
 
 from databases.importer import import_from_string
 from databases.interfaces import DatabaseBackend, DatabaseSession, DatabaseTransaction
+
+
+if sys.version_info >= (3, 7):  # pragma: no cover
+    from contextvars import ContextVar
+else:  # pragma: no cover
+    from aiocontextvars import ContextVar
 
 
 class DatabaseURL:
