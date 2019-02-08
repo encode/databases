@@ -8,7 +8,6 @@ import sqlalchemy
 
 from databases import Database, DatabaseURL
 
-
 assert "TEST_DATABASE_URLS" in os.environ, "TEST_DATABASE_URLS is not set."
 
 DATABASE_URLS = [url.strip() for url in os.environ["TEST_DATABASE_URLS"].split(",")]
@@ -232,7 +231,7 @@ async def test_datetime_field(database_url):
 
     async with Database(database_url) as database:
         async with database.transaction(force_rollback=True):
-            now = datetime.datetime.now()
+            now = datetime.datetime.now().replace(microsecond=0)
 
             # execute()
             query = articles.insert()
