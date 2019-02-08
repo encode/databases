@@ -47,7 +47,7 @@ setup(
     packages=get_packages("databases"),
     package_data={"databases": ["py.typed"]},
     data_files=[("", ["LICENSE.md"])],
-    install_requires=["sqlalchemy", 'contextvars;python_version<"3.7"'],
+    install_requires=["sqlalchemy", 'aiocontextvars;python_version<"3.7"'],
     extras_require={},
     classifiers=[
         "Development Status :: 3 - Alpha",
