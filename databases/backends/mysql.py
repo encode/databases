@@ -7,11 +7,14 @@ import aiomysql
 from sqlalchemy.dialects.mysql import pymysql
 from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.sql import ClauseElement
+from sqlalchemy.types import TypeEngine
 
 from databases.core import DatabaseURL
 from databases.interfaces import DatabaseBackend, DatabaseSession, DatabaseTransaction
 
 logger = logging.getLogger("databases")
+
+_result_processors = {}  # type: dict
 
 
 class MySQLBackend(DatabaseBackend):
@@ -66,7 +69,12 @@ class Record:
         idx, datatype = self._column_map[key]
         raw = self._row[idx]
         description = self._cursor_description[idx]
-        processor = datatype.result_processor(self._dialect, description[1])
+        try:
+            processor = _result_processors[datatype]
+        except KeyError:
+            processor = datatype.result_processor(self._dialect, description[1])
+            _result_processors[datatype] = processor
+
         if processor is not None:
             return processor(raw)
         return raw
