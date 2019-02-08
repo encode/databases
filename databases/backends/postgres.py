@@ -12,6 +12,9 @@ from databases.interfaces import DatabaseBackend, DatabaseSession, DatabaseTrans
 logger = logging.getLogger("databases")
 
 
+_result_processors = {}  # type: dict
+
+
 class PostgresBackend(DatabaseBackend):
     def __init__(self, database_url: typing.Union[str, DatabaseURL]) -> None:
         self.database_url = DatabaseURL(database_url)
@@ -43,6 +46,30 @@ class PostgresBackend(DatabaseBackend):
         return PostgresSession(self.pool, self.dialect)
 
 
+class Record:
+    def __init__(self, row: tuple, result_columns: tuple, dialect: Dialect) -> None:
+        self._row = row
+        self._result_columns = result_columns
+        self._dialect = dialect
+        self._column_map = {
+            column_name: (idx, datatype)
+            for idx, (column_name, _, _, datatype) in enumerate(self._result_columns)
+        }
+
+    def __getitem__(self, key: str) -> typing.Any:
+        idx, datatype = self._column_map[key]
+        raw = self._row[idx]
+        try:
+            processor = _result_processors[datatype]
+        except KeyError:
+            processor = datatype.result_processor(self._dialect, None)
+            _result_processors[datatype] = processor
+
+        if processor is not None:
+            return processor(raw)
+        return raw
+
+
 class PostgresSession(DatabaseSession):
     def __init__(self, pool: asyncpg.pool.Pool, dialect: Dialect):
         self.pool = pool
@@ -50,7 +77,7 @@ class PostgresSession(DatabaseSession):
         self.conn = None
         self.connection_holders = 0
 
-    def _compile(self, query: ClauseElement) -> typing.Tuple[str, list]:
+    def _compile(self, query: ClauseElement) -> typing.Tuple[str, list, tuple]:
         compiled = query.compile(dialect=self.dialect)
         compiled_params = sorted(compiled.params.items())
 
@@ -66,30 +93,32 @@ class PostgresSession(DatabaseSession):
         ]
 
         logger.debug(compiled_query, args)
-        return compiled_query, args
+        return compiled_query, args, compiled._result_columns
 
     async def fetch_all(self, query: ClauseElement) -> typing.Any:
-        query, args = self._compile(query)
+        query, args, result_columns = self._compile(query)
 
         conn = await self.acquire_connection()
         try:
-            return await conn.fetch(query, *args)
+            rows = await conn.fetch(query, *args)
         finally:
             await self.release_connection()
+        return [Record(row, result_columns, self.dialect) for row in rows]
 
     async def fetch_one(self, query: ClauseElement) -> typing.Any:
-        query, args = self._compile(query)
+        query, args, result_columns = self._compile(query)
 
         conn = await self.acquire_connection()
         try:
-            return await conn.fetchrow(query, *args)
+            row = await conn.fetchrow(query, *args)
         finally:
             await self.release_connection()
+        return Record(row, result_columns, self.dialect)
 
     async def execute(self, query: ClauseElement, values: dict = None) -> None:
         if values is not None:
             query = query.values(values)
-        query, args = self._compile(query)
+        query, args, result_columns = self._compile(query)
 
         conn = await self.acquire_connection()
         try:
@@ -105,7 +134,7 @@ class PostgresSession(DatabaseSession):
             # using the same prepared statement.
             for item in values:
                 single_query = query.values(item)
-                single_query, args = self._compile(single_query)
+                single_query, args, result_columns = self._compile(single_query)
                 await conn.execute(single_query, *args)
         finally:
             await self.release_connection()
