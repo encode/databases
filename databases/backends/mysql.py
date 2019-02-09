@@ -159,7 +159,9 @@ class MySQLSession(DatabaseSession):
             await self.pool.release(self.conn)
             self.conn = None
 
-    async def iterate(self, query: ClauseElement) -> typing.AsyncIterator[Record]:
+    async def iterate(
+        self, query: ClauseElement
+    ) -> typing.AsyncGenerator[typing.Any, None]:
         query, args, result_columns = self._compile(query)
 
         conn = await self.acquire_connection()

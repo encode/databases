@@ -31,8 +31,13 @@ class DatabaseSession:
     def transaction(self, force_rollback: bool = False) -> "DatabaseTransaction":
         raise NotImplementedError()  # pragma: no cover
 
-    async def iterate(self, query: ClauseElement) -> typing.AsyncIterable[typing.Any]:
+    async def iterate(
+        self, query: ClauseElement
+    ) -> typing.AsyncGenerator[typing.Any, None]:
         raise NotImplementedError()  # pragma: no cover
+        # mypy needs async iterators to contain a `yield`
+        # https://github.com/python/mypy/issues/5385#issuecomment-407281656
+        yield True  # pragma: no cover
 
 
 class DatabaseTransaction:
