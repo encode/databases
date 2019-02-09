@@ -138,6 +138,19 @@ async def test_queries(database_url):
             assert result["text"] == "example1"
             assert result["completed"] == True
 
+            # iterate()
+            query = notes.select()
+            iterate_results = []
+            async for result in database.iterate(query=query):
+                iterate_results.append(result)
+            assert len(iterate_results) == 3
+            assert iterate_results[0]["text"] == "example1"
+            assert iterate_results[0]["completed"] == True
+            assert iterate_results[1]["text"] == "example2"
+            assert iterate_results[1]["completed"] == False
+            assert iterate_results[2]["text"] == "example3"
+            assert iterate_results[2]["completed"] == True
+
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter

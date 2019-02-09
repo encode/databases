@@ -31,6 +31,9 @@ class DatabaseSession:
     def transaction(self, force_rollback: bool = False) -> "DatabaseTransaction":
         raise NotImplementedError()  # pragma: no cover
 
+    async def iterate(self, query: ClauseElement) -> typing.AsyncIterable[typing.Any]:
+        raise NotImplementedError()  # pragma: no cover
+
 
 class DatabaseTransaction:
     def __init__(self, force_rollback: bool = False):

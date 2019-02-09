@@ -159,6 +159,20 @@ class MySQLSession(DatabaseSession):
             await self.pool.release(self.conn)
             self.conn = None
 
+    async def iterate(self, query: ClauseElement) -> typing.AsyncIterator[Record]:
+        query, args, result_columns = self._compile(query)
+
+        conn = await self.acquire_connection()
+        cursor = await conn.cursor()
+
+        try:
+            await cursor.execute(query, args)
+            async for row in cursor:
+                yield Record(row, result_columns, self.dialect)
+        finally:
+            await cursor.close()
+            await self.release_connection()
+
 
 class MySQLTransaction(DatabaseTransaction):
     def __init__(self, session: MySQLSession, force_rollback: bool = False):
