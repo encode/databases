@@ -8,7 +8,6 @@ from sqlalchemy.sql import ClauseElement
 from databases.importer import import_from_string
 from databases.interfaces import DatabaseBackend, DatabaseSession, DatabaseTransaction
 
-
 if sys.version_info >= (3, 7):  # pragma: no cover
     from contextvars import ContextVar
 else:  # pragma: no cover
@@ -108,22 +107,30 @@ class Database:
         "mysql": "databases.backends.mysql:MySQLBackend",
     }
 
-    def __init__(self, url: typing.Union[str, DatabaseURL]):
+    def __init__(
+        self, url: typing.Union[str, DatabaseURL], force_rollback: bool = False
+    ):
         self.url = DatabaseURL(url)
+        self.force_rollback = force_rollback
         backend_str = self.backends[self.url.dialect]
         backend_cls = import_from_string(backend_str)
         assert issubclass(backend_cls, DatabaseBackend)
         self.backend = backend_cls(self.url)
         self.is_connected = False
+        self.rollback_transaction = None
         self.session_context = ContextVar("session_context")  # type: ContextVar
 
     async def connect(self) -> None:
         if not self.is_connected:
             await self.backend.connect()
             self.is_connected = True
+            if self.force_rollback:
+                self.rollback_transaction = await self.transaction()
 
     async def disconnect(self) -> None:
         if self.is_connected:
+            if self.rollback_transaction is not None:
+                await self.rollback_transaction.rollback()
             await self.backend.disconnect()
             self.is_connected = False
 

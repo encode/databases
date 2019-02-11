@@ -17,6 +17,8 @@ isort
 mypy
 pytest
 pytest-cov
+requests
+starlette
 
 # Documentation
 mkdocs
