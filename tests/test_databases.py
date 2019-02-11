@@ -325,3 +325,25 @@ async def test_custom_field(database_url):
             assert len(results) == 1
             assert results[0]["title"] == "Hello, world"
             assert results[0]["published"] == today
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_connections_isolation(database_url):
+    """
+    Ensure that changes are visible between different connections.
+    To check this we have to not create a transaction, so that
+    each query ends up on a different connection from the pool.
+    """
+
+    async with Database(database_url) as database:
+        try:
+            query = notes.insert().values(text="example1", completed=True)
+            await database.execute(query)
+
+            query = notes.select()
+            results = await database.fetch_all(query=query)
+            assert len(results) == 1
+        finally:
+            query = notes.delete()
+            await database.execute(query)
