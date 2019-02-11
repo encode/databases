@@ -1,5 +1,4 @@
 import typing
-from types import TracebackType
 
 from sqlalchemy.sql import ClauseElement
 
@@ -28,7 +27,7 @@ class DatabaseSession:
     async def execute_many(self, query: ClauseElement, values: list) -> None:
         raise NotImplementedError()  # pragma: no cover
 
-    def transaction(self, force_rollback: bool = False) -> "DatabaseTransaction":
+    def transaction(self) -> "DatabaseTransaction":
         raise NotImplementedError()  # pragma: no cover
 
     async def iterate(
@@ -41,30 +40,6 @@ class DatabaseSession:
 
 
 class DatabaseTransaction:
-    def __init__(self, force_rollback: bool = False):
-        self.force_rollback = force_rollback
-
-    async def __aenter__(self) -> None:
-        await self.start()
-
-    async def __aexit__(
-        self,
-        exc_type: typing.Type[BaseException] = None,
-        exc_value: BaseException = None,
-        traceback: TracebackType = None,
-    ) -> None:
-        if exc_type is not None or self.force_rollback:
-            await self.rollback()
-        else:
-            await self.commit()
-
-    def __await__(self) -> typing.Generator:
-        return self._start().__await__()
-
-    async def _start(self) -> "DatabaseTransaction":
-        await self.start()
-        return self
-
     async def start(self) -> None:
         raise NotImplementedError()  # pragma: no cover
 
