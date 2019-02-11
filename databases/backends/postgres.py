@@ -159,6 +159,18 @@ class PostgresSession(DatabaseSession):
             await self.pool.release(self.conn)
             self.conn = None
 
+    async def iterate(
+        self, query: ClauseElement
+    ) -> typing.AsyncGenerator[typing.Any, None]:
+        query, args, result_columns = self._compile(query)
+
+        conn = await self.acquire_connection()
+        try:
+            async for row in conn.cursor(query, *args):
+                yield Record(row, result_columns, self.dialect)
+        finally:
+            await self.release_connection()
+
 
 class PostgresTransaction(DatabaseTransaction):
     def __init__(self, session: PostgresSession, force_rollback: bool = False):

@@ -155,6 +155,13 @@ class Database:
         with SessionContext(self.session_context, self.backend) as session:
             return await session.execute_many(query=query, values=values)
 
+    async def iterate(
+        self, query: ClauseElement
+    ) -> typing.AsyncGenerator[typing.Any, None]:
+        with SessionContext(self.session_context, self.backend) as session:
+            async for record in session.iterate(query):
+                yield record
+
     def transaction(self, force_rollback: bool = False) -> DatabaseTransaction:
         return TransactionContext(self.session_context, self.backend, force_rollback)
 
