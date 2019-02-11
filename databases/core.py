@@ -8,7 +8,6 @@ from sqlalchemy.sql import ClauseElement
 from databases.importer import import_from_string
 from databases.interfaces import DatabaseBackend, DatabaseSession, DatabaseTransaction
 
-
 if sys.version_info >= (3, 7):  # pragma: no cover
     from contextvars import ContextVar
 else:  # pragma: no cover
@@ -115,7 +114,7 @@ class Database:
         assert issubclass(backend_cls, DatabaseBackend)
         self.backend = backend_cls(self.url)
         self.is_connected = False
-        self.session_context = ContextVar("session_context")  # type: ContextVar
+        self.task_local_sessions = ContextVar("task_local_sessions")  # type: ContextVar
 
     async def connect(self) -> None:
         if not self.is_connected:
@@ -140,73 +139,91 @@ class Database:
         await self.disconnect()
 
     async def fetch_all(self, query: ClauseElement) -> typing.Any:
-        with SessionContext(self.session_context, self.backend) as session:
+        with SessionManager(self) as session:
             return await session.fetch_all(query=query)
 
     async def fetch_one(self, query: ClauseElement) -> typing.Any:
-        with SessionContext(self.session_context, self.backend) as session:
+        with SessionManager(self) as session:
             return await session.fetch_one(query=query)
 
     async def execute(self, query: ClauseElement, values: dict = None) -> None:
-        with SessionContext(self.session_context, self.backend) as session:
+        with SessionManager(self) as session:
             return await session.execute(query=query, values=values)
 
     async def execute_many(self, query: ClauseElement, values: list) -> None:
-        with SessionContext(self.session_context, self.backend) as session:
+        with SessionManager(self) as session:
             return await session.execute_many(query=query, values=values)
 
     async def iterate(
         self, query: ClauseElement
     ) -> typing.AsyncGenerator[typing.Any, None]:
-        with SessionContext(self.session_context, self.backend) as session:
+        with SessionManager(self) as session:
             async for record in session.iterate(query):
                 yield record
 
-    def transaction(self, force_rollback: bool = False) -> DatabaseTransaction:
-        return TransactionContext(self.session_context, self.backend, force_rollback)
+    def transaction(self, force_rollback: bool = False) -> "TransactionManager":
+        return TransactionManager(self, force_rollback)
 
 
-class SessionContext:
-    def __init__(self, context: ContextVar, backend: DatabaseBackend) -> None:
-        self.context = context
-        self.backend = backend
+class SessionManager:
+    def __init__(self, database: Database) -> None:
+        self.database = database
 
     def __enter__(self) -> DatabaseSession:
-        current_session, counter = self.context.get((None, 0))
+        current_session, counter = self.database.task_local_sessions.get((None, 0))
         if current_session is None:
-            self.session = self.backend.session()
+            self.session = self.database.backend.session()
         else:
             self.session = current_session
         counter += 1
-        self.context.set((self.session, counter))
+        self.database.task_local_sessions.set((self.session, counter))
         return self.session
 
     def __exit__(self, *args: typing.Any, **kwargs: typing.Any) -> None:
-        current_session, counter = self.context.get((None, 0))
+        current_session, counter = self.database.task_local_sessions.get((None, 0))
         assert current_session is self.session
         assert counter > 0
         counter -= 1
         if counter == 0:
             current_session = None
-        self.context.set((current_session, counter))
+        self.database.task_local_sessions.set((current_session, counter))
 
 
-class TransactionContext(DatabaseTransaction):
-    def __init__(
-        self, context: ContextVar, backend: DatabaseBackend, force_rollback: bool
+class TransactionManager:
+    def __init__(self, database: Database, force_rollback: bool) -> None:
+        self.session_manager = SessionManager(database)
+        self.force_rollback = force_rollback
+
+    async def __aenter__(self) -> None:
+        await self.start()
+
+    async def __aexit__(
+        self,
+        exc_type: typing.Type[BaseException] = None,
+        exc_value: BaseException = None,
+        traceback: TracebackType = None,
     ) -> None:
-        self.session_context = SessionContext(context, backend)
-        super().__init__(force_rollback)
+        if exc_type is not None or self.force_rollback:
+            await self.rollback()
+        else:
+            await self.commit()
+
+    def __await__(self) -> typing.Generator:
+        return self._start().__await__()
+
+    async def _start(self) -> "TransactionManager":
+        await self.start()
+        return self
 
     async def start(self) -> None:
-        session = self.session_context.__enter__()
-        self.transaction = session.transaction(force_rollback=self.force_rollback)
+        session = self.session_manager.__enter__()
+        self.transaction = session.transaction()
         await self.transaction.start()
 
     async def commit(self) -> None:
         await self.transaction.commit()
-        self.session_context.__exit__()
+        self.session_manager.__exit__()
 
     async def rollback(self) -> None:
         await self.transaction.rollback()
-        self.session_context.__exit__()
+        self.session_manager.__exit__()

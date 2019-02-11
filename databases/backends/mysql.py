@@ -140,8 +140,8 @@ class MySQLSession(DatabaseSession):
             await cursor.close()
             await self.release_connection()
 
-    def transaction(self, force_rollback: bool = False) -> DatabaseTransaction:
-        return MySQLTransaction(self, force_rollback=force_rollback)
+    def transaction(self) -> DatabaseTransaction:
+        return MySQLTransaction(self)
 
     async def acquire_connection(self) -> aiomysql.Connection:
         """
@@ -178,10 +178,9 @@ class MySQLSession(DatabaseSession):
 
 
 class MySQLTransaction(DatabaseTransaction):
-    def __init__(self, session: MySQLSession, force_rollback: bool = False):
+    def __init__(self, session: MySQLSession):
         self.session = session
         self.is_root = False
-        super().__init__(force_rollback=force_rollback)
 
     async def start(self) -> None:
         if self.session.has_root_transaction is False:
