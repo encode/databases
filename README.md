@@ -69,12 +69,10 @@ database = Database('postgresql://localhost/example')
 # Establish the connection pool
 await database.connect()
 
-
 # Execute
 query = notes.insert()
 values = {"text": "example1", "completed": True}
 await database.execute(query, values)
-
 
 # Execute many
 query = notes.insert()
@@ -84,15 +82,18 @@ values = [
 ]
 await database.execute_many(query, values)
 
-
 # Fetch multiple rows
 query = notes.select()
 rows = await database.fetch_all(query)
 
-
 # Fetch single row
 query = notes.select()
 row = await database.fetch_one(query)
+
+# Fetch multiple rows without loading everything into memory at once.
+query = notes.select()
+async for row in database.iterate(query):
+    ...
 ```
 
 ## Transactions
