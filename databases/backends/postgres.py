@@ -47,18 +47,23 @@ class PostgresBackend(DatabaseBackend):
 
 
 class Record:
-    def __init__(self, row: tuple, result_columns: tuple, dialect: Dialect) -> None:
+    def __init__(self, row: dict, result_columns: tuple, dialect: Dialect) -> None:
         self._row = row
         self._result_columns = result_columns
         self._dialect = dialect
         self._column_map = {
-            column_name: (idx, datatype)
-            for idx, (column_name, _, _, datatype) in enumerate(self._result_columns)
+            column_name: datatype
+            for column_name, _, _, datatype in self._result_columns
         }
 
     def __getitem__(self, key: str) -> typing.Any:
-        idx, datatype = self._column_map[key]
-        raw = self._row[idx]
+        raw = self._row[key]
+
+        try:
+            datatype = self._column_map[key]
+        except KeyError:
+            return raw
+
         try:
             processor = _result_processors[datatype]
         except KeyError:
@@ -164,6 +169,17 @@ class PostgresSession(DatabaseSession):
     ) -> typing.AsyncGenerator[typing.Any, None]:
         query, args, result_columns = self._compile(query)
 
+        conn = await self.acquire_connection()
+        try:
+            async for row in conn.cursor(query, *args):
+                yield Record(row, result_columns, self.dialect)
+        finally:
+            await self.release_connection()
+
+    async def raw(
+        self, query: ClauseElement, **kwargs: typing.Any
+    ) -> typing.AsyncGenerator[typing.Any, None]:
+        query, args, result_columns = self._compile(query.bindparams(**kwargs))
         conn = await self.acquire_connection()
         try:
             async for row in conn.cursor(query, *args):

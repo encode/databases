@@ -38,6 +38,12 @@ class DatabaseSession:
         # https://github.com/python/mypy/issues/5385#issuecomment-407281656
         yield True  # pragma: no cover
 
+    async def raw(
+        self, query: ClauseElement, **kwargs: typing.Any
+    ) -> typing.AsyncGenerator[typing.Any, None]:
+        raise NotImplementedError()  # pragma: no cover
+        yield True  # pragma: no cover
+
 
 class DatabaseTransaction:
     async def start(self) -> None:

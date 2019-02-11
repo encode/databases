@@ -94,6 +94,12 @@ row = await database.fetch_one(query)
 query = notes.select()
 async for row in database.iterate(query):
     ...
+
+# Fetch rows using raw sql queries
+query = sqlalchemy.text("SELECT * from notes where id=:id")
+async for row in database.raw(query, id=1)
+    ...
+
 ```
 
 ## Transactions

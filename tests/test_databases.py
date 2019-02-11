@@ -5,6 +5,7 @@ import os
 
 import pytest
 import sqlalchemy
+from sqlalchemy.dialects.mysql import pymysql
 
 from databases import Database, DatabaseURL
 
@@ -102,8 +103,8 @@ def async_adapter(wrapped_func):
 @async_adapter
 async def test_queries(database_url):
     """
-    Test that the basic `execute()`, `execute_many()`, `fetch_all()``, and
-    `fetch_one()` interfaces are all supported.
+    Test that the basic `execute()`, `execute_many()`, `fetch_all()``,
+    `fetch_one() and raw()` interfaces are all supported.
     """
 
     async with Database(database_url) as database:
@@ -150,6 +151,15 @@ async def test_queries(database_url):
             assert iterate_results[1]["completed"] == False
             assert iterate_results[2]["text"] == "example3"
             assert iterate_results[2]["completed"] == True
+
+            # raw()
+            query = sqlalchemy.text("SELECT * from notes where id=:id")
+            raw_results = []
+            async for result in database.raw(query, id=1):
+                raw_results.append(result)
+            assert len(raw_results) == 1
+            assert raw_results[0]["text"] == "example1"
+            assert raw_results[0]["completed"] == True
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
@@ -301,6 +311,21 @@ async def test_json_field(database_url):
             results = await database.fetch_all(query=query)
             assert len(results) == 1
             assert results[0]["data"] == {"text": "hello", "boolean": True, "int": 1}
+
+            # raw()
+            query = sqlalchemy.text("SELECT id, data from session").columns(
+                data=sqlalchemy.JSON
+            )
+            raw_results = []
+            async for result in database.raw(query):
+                raw_results.append(result)
+            assert len(raw_results) == 1
+            assert raw_results[0]["id"] == 1
+            assert raw_results[0]["data"] == {
+                "text": "hello",
+                "boolean": True,
+                "int": 1,
+            }
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)

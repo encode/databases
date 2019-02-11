@@ -154,6 +154,13 @@ class Database:
         with SessionManager(self) as session:
             return await session.execute_many(query=query, values=values)
 
+    async def raw(
+        self, query: ClauseElement, **kwargs: typing.Any
+    ) -> typing.AsyncGenerator[typing.Any, None]:
+        with SessionManager(self) as session:
+            async for record in session.raw(query=query, **kwargs):
+                yield record
+
     async def iterate(
         self, query: ClauseElement
     ) -> typing.AsyncGenerator[typing.Any, None]:
