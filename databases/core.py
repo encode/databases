@@ -167,7 +167,7 @@ class Database:
         try:
             return self._connection_context.get()
         except LookupError:
-            connection = Connection(self._connection_context, self._backend)
+            connection = Connection(self._backend)
             self._connection_context.set(connection)
             return connection
 
@@ -176,29 +176,29 @@ class Database:
 
 
 class Connection:
-    def __init__(self, contextvar: ContextVar, backend: DatabaseBackend) -> None:
-        self._context_var = contextvar
+    def __init__(self, backend: DatabaseBackend) -> None:
         self._backend = backend
-        self._lock = asyncio.Lock()
+
+        self._connection_lock = asyncio.Lock()
         self._connection = self._backend.connection()
+        self._connection_counter = 0
+
+        self._transaction_lock = asyncio.Lock()
         self._transaction_stack = []
-        self._counter = 0
 
     async def __aenter__(self) -> "Connection":
-        # async with self._lock:
-        #     print('got lock')
-        self._counter += 1
-        if self._counter == 1:
-            await self._connection.acquire()
+        async with self._connection_lock:
+            self._connection_counter += 1
+            if self._connection_counter == 1:
+                await self._connection.acquire()
         return self
 
     async def __aexit__(self, *args: typing.Any, **kwargs: typing.Any) -> None:
-        # async with self._lock:
-        #     print('got lock')
-        assert self._connection is not None
-        self._counter -= 1
-        if self._counter == 0:
-            await self._connection.release()
+        async with self._connection_lock:
+            assert self._connection is not None
+            self._connection_counter -= 1
+            if self._connection_counter == 0:
+                await self._connection.release()
 
     async def fetch_all(self, query: ClauseElement) -> typing.Any:
         return await self._connection.fetch_all(query=query)
@@ -247,23 +247,23 @@ class Transaction:
         return self.start().__await__()
 
     async def start(self) -> "Transaction":
-        # async with self._connection._lock:
-        is_root = not self._connection._transaction_stack
-        await self._connection.__aenter__()
-        await self._transaction.start(is_root=is_root)
-        self._connection._transaction_stack.append(self)
+        async with self._connection._transaction_lock:
+            is_root = not self._connection._transaction_stack
+            await self._connection.__aenter__()
+            await self._transaction.start(is_root=is_root)
+            self._connection._transaction_stack.append(self)
         return self
 
     async def commit(self) -> None:
-        # async with self._connection._lock:
-        assert self._connection._transaction_stack[-1] is self
-        self._connection._transaction_stack.pop()
-        await self._transaction.commit()
-        await self._connection.__aexit__()
+        async with self._connection._transaction_lock:
+            assert self._connection._transaction_stack[-1] is self
+            self._connection._transaction_stack.pop()
+            await self._transaction.commit()
+            await self._connection.__aexit__()
 
     async def rollback(self) -> None:
-        # async with self._connection._lock:
-        assert self._connection._transaction_stack[-1] is self
-        self._connection._transaction_stack.pop()
-        await self._transaction.rollback()
-        await self._connection.__aexit__()
+        async with self._connection._transaction_lock:
+            assert self._connection._transaction_stack[-1] is self
+            self._connection._transaction_stack.pop()
+            await self._transaction.rollback()
+            await self._connection.__aexit__()

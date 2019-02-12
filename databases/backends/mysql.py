@@ -77,11 +77,11 @@ class MySQLConnection(ConnectionBackend):
 
     async def acquire(self) -> None:
         assert self._connection is None, "Connection is already acquired"
-        self._connection = await self.pool.acquire()
+        self._connection = await self._pool.acquire()
 
     async def release(self) -> None:
         assert self._connection is not None, "Connection is not acquired"
-        await self.pool.release(self._connection)
+        await self._pool.release(self._connection)
         self._connection = None
 
     async def fetch_all(self, query: ClauseElement) -> typing.Any:
