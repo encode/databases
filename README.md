@@ -117,13 +117,64 @@ else:
     transaction.commit()
 ```
 
-For strict test isolation you will always want to rollback the test database
-to a clean state between each test case:
+You can also use `.transaction()` as a function decorator on any async function:
 
 ```python
-async with database.transaction(force_rollback=True):
+@database.transaction()
+async def create_users(request):
     ...
 ```
 
 Transaction blocks are managed as task-local state. Nested transactions
 are fully supported, and are implemented using database savepoints.
+
+## Connecting and disconnecting
+
+You can control the database connect/disconnect, by using it as a async context manager.
+
+```python
+async with Database(DATABASE_URL) as database:
+    ...
+```
+
+Or by using explicit connection and disconnection:
+
+```python
+database = Database(DATABASE_URL)
+await database.connect()
+...
+await database.disconnect()
+```
+
+## Test isolation
+
+For strict test isolation you will always want to rollback the test database
+to a clean state between each test case:
+
+```python
+database = Database(DATABASE_URL, force_rollback=True)
+```
+
+This will ensure that all database connections are run within a transaction
+that rollbacks once the database is disconnected.
+
+If you're integrating against a web framework you'll typically want to
+use something like the following pattern:
+
+```python
+if not TESTING:
+    database = Database(DATABASE_URL)
+else:
+    database = Database(TEST_DATABASE_URL, force_rollback=True)
+```
+
+This will give you test cases that run against a different database to
+the development database, with strict test isolation so long as you make sure
+to connect and disconnect to the database between test cases.
+
+For a lower level API you can explicitly create force-rollback transactions:
+
+```python
+async with database.transaction(force_rollback=True):
+    ...
+```
