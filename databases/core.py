@@ -139,37 +139,38 @@ class Database:
         await self.disconnect()
 
     async def fetch_all(self, query: ClauseElement) -> typing.Any:
-        with SessionManager(self) as session:
-            return await session.fetch_all(query=query)
+        async with ConnectionManager(self) as connection:
+            return await connection.fetch_all(query=query)
 
     async def fetch_one(self, query: ClauseElement) -> typing.Any:
-        with SessionManager(self) as session:
-            return await session.fetch_one(query=query)
+        async with ConnectionManager(self) as connection:
+            return await connection.fetch_one(query=query)
 
     async def execute(self, query: ClauseElement, values: dict = None) -> None:
-        with SessionManager(self) as session:
-            return await session.execute(query=query, values=values)
+        async with ConnectionManager(self) as connection:
+            return await connection.execute(query=query, values=values)
 
     async def execute_many(self, query: ClauseElement, values: list) -> None:
-        with SessionManager(self) as session:
-            return await session.execute_many(query=query, values=values)
+        async with ConnectionManager(self) as connection:
+            return await connection.execute_many(query=query, values=values)
 
     async def iterate(
         self, query: ClauseElement
     ) -> typing.AsyncGenerator[typing.Any, None]:
-        with SessionManager(self) as session:
-            async for record in session.iterate(query):
+        async with ConnectionManager(self) as connection:
+            async for record in connection.iterate(query):
                 yield record
 
     def transaction(self, force_rollback: bool = False) -> "TransactionManager":
         return TransactionManager(self, force_rollback)
 
 
-class SessionManager:
+class ConnectionManager:
     def __init__(self, database: Database) -> None:
         self.database = database
+        self.connection = None
 
-    def __enter__(self) -> DatabaseSession:
+    async def __aenter__(self) -> DatabaseSession:
         current_session, counter = self.database.task_local_sessions.get((None, 0))
         if current_session is None:
             self.session = self.database.backend.session()
@@ -179,7 +180,7 @@ class SessionManager:
         self.database.task_local_sessions.set((self.session, counter))
         return self.session
 
-    def __exit__(self, *args: typing.Any, **kwargs: typing.Any) -> None:
+    async def __aexit__(self, *args: typing.Any, **kwargs: typing.Any) -> None:
         current_session, counter = self.database.task_local_sessions.get((None, 0))
         assert current_session is self.session
         assert counter > 0
@@ -191,8 +192,9 @@ class SessionManager:
 
 class TransactionManager:
     def __init__(self, database: Database, force_rollback: bool) -> None:
-        self.session_manager = SessionManager(database)
+        self.connection_manager = ConnectionManager(database)
         self.force_rollback = force_rollback
+        self.transaction = None
 
     async def __aenter__(self) -> None:
         await self.start()
@@ -209,21 +211,18 @@ class TransactionManager:
             await self.commit()
 
     def __await__(self) -> typing.Generator:
-        return self._start().__await__()
+        return self.start().__await__()
 
-    async def _start(self) -> "TransactionManager":
-        await self.start()
-        return self
-
-    async def start(self) -> None:
-        session = self.session_manager.__enter__()
+    async def start(self) -> "TransactionManager":
+        session = await self.connection_manager.__aenter__()
         self.transaction = session.transaction()
         await self.transaction.start()
+        return self
 
     async def commit(self) -> None:
         await self.transaction.commit()
-        self.session_manager.__exit__()
+        await self.connection_manager.__aexit__()
 
     async def rollback(self) -> None:
         await self.transaction.rollback()
-        self.session_manager.__exit__()
+        await self.connection_manager.__aexit__()
