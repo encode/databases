@@ -1,4 +1,5 @@
 import asyncio
+import functools
 import sys
 import typing
 from types import TracebackType
@@ -22,7 +23,7 @@ class Database:
     }
 
     def __init__(
-        self, url: typing.Union[str, "DatabaseURL"], force_rollback: bool = False
+        self, url: typing.Union[str, "DatabaseURL"], *, force_rollback: bool = False
     ):
         self._url = DatabaseURL(url)
         self._force_rollback = force_rollback
@@ -113,8 +114,8 @@ class Database:
             self._connection_context.set(connection)
             return connection
 
-    def transaction(self, force_rollback: bool = False) -> "Transaction":
-        return self.connection().transaction(force_rollback)
+    def transaction(self, *, force_rollback: bool = False) -> "Transaction":
+        return self.connection().transaction(force_rollback=force_rollback)
 
 
 class Connection:
@@ -135,7 +136,12 @@ class Connection:
                 await self._connection.acquire()
         return self
 
-    async def __aexit__(self, *args: typing.Any, **kwargs: typing.Any) -> None:
+    async def __aexit__(
+        self,
+        exc_type: typing.Type[BaseException] = None,
+        exc_value: BaseException = None,
+        traceback: TracebackType = None,
+    ) -> None:
         async with self._connection_lock:
             assert self._connection is not None
             self._connection_counter -= 1
@@ -160,7 +166,7 @@ class Connection:
         async for record in self._connection.iterate(query):
             yield record
 
-    def transaction(self, force_rollback: bool = False) -> "Transaction":
+    def transaction(self, *, force_rollback: bool = False) -> "Transaction":
         return Transaction(self, force_rollback)
 
 
@@ -171,6 +177,9 @@ class Transaction:
         self._transaction = connection._connection.transaction()
 
     async def __aenter__(self) -> "Transaction":
+        """
+        Called when entering `async with database.transaction()`
+        """
         await self.start()
         return self
 
@@ -180,13 +189,31 @@ class Transaction:
         exc_value: BaseException = None,
         traceback: TracebackType = None,
     ) -> None:
+        """
+        Called when exiting `async with database.transaction()`
+        """
         if exc_type is not None or self._force_rollback:
             await self.rollback()
         else:
             await self.commit()
 
     def __await__(self) -> typing.Generator:
+        """
+        Called if using the low-level `transaction = await database.transaction()`
+        """
         return self.start().__await__()
+
+    def __call__(self, func: typing.Callable) -> typing.Callable:
+        """
+        Called if using `@database.transaction()` as a decorator.
+        """
+
+        @functools.wraps(func)
+        async def wrapper(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
+            async with self:
+                return await func(*args, **kwargs)
+
+        return wrapper
 
     async def start(self) -> "Transaction":
         async with self._connection._transaction_lock:
