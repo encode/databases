@@ -7,7 +7,7 @@ from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.sql import ClauseElement
 
 from databases.core import DatabaseURL
-from databases.interfaces import DatabaseBackend, DatabaseSession, DatabaseTransaction
+from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend
 
 logger = logging.getLogger("databases")
 
@@ -17,9 +17,9 @@ _result_processors = {}  # type: dict
 
 class PostgresBackend(DatabaseBackend):
     def __init__(self, database_url: typing.Union[str, DatabaseURL]) -> None:
-        self.database_url = DatabaseURL(database_url)
-        self.dialect = self._get_dialect()
-        self.pool = None
+        self._database_url = DatabaseURL(database_url)
+        self._dialect = self._get_dialect()
+        self._pool = None
 
     def _get_dialect(self) -> Dialect:
         dialect = pypostgresql.dialect(paramstyle="pyformat")
@@ -34,16 +34,17 @@ class PostgresBackend(DatabaseBackend):
         return dialect
 
     async def connect(self) -> None:
-        self.pool = await asyncpg.create_pool(str(self.database_url))
+        assert self._pool is None, "DatabaseBackend is already running"
+        self._pool = await asyncpg.create_pool(str(self._database_url))
 
     async def disconnect(self) -> None:
-        assert self.pool is not None, "DatabaseBackend is not running"
-        await self.pool.close()
-        self.pool = None
+        assert self._pool is not None, "DatabaseBackend is not running"
+        await self._pool.close()
+        self._pool = None
 
-    def session(self) -> "PostgresSession":
-        assert self.pool is not None, "DatabaseBackend is not running"
-        return PostgresSession(self.pool, self.dialect)
+    def connection(self) -> "PostgresConnection":
+        assert self._pool is not None, "DatabaseBackend is not running"
+        return PostgresConnection(self._pool, self._dialect)
 
 
 class Record:
@@ -70,15 +71,63 @@ class Record:
         return raw
 
 
-class PostgresSession(DatabaseSession):
+class PostgresConnection(ConnectionBackend):
     def __init__(self, pool: asyncpg.pool.Pool, dialect: Dialect):
-        self.pool = pool
-        self.dialect = dialect
-        self.conn = None
-        self.connection_holders = 0
+        self._pool = pool
+        self._dialect = dialect
+        self._connection = None  # type: typing.Optional[asyncpg.connection.Connection]
+
+    async def acquire(self) -> None:
+        assert self._connection is None, "Connection is already acquired"
+        self._connection = await self._pool.acquire()
+
+    async def release(self) -> None:
+        assert self._connection is not None, "Connection is not acquired"
+        self._connection = await self._pool.release(self._connection)
+        self._connection = None
+
+    async def fetch_all(self, query: ClauseElement) -> typing.Any:
+        assert self._connection is not None, "Connection is not acquired"
+        query, args, result_columns = self._compile(query)
+        rows = await self._connection.fetch(query, *args)
+        return [Record(row, result_columns, self._dialect) for row in rows]
+
+    async def fetch_one(self, query: ClauseElement) -> typing.Any:
+        assert self._connection is not None, "Connection is not acquired"
+        query, args, result_columns = self._compile(query)
+        row = await self._connection.fetchrow(query, *args)
+        return Record(row, result_columns, self._dialect)
+
+    async def execute(self, query: ClauseElement, values: dict = None) -> None:
+        assert self._connection is not None, "Connection is not acquired"
+        if values is not None:
+            query = query.values(values)
+        query, args, result_columns = self._compile(query)
+        await self._connection.execute(query, *args)
+
+    async def execute_many(self, query: ClauseElement, values: list) -> None:
+        assert self._connection is not None, "Connection is not acquired"
+        # asyncpg uses prepared statements under the hood, so we just
+        # loop through multiple executes here, which should all end up
+        # using the same prepared statement.
+        for item in values:
+            single_query = query.values(item)
+            single_query, args, result_columns = self._compile(single_query)
+            await self._connection.execute(single_query, *args)
+
+    async def iterate(
+        self, query: ClauseElement
+    ) -> typing.AsyncGenerator[typing.Any, None]:
+        assert self._connection is not None, "Connection is not acquired"
+        query, args, result_columns = self._compile(query)
+        async for row in self._connection.cursor(query, *args):
+            yield Record(row, result_columns, self._dialect)
+
+    def transaction(self) -> TransactionBackend:
+        return PostgresTransaction(connection=self)
 
     def _compile(self, query: ClauseElement) -> typing.Tuple[str, list, tuple]:
-        compiled = query.compile(dialect=self.dialect)
+        compiled = query.compile(dialect=self._dialect)
         compiled_params = sorted(compiled.params.items())
 
         mapping = {
@@ -95,96 +144,23 @@ class PostgresSession(DatabaseSession):
         logger.debug(compiled_query, args)
         return compiled_query, args, compiled._result_columns
 
-    async def fetch_all(self, query: ClauseElement) -> typing.Any:
-        query, args, result_columns = self._compile(query)
 
-        conn = await self.acquire_connection()
-        try:
-            rows = await conn.fetch(query, *args)
-        finally:
-            await self.release_connection()
-        return [Record(row, result_columns, self.dialect) for row in rows]
+class PostgresTransaction(TransactionBackend):
+    def __init__(self, connection: PostgresConnection):
+        self._connection = connection
+        self._transaction = (
+            None
+        )  # type: typing.Optional[asyncpg.transaction.Transaction]
 
-    async def fetch_one(self, query: ClauseElement) -> typing.Any:
-        query, args, result_columns = self._compile(query)
-
-        conn = await self.acquire_connection()
-        try:
-            row = await conn.fetchrow(query, *args)
-        finally:
-            await self.release_connection()
-        return Record(row, result_columns, self.dialect)
-
-    async def execute(self, query: ClauseElement, values: dict = None) -> None:
-        if values is not None:
-            query = query.values(values)
-        query, args, result_columns = self._compile(query)
-
-        conn = await self.acquire_connection()
-        try:
-            await conn.execute(query, *args)
-        finally:
-            await self.release_connection()
-
-    async def execute_many(self, query: ClauseElement, values: list) -> None:
-        conn = await self.acquire_connection()
-        try:
-            # asyncpg uses prepared statements under the hood, so we just
-            # loop through multiple executes here, which should all end up
-            # using the same prepared statement.
-            for item in values:
-                single_query = query.values(item)
-                single_query, args, result_columns = self._compile(single_query)
-                await conn.execute(single_query, *args)
-        finally:
-            await self.release_connection()
-
-    def transaction(self) -> DatabaseTransaction:
-        return PostgresTransaction(session=self)
-
-    async def acquire_connection(self) -> asyncpg.Connection:
-        """
-        Either acquire a connection from the pool, or return the
-        existing connection. Must be followed by a corresponding
-        call to `release_connection`.
-        """
-        self.connection_holders += 1
-        if self.conn is None:
-            self.conn = await self.pool.acquire()
-        return self.conn
-
-    async def release_connection(self) -> None:
-        self.connection_holders -= 1
-        if self.connection_holders == 0:
-            await self.pool.release(self.conn)
-            self.conn = None
-
-    async def iterate(
-        self, query: ClauseElement
-    ) -> typing.AsyncGenerator[typing.Any, None]:
-        query, args, result_columns = self._compile(query)
-
-        conn = await self.acquire_connection()
-        try:
-            async for row in conn.cursor(query, *args):
-                yield Record(row, result_columns, self.dialect)
-        finally:
-            await self.release_connection()
-
-
-class PostgresTransaction(DatabaseTransaction):
-    def __init__(self, session: PostgresSession):
-        self.session = session
-
-    async def start(self) -> None:
-        conn = await self.session.acquire_connection()
-        self.transaction = conn.transaction()
-        await self.transaction.start()
+    async def start(self, is_root: bool) -> None:
+        assert self._connection._connection is not None, "Connection is not acquired"
+        self._transaction = self._connection._connection.transaction()
+        await self._transaction.start()
 
     async def commit(self) -> None:
-        await self.transaction.commit()
-        await self.session.release_connection()
+        assert self._transaction is not None
+        await self._transaction.commit()
 
     async def rollback(self) -> None:
-        await self.transaction.rollback()
-        await self.session.release_connection()
+        assert self._transaction is not None
+        await self._transaction.rollback()

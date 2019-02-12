@@ -1,3 +1,4 @@
+import asyncio
 import sys
 import typing
 from types import TracebackType
@@ -6,7 +7,7 @@ from urllib.parse import SplitResult, urlsplit
 from sqlalchemy.sql import ClauseElement
 
 from databases.importer import import_from_string
-from databases.interfaces import DatabaseBackend, DatabaseSession, DatabaseTransaction
+from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend
 
 if sys.version_info >= (3, 7):  # pragma: no cover
     from contextvars import ContextVar
@@ -102,28 +103,29 @@ class DatabaseURL:
 
 
 class Database:
-    backends = {
+    SUPPORTED_BACKENDS = {
         "postgresql": "databases.backends.postgres:PostgresBackend",
         "mysql": "databases.backends.mysql:MySQLBackend",
     }
 
     def __init__(self, url: typing.Union[str, DatabaseURL]):
         self.url = DatabaseURL(url)
-        backend_str = self.backends[self.url.dialect]
+        self.is_connected = False
+
+        backend_str = self.SUPPORTED_BACKENDS[self.url.dialect]
         backend_cls = import_from_string(backend_str)
         assert issubclass(backend_cls, DatabaseBackend)
-        self.backend = backend_cls(self.url)
-        self.is_connected = False
-        self.task_local_sessions = ContextVar("task_local_sessions")  # type: ContextVar
+        self._backend = backend_cls(self.url)
+        self._connection_context = ContextVar("connection_context")  # type: ContextVar
 
     async def connect(self) -> None:
         if not self.is_connected:
-            await self.backend.connect()
+            await self._backend.connect()
             self.is_connected = True
 
     async def disconnect(self) -> None:
         if self.is_connected:
-            await self.backend.disconnect()
+            await self._backend.disconnect()
             self.is_connected = False
 
     async def __aenter__(self) -> "Database":
@@ -139,63 +141,96 @@ class Database:
         await self.disconnect()
 
     async def fetch_all(self, query: ClauseElement) -> typing.Any:
-        with SessionManager(self) as session:
-            return await session.fetch_all(query=query)
+        async with self.connection() as connection:
+            return await connection.fetch_all(query=query)
 
     async def fetch_one(self, query: ClauseElement) -> typing.Any:
-        with SessionManager(self) as session:
-            return await session.fetch_one(query=query)
+        async with self.connection() as connection:
+            return await connection.fetch_one(query=query)
 
     async def execute(self, query: ClauseElement, values: dict = None) -> None:
-        with SessionManager(self) as session:
-            return await session.execute(query=query, values=values)
+        async with self.connection() as connection:
+            return await connection.execute(query=query, values=values)
 
     async def execute_many(self, query: ClauseElement, values: list) -> None:
-        with SessionManager(self) as session:
-            return await session.execute_many(query=query, values=values)
+        async with self.connection() as connection:
+            return await connection.execute_many(query=query, values=values)
 
     async def iterate(
         self, query: ClauseElement
     ) -> typing.AsyncGenerator[typing.Any, None]:
-        with SessionManager(self) as session:
-            async for record in session.iterate(query):
+        async with self.connection() as connection:
+            async for record in connection.iterate(query):
                 yield record
 
-    def transaction(self, force_rollback: bool = False) -> "TransactionManager":
-        return TransactionManager(self, force_rollback)
+    def connection(self) -> "Connection":
+        try:
+            return self._connection_context.get()
+        except LookupError:
+            connection = Connection(self._backend)
+            self._connection_context.set(connection)
+            return connection
+
+    def transaction(self, force_rollback: bool = False) -> "Transaction":
+        return self.connection().transaction(force_rollback)
 
 
-class SessionManager:
-    def __init__(self, database: Database) -> None:
-        self.database = database
+class Connection:
+    def __init__(self, backend: DatabaseBackend) -> None:
+        self._backend = backend
 
-    def __enter__(self) -> DatabaseSession:
-        current_session, counter = self.database.task_local_sessions.get((None, 0))
-        if current_session is None:
-            self.session = self.database.backend.session()
-        else:
-            self.session = current_session
-        counter += 1
-        self.database.task_local_sessions.set((self.session, counter))
-        return self.session
+        self._connection_lock = asyncio.Lock()
+        self._connection = self._backend.connection()
+        self._connection_counter = 0
 
-    def __exit__(self, *args: typing.Any, **kwargs: typing.Any) -> None:
-        current_session, counter = self.database.task_local_sessions.get((None, 0))
-        assert current_session is self.session
-        assert counter > 0
-        counter -= 1
-        if counter == 0:
-            current_session = None
-        self.database.task_local_sessions.set((current_session, counter))
+        self._transaction_lock = asyncio.Lock()
+        self._transaction_stack = []  # type: typing.List[Transaction]
+
+    async def __aenter__(self) -> "Connection":
+        async with self._connection_lock:
+            self._connection_counter += 1
+            if self._connection_counter == 1:
+                await self._connection.acquire()
+        return self
+
+    async def __aexit__(self, *args: typing.Any, **kwargs: typing.Any) -> None:
+        async with self._connection_lock:
+            assert self._connection is not None
+            self._connection_counter -= 1
+            if self._connection_counter == 0:
+                await self._connection.release()
+
+    async def fetch_all(self, query: ClauseElement) -> typing.Any:
+        return await self._connection.fetch_all(query=query)
+
+    async def fetch_one(self, query: ClauseElement) -> typing.Any:
+        return await self._connection.fetch_one(query=query)
+
+    async def execute(self, query: ClauseElement, values: dict = None) -> None:
+        await self._connection.execute(query, values)
+
+    async def execute_many(self, query: ClauseElement, values: list) -> None:
+        await self._connection.execute_many(query, values)
+
+    async def iterate(
+        self, query: ClauseElement
+    ) -> typing.AsyncGenerator[typing.Any, None]:
+        async for record in self._connection.iterate(query):
+            yield record
+
+    def transaction(self, force_rollback: bool = False) -> "Transaction":
+        return Transaction(self, force_rollback)
 
 
-class TransactionManager:
-    def __init__(self, database: Database, force_rollback: bool) -> None:
-        self.session_manager = SessionManager(database)
-        self.force_rollback = force_rollback
+class Transaction:
+    def __init__(self, connection: Connection, force_rollback: bool) -> None:
+        self._connection = connection
+        self._force_rollback = force_rollback
+        self._transaction = connection._connection.transaction()
 
-    async def __aenter__(self) -> None:
+    async def __aenter__(self) -> "Transaction":
         await self.start()
+        return self
 
     async def __aexit__(
         self,
@@ -203,27 +238,32 @@ class TransactionManager:
         exc_value: BaseException = None,
         traceback: TracebackType = None,
     ) -> None:
-        if exc_type is not None or self.force_rollback:
+        if exc_type is not None or self._force_rollback:
             await self.rollback()
         else:
             await self.commit()
 
     def __await__(self) -> typing.Generator:
-        return self._start().__await__()
+        return self.start().__await__()
 
-    async def _start(self) -> "TransactionManager":
-        await self.start()
+    async def start(self) -> "Transaction":
+        async with self._connection._transaction_lock:
+            is_root = not self._connection._transaction_stack
+            await self._connection.__aenter__()
+            await self._transaction.start(is_root=is_root)
+            self._connection._transaction_stack.append(self)
         return self
 
-    async def start(self) -> None:
-        session = self.session_manager.__enter__()
-        self.transaction = session.transaction()
-        await self.transaction.start()
-
     async def commit(self) -> None:
-        await self.transaction.commit()
-        self.session_manager.__exit__()
+        async with self._connection._transaction_lock:
+            assert self._connection._transaction_stack[-1] is self
+            self._connection._transaction_stack.pop()
+            await self._transaction.commit()
+            await self._connection.__aexit__()
 
     async def rollback(self) -> None:
-        await self.transaction.rollback()
-        self.session_manager.__exit__()
+        async with self._connection._transaction_lock:
+            assert self._connection._transaction_stack[-1] is self
+            self._connection._transaction_stack.pop()
+            await self._transaction.rollback()
+            await self._connection.__aexit__()

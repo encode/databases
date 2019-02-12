@@ -10,11 +10,17 @@ class DatabaseBackend:
     async def disconnect(self) -> None:
         raise NotImplementedError()  # pragma: no cover
 
-    def session(self) -> "DatabaseSession":
+    def connection(self) -> "ConnectionBackend":
         raise NotImplementedError()  # pragma: no cover
 
 
-class DatabaseSession:
+class ConnectionBackend:
+    async def acquire(self) -> None:
+        raise NotImplementedError()  # pragma: no cover
+
+    async def release(self) -> None:
+        raise NotImplementedError()  # pragma: no cover
+
     async def fetch_all(self, query: ClauseElement) -> typing.Any:
         raise NotImplementedError()  # pragma: no cover
 
@@ -27,9 +33,6 @@ class DatabaseSession:
     async def execute_many(self, query: ClauseElement, values: list) -> None:
         raise NotImplementedError()  # pragma: no cover
 
-    def transaction(self) -> "DatabaseTransaction":
-        raise NotImplementedError()  # pragma: no cover
-
     async def iterate(
         self, query: ClauseElement
     ) -> typing.AsyncGenerator[typing.Any, None]:
@@ -38,9 +41,12 @@ class DatabaseSession:
         # https://github.com/python/mypy/issues/5385#issuecomment-407281656
         yield True  # pragma: no cover
 
+    def transaction(self) -> "TransactionBackend":
+        raise NotImplementedError()  # pragma: no cover
 
-class DatabaseTransaction:
-    async def start(self) -> None:
+
+class TransactionBackend:
+    async def start(self, is_root: bool) -> None:
         raise NotImplementedError()  # pragma: no cover
 
     async def commit(self) -> None:
