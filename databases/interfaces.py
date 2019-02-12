@@ -46,7 +46,7 @@ class ConnectionBackend:
 
 
 class TransactionBackend:
-    async def start(self) -> None:
+    async def start(self, is_root: bool) -> None:
         raise NotImplementedError()  # pragma: no cover
 
     async def commit(self) -> None:

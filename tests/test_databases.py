@@ -176,7 +176,6 @@ async def test_transaction_commit(database_url):
     """
     Ensure that transaction commit is supported.
     """
-
     async with Database(database_url) as database:
         async with database.transaction(force_rollback=True):
             async with database.transaction():

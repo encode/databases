@@ -161,27 +161,40 @@ class MySQLTransaction(TransactionBackend):
         self._savepoint_name = ""
 
     async def start(self, is_root: bool) -> None:
+        assert self._connection._connection is not None, "Connection is not acquired"
         self._is_root = is_root
         if self._is_root:
             await self._connection._connection.begin()
         else:
             id = str(uuid.uuid4()).replace("-", "_")
             self._savepoint_name = f"STARLETTE_SAVEPOINT_{id}"
-            await self._connection.execute(f"SAVEPOINT {self._savepoint_name}")
+            cursor = await self._connection._connection.cursor()
+            try:
+                await cursor.execute(f"SAVEPOINT {self._savepoint_name}")
+            finally:
+                await cursor.close()
 
     async def commit(self) -> None:
+        assert self._connection._connection is not None, "Connection is not acquired"
         if self._is_root:  # pragma: no cover
             # In test cases the root transaction is never committed,
             # since we *always* wrap the test case up in a transaction
             # and rollback to a clean state at the end.
             await self._connection._connection.commit()
         else:
-            await self._connection.execute(f"RELEASE SAVEPOINT {self._savepoint_name}")
+            cursor = await self._connection._connection.cursor()
+            try:
+                await cursor.execute(f"RELEASE SAVEPOINT {self._savepoint_name}")
+            finally:
+                await cursor.close()
 
     async def rollback(self) -> None:
+        assert self._connection._connection is not None, "Connection is not acquired"
         if self._is_root:
             await self._connection._connection.rollback()
         else:
-            await self._connection.execute(
-                f"ROLLBACK TO SAVEPOINT {self._savepoint_name}"
-            )
+            cursor = await self._connection._connection.cursor()
+            try:
+                await cursor.execute(f"ROLLBACK TO SAVEPOINT {self._savepoint_name}")
+            finally:
+                await cursor.close()

@@ -75,13 +75,13 @@ class PostgresConnection(ConnectionBackend):
     def __init__(self, pool: asyncpg.pool.Pool, dialect: Dialect):
         self._pool = pool
         self._dialect = dialect
-        self._connection = None  # type: typing.Optional[asyncpy.connection.Connection]
+        self._connection = None  # type: typing.Optional[asyncpg.connection.Connection]
 
-    async def acquire(self):
+    async def acquire(self) -> None:
         assert self._connection is None, "Connection is already acquired"
         self._connection = await self._pool.acquire()
 
-    async def release(self):
+    async def release(self) -> None:
         assert self._connection is not None, "Connection is not acquired"
         self._connection = await self._pool.release(self._connection)
         self._connection = None
@@ -150,9 +150,10 @@ class PostgresTransaction(TransactionBackend):
         self._connection = connection
         self._transaction = (
             None
-        )  # type: typing.Optional[asyncpy.transaction.Transaction]
+        )  # type: typing.Optional[asyncpg.transaction.Transaction]
 
     async def start(self, is_root: bool) -> None:
+        assert self._connection._connection is not None, "Connection is not acquired"
         self._transaction = self._connection._connection.transaction()
         await self._transaction.start()
 

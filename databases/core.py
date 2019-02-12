@@ -184,7 +184,7 @@ class Connection:
         self._connection_counter = 0
 
         self._transaction_lock = asyncio.Lock()
-        self._transaction_stack = []
+        self._transaction_stack = []  # type: typing.List[Transaction]
 
     async def __aenter__(self) -> "Connection":
         async with self._connection_lock:
