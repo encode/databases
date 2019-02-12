@@ -90,7 +90,7 @@ rows = await database.fetch_all(query)
 query = notes.select()
 row = await database.fetch_one(query)
 
-# Fetch multiple rows without loading everything into memory at once.
+# Fetch multiple rows without loading them all into memory at once
 query = notes.select()
 async for row in database.iterate(query):
     ...
