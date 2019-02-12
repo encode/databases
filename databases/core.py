@@ -15,118 +15,57 @@ else:  # pragma: no cover
     from aiocontextvars import ContextVar
 
 
-class DatabaseURL:
-    def __init__(self, url: typing.Union[str, "DatabaseURL"]):
-        if isinstance(url, DatabaseURL):
-            self._url = str(url)
-        else:
-            self._url = url
-
-    @property
-    def components(self) -> SplitResult:
-        if not hasattr(self, "_components"):
-            self._components = urlsplit(self._url)
-        return self._components
-
-    @property
-    def dialect(self) -> str:
-        return self.components.scheme.split("+")[0]
-
-    @property
-    def driver(self) -> str:
-        if "+" not in self.components.scheme:
-            return ""
-        return self.components.scheme.split("+", 1)[1]
-
-    @property
-    def username(self) -> typing.Optional[str]:
-        return self.components.username
-
-    @property
-    def password(self) -> typing.Optional[str]:
-        return self.components.password
-
-    @property
-    def hostname(self) -> typing.Optional[str]:
-        return self.components.hostname
-
-    @property
-    def port(self) -> typing.Optional[int]:
-        return self.components.port
-
-    @property
-    def database(self) -> str:
-        return self.components.path.lstrip("/")
-
-    def replace(self, **kwargs: typing.Any) -> "DatabaseURL":
-        if (
-            "username" in kwargs
-            or "password" in kwargs
-            or "hostname" in kwargs
-            or "port" in kwargs
-        ):
-            hostname = kwargs.pop("hostname", self.hostname)
-            port = kwargs.pop("port", self.port)
-            username = kwargs.pop("username", self.username)
-            password = kwargs.pop("password", self.password)
-
-            netloc = hostname
-            if port is not None:
-                netloc += f":{port}"
-            if username is not None:
-                userpass = username
-                if password is not None:
-                    userpass += f":{password}"
-                netloc = f"{userpass}@{netloc}"
-
-            kwargs["netloc"] = netloc
-
-        if "database" in kwargs:
-            kwargs["path"] = "/" + kwargs.pop("database")
-
-        if "dialect" in kwargs or "driver" in kwargs:
-            dialect = kwargs.pop("dialect", self.dialect)
-            driver = kwargs.pop("driver", self.driver)
-            kwargs["scheme"] = f"{dialect}+{driver}" if driver else dialect
-
-        components = self.components._replace(**kwargs)
-        return self.__class__(components.geturl())
-
-    def __str__(self) -> str:
-        return self._url
-
-    def __repr__(self) -> str:
-        url = str(self)
-        if self.password:
-            url = str(self.replace(password="********"))
-        return f"{self.__class__.__name__}({repr(url)})"
-
-
 class Database:
     SUPPORTED_BACKENDS = {
         "postgresql": "databases.backends.postgres:PostgresBackend",
         "mysql": "databases.backends.mysql:MySQLBackend",
     }
 
-    def __init__(self, url: typing.Union[str, DatabaseURL]):
-        self.url = DatabaseURL(url)
+    def __init__(
+        self, url: typing.Union[str, "DatabaseURL"], force_rollback: bool = False
+    ):
+        self._url = DatabaseURL(url)
+        self._force_rollback = force_rollback
+
         self.is_connected = False
 
-        backend_str = self.SUPPORTED_BACKENDS[self.url.dialect]
+        backend_str = self.SUPPORTED_BACKENDS[self._url.dialect]
         backend_cls = import_from_string(backend_str)
         assert issubclass(backend_cls, DatabaseBackend)
-        self._backend = backend_cls(self.url)
+        self._backend = backend_cls(self._url)
+
+        # Connections are stored as task-local state.
         self._connection_context = ContextVar("connection_context")  # type: ContextVar
 
+        # When `force_rollback=True` is used, we use a single global
+        # connection, within a transaction that always rolls back.
+        self._global_connection = None  # type: typing.Optional[Connection]
+        self._global_transaction = None  # type: typing.Optional[Transaction]
+
     async def connect(self) -> None:
-        if not self.is_connected:
-            await self._backend.connect()
-            self.is_connected = True
+        assert not self.is_connected, "Already connected."
+
+        await self._backend.connect()
+        self.is_connected = True
+
+        if self._force_rollback:
+            self._global_connection = Connection(self._backend)
+            self._global_transaction = self._global_connection.transaction(
+                force_rollback=True
+            )
+            await self._global_transaction.__aenter__()
 
     async def disconnect(self) -> None:
-        if self.is_connected:
-            await self._backend.disconnect()
-            self.is_connected = False
+        assert self.is_connected, "Already disconnected."
+
+        if self._force_rollback:
+            assert self._global_transaction is not None
+            await self._global_transaction.__aexit__()
+            self._global_transaction = None
+            self._global_connection = None
+
+        await self._backend.disconnect()
+        self.is_connected = False
 
     async def __aenter__(self) -> "Database":
         await self.connect()
@@ -164,6 +103,9 @@ class Database:
                 yield record
 
     def connection(self) -> "Connection":
+        if self._global_connection is not None:
+            return self._global_connection
+
         try:
             return self._connection_context.get()
         except LookupError:
@@ -267,3 +209,90 @@ class Transaction:
             self._connection._transaction_stack.pop()
             await self._transaction.rollback()
             await self._connection.__aexit__()
+
+
+class DatabaseURL:
+    def __init__(self, url: typing.Union[str, "DatabaseURL"]):
+        if isinstance(url, DatabaseURL):
+            self._url = str(url)
+        else:
+            self._url = url
+
+    @property
+    def components(self) -> SplitResult:
+        if not hasattr(self, "_components"):
+            self._components = urlsplit(self._url)
+        return self._components
+
+    @property
+    def dialect(self) -> str:
+        return self.components.scheme.split("+")[0]
+
+    @property
+    def driver(self) -> str:
+        if "+" not in self.components.scheme:
+            return ""
+        return self.components.scheme.split("+", 1)[1]
+
+    @property
+    def username(self) -> typing.Optional[str]:
+        return self.components.username
+
+    @property
+    def password(self) -> typing.Optional[str]:
+        return self.components.password
+
+    @property
+    def hostname(self) -> typing.Optional[str]:
+        return self.components.hostname
+
+    @property
+    def port(self) -> typing.Optional[int]:
+        return self.components.port
+
+    @property
+    def database(self) -> str:
+        return self.components.path.lstrip("/")
+
+    def replace(self, **kwargs: typing.Any) -> "DatabaseURL":
+        if (
+            "username" in kwargs
+            or "password" in kwargs
+            or "hostname" in kwargs
+            or "port" in kwargs
+        ):
+            hostname = kwargs.pop("hostname", self.hostname)
+            port = kwargs.pop("port", self.port)
+            username = kwargs.pop("username", self.username)
+            password = kwargs.pop("password", self.password)
+
+            netloc = hostname
+            if port is not None:
+                netloc += f":{port}"
+            if username is not None:
+                userpass = username
+                if password is not None:
+                    userpass += f":{password}"
+                netloc = f"{userpass}@{netloc}"
+
+            kwargs["netloc"] = netloc
+
+        if "database" in kwargs:
+            kwargs["path"] = "/" + kwargs.pop("database")
+
+        if "dialect" in kwargs or "driver" in kwargs:
+            dialect = kwargs.pop("dialect", self.dialect)
+            driver = kwargs.pop("driver", self.driver)
+            kwargs["scheme"] = f"{dialect}+{driver}" if driver else dialect
+
+        components = self.components._replace(**kwargs)
+        return self.__class__(components.geturl())
+
+    def __str__(self) -> str:
+        return self._url
+
+    def __repr__(self) -> str:
+        url = str(self)
+        if self.password:
+            url = str(self.replace(password="********"))
+        return f"{self.__class__.__name__}({repr(url)})"
