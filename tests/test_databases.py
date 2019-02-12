@@ -105,7 +105,6 @@ async def test_queries(database_url):
     Test that the basic `execute()`, `execute_many()`, `fetch_all()``, and
     `fetch_one()` interfaces are all supported.
     """
-
     async with Database(database_url) as database:
         async with database.transaction(force_rollback=True):
             # execute()
