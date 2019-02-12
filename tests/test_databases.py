@@ -345,3 +345,18 @@ async def test_connections_isolation(database_url):
         finally:
             query = notes.delete()
             await database.execute(query)
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_connect_and_disconnect(database_url):
+    """
+    Test explicit connect() and disconnect().
+    """
+    database = Database(database_url)
+
+    assert not database.is_connected
+    await database.connect()
+    assert database.is_connected
+    await database.disconnect()
+    assert not database.is_connected
