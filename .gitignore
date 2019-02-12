@@ -2,5 +2,6 @@
 .coverage
 .pytest_cache/
 .mypy_cache/
-starlette.egg-info/
+*.egg-info/
+htmlcov/
 venv/
