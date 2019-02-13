@@ -45,12 +45,12 @@ articles = sqlalchemy.Table(
 )
 
 # Used to test JSON
-session = sqlalchemy.Table(
-    "session",
-    metadata,
-    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
-    sqlalchemy.Column("data", sqlalchemy.JSON),
-)
+# session = sqlalchemy.Table(
+#     "session",
+#     metadata,
+#     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+#     sqlalchemy.Column("data", sqlalchemy.JSON),
+# )
 
 # Used to test custom column types
 custom_date = sqlalchemy.Table(
@@ -309,25 +309,25 @@ async def test_datetime_field(database_url):
             assert results[0]["published"] == now
 
 
-@pytest.mark.parametrize("database_url", DATABASE_URLS)
-@async_adapter
-async def test_json_field(database_url):
-    """
-    Test JSON columns, to ensure correct cross-database support.
-    """
-
-    async with Database(database_url) as database:
-        async with database.transaction(force_rollback=True):
-            # execute()
-            query = session.insert()
-            values = {"data": {"text": "hello", "boolean": True, "int": 1}}
-            await database.execute(query, values)
-
-            # fetch_all()
-            query = session.select()
-            results = await database.fetch_all(query=query)
-            assert len(results) == 1
-            assert results[0]["data"] == {"text": "hello", "boolean": True, "int": 1}
+# @pytest.mark.parametrize("database_url", DATABASE_URLS)
+# @async_adapter
+# async def test_json_field(database_url):
+#     """
+#     Test JSON columns, to ensure correct cross-database support.
+#     """
+#
+#     async with Database(database_url) as database:
+#         async with database.transaction(force_rollback=True):
+#             # execute()
+#             query = session.insert()
+#             values = {"data": {"text": "hello", "boolean": True, "int": 1}}
+#             await database.execute(query, values)
+#
+#             # fetch_all()
+#             query = session.select()
+#             results = await database.fetch_all(query=query)
+#             assert len(results) == 1
+#             assert results[0]["data"] == {"text": "hello", "boolean": True, "int": 1}
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)

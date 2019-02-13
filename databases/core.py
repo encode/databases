@@ -18,8 +18,9 @@ else:  # pragma: no cover
 
 class Database:
     SUPPORTED_BACKENDS = {
-        "postgresql": "databases.backends.postgres:PostgresBackend",
         "mysql": "databases.backends.mysql:MySQLBackend",
+        "postgresql": "databases.backends.postgres:PostgresBackend",
+        "sqlite": "databases.backends.sqlite:SQLiteBackend",
     }
 
     def __init__(
