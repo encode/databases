@@ -241,6 +241,9 @@ using Alembic since the default MySQL dialect does not support Python 3.
 If you're using the `databases.DatabaseURL` datatype, you can obtain this using
 `DATABASE_URL.replace(dialect="pymysql")`
 
+<p align="center">&mdash; ⭐️ &mdash;</p>
+<p align="center"><i>Databases is <a href="https://github.com/encode/databases/blob/master/LICENSE.md">BSD licensed</a> code. Designed & built in Brighton, England.</i></p>
+
 [sqlalchemy-core]: https://docs.sqlalchemy.org/en/latest/core/
 [alembic]: https://alembic.sqlalchemy.org/en/latest/
 [asyncpg]: https://github.com/MagicStack/asyncpg
