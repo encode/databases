@@ -378,6 +378,30 @@ async def test_connections_isolation(database_url):
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
+async def test_commit_on_root_transaction(database_url):
+    """
+    Because our tests are generally wrapped in rollback-islation, they
+    don't have coverage for commiting the root transaction.
+
+    Deal with this here, and delete the records rather than rolling back.
+    """
+
+    async with Database(database_url) as database:
+        try:
+            async with database.transaction():
+                query = notes.insert().values(text="example1", completed=True)
+                await database.execute(query)
+
+            query = notes.select()
+            results = await database.fetch_all(query=query)
+            assert len(results) == 1
+        finally:
+            query = notes.delete()
+            await database.execute(query)
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
 async def test_connect_and_disconnect(database_url):
     """
     Test explicit connect() and disconnect().

@@ -16,8 +16,8 @@ _result_processors = {}  # type: dict
 
 
 class PostgresBackend(DatabaseBackend):
-    def __init__(self, database_url: typing.Union[str, DatabaseURL]) -> None:
-        self._database_url = DatabaseURL(database_url)
+    def __init__(self, database_url: DatabaseURL) -> None:
+        self._database_url = database_url
         self._dialect = self._get_dialect()
         self._pool = None
 

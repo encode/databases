@@ -1,5 +1,6 @@
 import typing
 
+from sqlalchemy.engine import RowProxy
 from sqlalchemy.sql import ClauseElement
 
 
@@ -21,10 +22,10 @@ class ConnectionBackend:
     async def release(self) -> None:
         raise NotImplementedError()  # pragma: no cover
 
-    async def fetch_all(self, query: ClauseElement) -> typing.Any:
+    async def fetch_all(self, query: ClauseElement) -> typing.List[RowProxy]:
         raise NotImplementedError()  # pragma: no cover
 
-    async def fetch_one(self, query: ClauseElement) -> typing.Any:
+    async def fetch_one(self, query: ClauseElement) -> RowProxy:
         raise NotImplementedError()  # pragma: no cover
 
     async def execute(self, query: ClauseElement, values: dict = None) -> None:
@@ -35,7 +36,7 @@ class ConnectionBackend:
 
     async def iterate(
         self, query: ClauseElement
-    ) -> typing.AsyncGenerator[typing.Any, None]:
+    ) -> typing.AsyncGenerator[RowProxy, None]:
         raise NotImplementedError()  # pragma: no cover
         # mypy needs async iterators to contain a `yield`
         # https://github.com/python/mypy/issues/5385#issuecomment-407281656
