@@ -14,7 +14,7 @@
 
 Databases gives you simple asyncio support for a range of databases.
 
-It allows you to make queries using the powerful [SQLAlchemy Core](https://docs.sqlalchemy.org/en/latest/core/)
+It allows you to make queries using the powerful [SQLAlchemy Core][sqlalchemy-core]
 expression language, and provides support for PostgreSQL, MySQL, and SQLite.
 
 **Requirements**: Python 3.6+
@@ -34,6 +34,8 @@ $ pip install databases[postgresql]
 $ pip install databases[mysql]
 $ pip install databases[sqlite]
 ```
+
+Driver support is providing using one of [asyncpg][asyncpg], [aiomysql][aiomysql], or [aiosqlite][aiosqlite].
 
 ## Getting started
 
@@ -60,7 +62,7 @@ custom column types.
 
 ## Queries
 
-You can now use any [SQLAlchemy core](https://docs.sqlalchemy.org/en/latest/core/) queries:
+You can now use any [SQLAlchemy core][sqlalchemy-core] queries:
 
 ```python
 from databases import Database
@@ -195,7 +197,7 @@ $ alembic init migrations
 ```
 
 You'll want to set things up so that Alembic references the configured
-DATABASE_URL, and uses your table metadata.
+`DATABASE_URL`, and uses your table metadata.
 
 In `alembic.ini` remove the following line:
 
@@ -235,3 +237,9 @@ For MySQL you'll probably need to explicitly specify the
 
 If you're using the `databases.DatabaseURL` datatype, you can obtain this using
 `DATABASE_URL.replace(dialect="pymysql")`
+
+[sqlalchemy-core]: https://docs.sqlalchemy.org/en/latest/core/
+[alembic]: https://alembic.sqlalchemy.org/en/latest/
+[asyncpg]: https://github.com/MagicStack/asyncpg
+[aiomysql]: https://github.com/aio-libs/aiomysql
+[aiosqlite]: https://github.com/jreese/aiosqlite
