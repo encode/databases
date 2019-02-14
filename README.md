@@ -161,7 +161,7 @@ await database.disconnect()
 
 If you're integrating against a web framework, then you'll probably want
 to hook into framework startup or shutdown events. For example, with
-Starlette you would use the following:
+[Starlette][starlette] you would use the following:
 
 ```python
 @app.on_event("startup")
