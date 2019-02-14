@@ -103,6 +103,9 @@ async for row in database.iterate(query):
 await database.disconnect()
 ```
 
+Connections are managed as task-local state, with driver implementations
+transparently using connection pooling behind the scenes.
+
 ## Transactions
 
 Transactions are managed by async context blocks:
