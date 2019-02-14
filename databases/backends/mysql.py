@@ -40,8 +40,7 @@ class MySQLBackend(DatabaseBackend):
         self._pool = None
 
     def connection(self) -> "MySQLConnection":
-        assert self._pool is not None, "DatabaseBackend is not running"
-        return MySQLConnection(self._pool, self._dialect)
+        return MySQLConnection(self, self._dialect)
 
 
 class CompilationContext:
@@ -50,18 +49,20 @@ class CompilationContext:
 
 
 class MySQLConnection(ConnectionBackend):
-    def __init__(self, pool: aiomysql.pool.Pool, dialect: Dialect):
-        self._pool = pool
+    def __init__(self, database: MySQLBackend, dialect: Dialect):
+        self._database = database
         self._dialect = dialect
         self._connection = None  # type: typing.Optional[aiomysql.Connection]
 
     async def acquire(self) -> None:
         assert self._connection is None, "Connection is already acquired"
-        self._connection = await self._pool.acquire()
+        assert self._database._pool is not None, "DatabaseBackend is not running"
+        self._connection = await self._database._pool.acquire()
 
     async def release(self) -> None:
         assert self._connection is not None, "Connection is not acquired"
-        await self._pool.release(self._connection)
+        assert self._database._pool is not None, "DatabaseBackend is not running"
+        await self._database._pool.release(self._connection)
         self._connection = None
 
     async def fetch_all(self, query: ClauseElement) -> typing.List[RowProxy]:
