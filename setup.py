@@ -39,7 +39,7 @@ setup(
     version=get_version("databases"),
     url="https://github.com/encode/databases",
     license="BSD",
-    description="Databases + asyncio.",
+    description="Async database support for Python.",
     long_description=get_long_description(),
     long_description_content_type="text/markdown",
     author="Tom Christie",
@@ -50,7 +50,8 @@ setup(
     install_requires=["sqlalchemy", 'aiocontextvars;python_version<"3.7"'],
     extras_require={
         "postgresql": ["asyncpg", "psycopg2-binary"],
-        "mysql": ["aiomysql", "pymysql"]
+        "mysql": ["aiomysql", "pymysql"],
+        "sqlite": ["aiosqlite"]
     },
     classifiers=[
         "Development Status :: 3 - Alpha",

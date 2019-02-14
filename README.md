@@ -14,7 +14,8 @@
 
 Databases gives you simple asyncio support for a range of databases.
 
-Currently PostgreSQL and MySQL are supported.
+It allows you to make queries using the powerful [SQLAlchemy Core](https://docs.sqlalchemy.org/en/latest/core/)
+expression language, and provides support for PostgreSQL, MySQL, and SQLite.
 
 **Requirements**: Python 3.6+
 
@@ -31,6 +32,7 @@ You can install the required database drivers with:
 ```shell
 $ pip install databases[postgresql]
 $ pip install databases[mysql]
+$ pip install databases[sqlite]
 ```
 
 ## Getting started
@@ -94,6 +96,9 @@ row = await database.fetch_one(query)
 query = notes.select()
 async for row in database.iterate(query):
     ...
+
+# Close all connection in the connection pool
+await database.disconnect()
 ```
 
 ## Transactions
@@ -178,3 +183,55 @@ For a lower level API you can explicitly create force-rollback transactions:
 async with database.transaction(force_rollback=True):
     ...
 ```
+
+## Migrations
+
+Because `databases` uses SQLAlchemy core, you can integrate with [Alembic][alembic]
+for database migration support.
+
+```shell
+$ pip install alembic
+$ alembic init migrations
+```
+
+You'll want to set things up so that Alembic references the configured
+DATABASE_URL, and uses your table metadata.
+
+In `alembic.ini` remove the following line:
+
+```shell
+sqlalchemy.url = driver://user:pass@localhost/dbname
+```
+
+In `migrations/env.py`, you need to set the ``'sqlalchemy.url'`` configuration key,
+and the `target_metadata` variable. You'll want something like this:
+
+```python
+# The Alembic Config object.
+config = context.config
+
+# Configure Alembic to use our DATABASE_URL and our table definitions.
+# These are just examples - the exact setup will depend on whatever
+# framework you're integrating against.
+from myapp.settings import DATABASE_URL
+from myapp.tables import metadata
+
+config.set_main_option('sqlalchemy.url', str(DATABASE_URL))
+target_metadata = metadata
+
+...
+```
+
+Note that migrations will use a standard synchronous database driver,
+rather than using the async drivers that `databases` provides support for.
+
+This will also be the case if you're using SQLAlchemy's standard tooling, such
+as using `metadata.create_all(engine)` to setup the database tables.
+
+**Note for MySQL**:
+
+For MySQL you'll probably need to explicitly specify the
+`pymysql` dialect, since the default MySQL dialect does not support Python 3.
+
+If you're using the `databases.DatabaseURL` datatype, you can obtain this using
+`DATABASE_URL.replace(dialect="pymysql")`
