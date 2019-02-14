@@ -1,9 +1,10 @@
-sqlalchemy
+sqlalchemy==1.3.0b3
 aiocontextvars;python_version<"3.7"
 
 # Async database drivers
-asyncpg
 aiomysql
+aiosqlite
+asyncpg
 
 # Sync database drivers for standard tooling around setup/teardown/migrations.
 psycopg2-binary

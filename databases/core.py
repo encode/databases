@@ -21,6 +21,7 @@ class Database:
     SUPPORTED_BACKENDS = {
         "postgresql": "databases.backends.postgres:PostgresBackend",
         "mysql": "databases.backends.mysql:MySQLBackend",
+        "sqlite": "databases.backends.sqlite:SQLiteBackend",
     }
 
     def __init__(
@@ -246,10 +247,7 @@ class Transaction:
 
 class DatabaseURL:
     def __init__(self, url: typing.Union[str, "DatabaseURL"]):
-        if isinstance(url, DatabaseURL):
-            self._url = str(url)
-        else:
-            self._url = url
+        self._url = str(url)
 
     @property
     def components(self) -> SplitResult:
