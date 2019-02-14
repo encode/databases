@@ -5,6 +5,7 @@ import typing
 from types import TracebackType
 from urllib.parse import SplitResult, urlsplit
 
+from sqlalchemy.engine import RowProxy
 from sqlalchemy.sql import ClauseElement
 
 from databases.importer import import_from_string
@@ -27,7 +28,6 @@ class Database:
     ):
         self._url = DatabaseURL(url)
         self._force_rollback = force_rollback
-
         self.is_connected = False
 
         backend_str = self.SUPPORTED_BACKENDS[self._url.dialect]
@@ -44,6 +44,9 @@ class Database:
         self._global_transaction = None  # type: typing.Optional[Transaction]
 
     async def connect(self) -> None:
+        """
+        Establish the connection pool.
+        """
         assert not self.is_connected, "Already connected."
 
         await self._backend.connect()
@@ -57,6 +60,9 @@ class Database:
             await self._global_transaction.__aenter__()
 
     async def disconnect(self) -> None:
+        """
+        Close all connections in the connection pool.
+        """
         assert self.is_connected, "Already disconnected."
 
         if self._force_rollback:
@@ -80,11 +86,11 @@ class Database:
     ) -> None:
         await self.disconnect()
 
-    async def fetch_all(self, query: ClauseElement) -> typing.Any:
+    async def fetch_all(self, query: ClauseElement) -> typing.List[RowProxy]:
         async with self.connection() as connection:
             return await connection.fetch_all(query=query)
 
-    async def fetch_one(self, query: ClauseElement) -> typing.Any:
+    async def fetch_one(self, query: ClauseElement) -> RowProxy:
         async with self.connection() as connection:
             return await connection.fetch_one(query=query)
 
@@ -98,7 +104,7 @@ class Database:
 
     async def iterate(
         self, query: ClauseElement
-    ) -> typing.AsyncGenerator[typing.Any, None]:
+    ) -> typing.AsyncGenerator[RowProxy, None]:
         async with self.connection() as connection:
             async for record in connection.iterate(query):
                 yield record

@@ -5,7 +5,8 @@ import uuid
 
 import aiomysql
 from sqlalchemy.dialects.mysql import pymysql
-from sqlalchemy.engine.interfaces import Dialect
+from sqlalchemy.engine.interfaces import Dialect, ExecutionContext
+from sqlalchemy.engine.result import ResultMetaData, RowProxy
 from sqlalchemy.sql import ClauseElement
 from sqlalchemy.types import TypeEngine
 
@@ -45,28 +46,9 @@ class MySQLBackend(DatabaseBackend):
         return MySQLConnection(self._pool, self._dialect)
 
 
-class Record:
-    def __init__(self, row: tuple, result_columns: tuple, dialect: Dialect) -> None:
-        self._row = row
-        self._result_columns = result_columns
-        self._dialect = dialect
-        self._column_map = {
-            column_name: (idx, datatype)
-            for idx, (column_name, _, _, datatype) in enumerate(self._result_columns)
-        }
-
-    def __getitem__(self, key: str) -> typing.Any:
-        idx, datatype = self._column_map[key]
-        raw = self._row[idx]
-        try:
-            processor = _result_processors[datatype]
-        except KeyError:
-            processor = datatype.result_processor(self._dialect, None)
-            _result_processors[datatype] = processor
-
-        if processor is not None:
-            return processor(raw)
-        return raw
+class CompilationContext:
+    def __init__(self, context: ExecutionContext):
+        self.context = context
 
 
 class MySQLConnection(ConnectionBackend):
@@ -84,25 +66,30 @@ class MySQLConnection(ConnectionBackend):
         await self._pool.release(self._connection)
         self._connection = None
 
-    async def fetch_all(self, query: ClauseElement) -> typing.Any:
+    async def fetch_all(self, query: ClauseElement) -> typing.List[RowProxy]:
         assert self._connection is not None, "Connection is not acquired"
-        query, args, result_columns = self._compile(query)
+        query, args, context = self._compile(query)
         cursor = await self._connection.cursor()
         try:
             await cursor.execute(query, args)
             rows = await cursor.fetchall()
-            return [Record(row, result_columns, self._dialect) for row in rows]
+            metadata = ResultMetaData(context, cursor.description)
+            return [
+                RowProxy(metadata, row, metadata._processors, metadata._keymap)
+                for row in rows
+            ]
         finally:
             await cursor.close()
 
-    async def fetch_one(self, query: ClauseElement) -> typing.Any:
+    async def fetch_one(self, query: ClauseElement) -> RowProxy:
         assert self._connection is not None, "Connection is not acquired"
-        query, args, result_columns = self._compile(query)
+        query, args, context = self._compile(query)
         cursor = await self._connection.cursor()
         try:
             await cursor.execute(query, args)
             row = await cursor.fetchone()
-            return Record(row, result_columns, self._dialect)
+            metadata = ResultMetaData(context, cursor.description)
+            return RowProxy(metadata, row, metadata._processors, metadata._keymap)
         finally:
             await cursor.close()
 
@@ -110,7 +97,7 @@ class MySQLConnection(ConnectionBackend):
         assert self._connection is not None, "Connection is not acquired"
         if values is not None:
             query = query.values(values)
-        query, args, result_columns = self._compile(query)
+        query, args, context = self._compile(query)
         cursor = await self._connection.cursor()
         try:
             await cursor.execute(query, args)
@@ -123,7 +110,7 @@ class MySQLConnection(ConnectionBackend):
         try:
             for item in values:
                 single_query = query.values(item)
-                single_query, args, result_columns = self._compile(single_query)
+                single_query, args, context = self._compile(single_query)
                 await cursor.execute(single_query, args)
         finally:
             await cursor.close()
@@ -132,26 +119,38 @@ class MySQLConnection(ConnectionBackend):
         self, query: ClauseElement
     ) -> typing.AsyncGenerator[typing.Any, None]:
         assert self._connection is not None, "Connection is not acquired"
-        query, args, result_columns = self._compile(query)
+        query, args, context = self._compile(query)
         cursor = await self._connection.cursor()
         try:
             await cursor.execute(query, args)
+            metadata = ResultMetaData(context, cursor.description)
             async for row in cursor:
-                yield Record(row, result_columns, self._dialect)
+                yield RowProxy(metadata, row, metadata._processors, metadata._keymap)
         finally:
             await cursor.close()
 
     def transaction(self) -> TransactionBackend:
         return MySQLTransaction(self)
 
-    def _compile(self, query: ClauseElement) -> typing.Tuple[str, list, tuple]:
+    def _compile(
+        self, query: ClauseElement
+    ) -> typing.Tuple[str, list, CompilationContext]:
         compiled = query.compile(dialect=self._dialect)
         args = compiled.construct_params()
         logger.debug(compiled.string, args)
         for key, val in args.items():
             if key in compiled._bind_processors:
                 args[key] = compiled._bind_processors[key](val)
-        return compiled.string, args, compiled._result_columns
+
+        execution_context = self._dialect.execution_ctx_cls()
+        execution_context.dialect = self._dialect
+        execution_context.result_column_struct = (
+            compiled._result_columns,
+            compiled._ordered_columns,
+            compiled._textual_ordered_columns,
+        )
+
+        return compiled.string, args, CompilationContext(execution_context)
 
 
 class MySQLTransaction(TransactionBackend):
