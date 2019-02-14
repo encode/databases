@@ -189,10 +189,10 @@ If you're integrating against a web framework you'll typically want to
 use something like the following pattern:
 
 ```python
-if not TESTING:
-    database = Database(DATABASE_URL)
-else:
+if TESTING:
     database = Database(TEST_DATABASE_URL, force_rollback=True)
+else:
+    database = Database(DATABASE_URL)
 ```
 
 This will give you test cases that run against a different database to
