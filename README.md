@@ -17,6 +17,9 @@ Databases gives you simple asyncio support for a range of databases.
 It allows you to make queries using the powerful [SQLAlchemy Core][sqlalchemy-core]
 expression language, and provides support for PostgreSQL, MySQL, and SQLite.
 
+Databases is suitable for integrating against any async Web framework, such as [Starlette][starlette],
+[Sanic][sanic], [Responder][responder], [Quart][quart], [aiohttp][aiohttp], [FastAPI][fastapi], or [Bocadillo][bocadillo].
+
 **Requirements**: Python 3.6+
 
 ---
@@ -263,3 +266,11 @@ If you're using the `databases.DatabaseURL` datatype, you can obtain this using
 [asyncpg]: https://github.com/MagicStack/asyncpg
 [aiomysql]: https://github.com/aio-libs/aiomysql
 [aiosqlite]: https://github.com/jreese/aiosqlite
+
+[starlette]: https://github.com/encode/starlette
+[sanic]: https://github.com/huge-success/sanic
+[responder]: https://github.com/kennethreitz/responder
+[quart]: https://gitlab.com/pgjones/quart
+[aiohttp]: https://github.com/aio-libs/aiohttp
+[fastapi]: https://github.com/tiangolo/fastapi
+[bocadillo]: https://github.com/bocadilloproject/bocadillo
