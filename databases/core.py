@@ -44,6 +44,12 @@ class Database:
         self._global_connection = None  # type: typing.Optional[Connection]
         self._global_transaction = None  # type: typing.Optional[Transaction]
 
+        if self._force_rollback:
+            self._global_connection = Connection(self._backend)
+            self._global_transaction = self._global_connection.transaction(
+                force_rollback=True
+            )
+
     async def connect(self) -> None:
         """
         Establish the connection pool.
@@ -54,10 +60,7 @@ class Database:
         self.is_connected = True
 
         if self._force_rollback:
-            self._global_connection = Connection(self._backend)
-            self._global_transaction = self._global_connection.transaction(
-                force_rollback=True
-            )
+            assert self._global_transaction is not None
             await self._global_transaction.__aenter__()
 
     async def disconnect(self) -> None:
@@ -69,8 +72,6 @@ class Database:
         if self._force_rollback:
             assert self._global_transaction is not None
             await self._global_transaction.__aexit__()
-            self._global_transaction = None
-            self._global_connection = None
 
         await self._backend.disconnect()
         self.is_connected = False

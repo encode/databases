@@ -43,8 +43,7 @@ class PostgresBackend(DatabaseBackend):
         self._pool = None
 
     def connection(self) -> "PostgresConnection":
-        assert self._pool is not None, "DatabaseBackend is not running"
-        return PostgresConnection(self._pool, self._dialect)
+        return PostgresConnection(self, self._dialect)
 
 
 class Record:
@@ -72,18 +71,20 @@ class Record:
 
 
 class PostgresConnection(ConnectionBackend):
-    def __init__(self, pool: asyncpg.pool.Pool, dialect: Dialect):
-        self._pool = pool
+    def __init__(self, database: PostgresBackend, dialect: Dialect):
+        self._database = database
         self._dialect = dialect
         self._connection = None  # type: typing.Optional[asyncpg.connection.Connection]
 
     async def acquire(self) -> None:
         assert self._connection is None, "Connection is already acquired"
-        self._connection = await self._pool.acquire()
+        assert self._database._pool is not None, "DatabaseBackend is not running"
+        self._connection = await self._database._pool.acquire()
 
     async def release(self) -> None:
         assert self._connection is not None, "Connection is not acquired"
-        self._connection = await self._pool.release(self._connection)
+        assert self._database._pool is not None, "DatabaseBackend is not running"
+        self._connection = await self._database._pool.release(self._connection)
         self._connection = None
 
     async def fetch_all(self, query: ClauseElement) -> typing.Any:
