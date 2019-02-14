@@ -156,6 +156,20 @@ await database.connect()
 await database.disconnect()
 ```
 
+If you're integrating against a web framework, then you'll probably want
+to hook into framework startup or shutdown events. For example, with
+Starlette you would use the following:
+
+```python
+@app.on_event("startup")
+async def startup():
+    await database.connect()
+
+@app.on_event("shutdown")
+async def shutdown():
+    await database.disconnect()
+```
+
 ## Test isolation
 
 For strict test isolation you will always want to rollback the test database
