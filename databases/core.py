@@ -246,6 +246,11 @@ class Transaction:
             await self._connection.__aexit__()
 
 
+class _EmptyNetloc(str):
+    def __bool__(self) -> bool:
+        return True
+
+
 class DatabaseURL:
     def __init__(self, url: typing.Union[str, "DatabaseURL"]):
         self._url = str(url)
@@ -283,6 +288,10 @@ class DatabaseURL:
         return self.components.port
 
     @property
+    def netloc(self) -> typing.Optional[str]:
+        return self.components.netloc
+
+    @property
     def database(self) -> str:
         return self.components.path.lstrip("/")
 
@@ -316,6 +325,11 @@ class DatabaseURL:
             dialect = kwargs.pop("dialect", self.dialect)
             driver = kwargs.pop("driver", self.driver)
             kwargs["scheme"] = f"{dialect}+{driver}" if driver else dialect
+
+        if not kwargs.get("netloc", self.netloc):
+            # Using an empty string that evaluates as True means we end
+            # up with URLs like `sqlite:///database` instead of `sqlite:/database`
+            kwargs["netloc"] = _EmptyNetloc()
 
         components = self.components._replace(**kwargs)
         return self.__class__(components.geturl())
