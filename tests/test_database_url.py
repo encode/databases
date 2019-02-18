@@ -40,3 +40,9 @@ def test_replace_database_url_components():
     new = u.replace(port=123)
     assert new.port == 123
     assert str(new) == "postgresql://localhost:123/mydatabase"
+
+    u = DatabaseURL("sqlite:///mydatabase")
+    assert u.database == "mydatabase"
+    new = u.replace(database="test_" + u.database)
+    assert new.database == "test_mydatabase"
+    assert str(new) == "sqlite:///test_mydatabase"
