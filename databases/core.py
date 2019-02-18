@@ -247,7 +247,7 @@ class Transaction:
 
 
 class _EmptyNetloc(str):
-    def __bool__(self):
+    def __bool__(self) -> bool:
         return True
 
 
