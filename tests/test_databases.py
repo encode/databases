@@ -153,6 +153,25 @@ async def test_queries(database_url):
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
+async def test_execute_return_val(database_url):
+    """
+    Test using return value from `execute()` to get an inserted primary key.
+    """
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            query = notes.insert()
+            values = {"text": "example1", "completed": True}
+            pk = await database.execute(query, values)
+
+            assert isinstance(pk, int)
+            query = notes.select().where(notes.c.id == pk)
+            result = await database.fetch_one(query)
+            assert result["text"] == "example1"
+            assert result["completed"] == True
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
 async def test_rollback_isolation(database_url):
     """
     Ensure that `database.transaction(force_rollback=True)` provides strict isolation.
