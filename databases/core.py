@@ -96,7 +96,7 @@ class Database:
         async with self.connection() as connection:
             return await connection.fetch_one(query=query)
 
-    async def execute(self, query: ClauseElement, values: dict = None) -> None:
+    async def execute(self, query: ClauseElement, values: dict = None) -> typing.Any:
         async with self.connection() as connection:
             return await connection.execute(query=query, values=values)
 
@@ -162,8 +162,8 @@ class Connection:
     async def fetch_one(self, query: ClauseElement) -> typing.Any:
         return await self._connection.fetch_one(query=query)
 
-    async def execute(self, query: ClauseElement, values: dict = None) -> None:
-        await self._connection.execute(query, values)
+    async def execute(self, query: ClauseElement, values: dict = None) -> typing.Any:
+        return await self._connection.execute(query, values)
 
     async def execute_many(self, query: ClauseElement, values: list) -> None:
         await self._connection.execute_many(query, values)

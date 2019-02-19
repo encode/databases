@@ -99,12 +99,12 @@ class PostgresConnection(ConnectionBackend):
         row = await self._connection.fetchrow(query, *args)
         return Record(row, result_columns, self._dialect)
 
-    async def execute(self, query: ClauseElement, values: dict = None) -> None:
+    async def execute(self, query: ClauseElement, values: dict = None) -> typing.Any:
         assert self._connection is not None, "Connection is not acquired"
         if values is not None:
             query = query.values(values)
         query, args, result_columns = self._compile(query)
-        await self._connection.execute(query, *args)
+        return await self._connection.fetchval(query, *args)
 
     async def execute_many(self, query: ClauseElement, values: list) -> None:
         assert self._connection is not None, "Connection is not acquired"
