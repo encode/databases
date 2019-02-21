@@ -23,6 +23,11 @@ def test_database_url_properties():
     assert u.database == "mydatabase"
 
 
+def test_database_url_options():
+    u = DatabaseURL("postgresql://localhost/mydatabase?pool_size=20&ssl=true")
+    assert u.options == {"pool_size": "20", "ssl": "true"}
+
+
 def test_replace_database_url_components():
     u = DatabaseURL("postgresql://localhost/mydatabase")
 

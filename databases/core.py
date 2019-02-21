@@ -3,7 +3,7 @@ import functools
 import sys
 import typing
 from types import TracebackType
-from urllib.parse import SplitResult, urlsplit
+from urllib.parse import SplitResult, parse_qsl, urlsplit
 
 from sqlalchemy.engine import RowProxy
 from sqlalchemy.sql import ClauseElement
@@ -294,6 +294,12 @@ class DatabaseURL:
     @property
     def database(self) -> str:
         return self.components.path.lstrip("/")
+
+    @property
+    def options(self) -> dict:
+        if not hasattr(self, "_options"):
+            self._options = dict(parse_qsl(self.components.query))
+        return self._options
 
     def replace(self, **kwargs: typing.Any) -> "DatabaseURL":
         if (

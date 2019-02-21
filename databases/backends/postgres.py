@@ -16,8 +16,8 @@ _result_processors = {}  # type: dict
 
 
 class PostgresBackend(DatabaseBackend):
-    def __init__(self, database_url: DatabaseURL) -> None:
-        self._database_url = database_url
+    def __init__(self, database_url: typing.Union[DatabaseURL, str]) -> None:
+        self._database_url = DatabaseURL(database_url)
         self._dialect = self._get_dialect()
         self._pool = None
 
@@ -33,9 +33,26 @@ class PostgresBackend(DatabaseBackend):
 
         return dialect
 
+    def _get_connection_kwargs(self) -> dict:
+        options = self._database_url.options
+
+        kwargs = {}
+        min_size = options.get("min_size")
+        max_size = options.get("max_size")
+        ssl = options.get("ssl")
+
+        if min_size is not None:
+            kwargs["min_size"] = int(min_size)
+        if max_size is not None:
+            kwargs["max_size"] = int(max_size)
+        if ssl is not None:
+            kwargs["ssl"] = {"true": True, "false": False}[ssl.lower()]
+        return kwargs
+
     async def connect(self) -> None:
         assert self._pool is None, "DatabaseBackend is already running"
-        self._pool = await asyncpg.create_pool(str(self._database_url))
+        kwargs = self._get_connection_kwargs()
+        self._pool = await asyncpg.create_pool(str(self._database_url), **kwargs)
 
     async def disconnect(self) -> None:
         assert self._pool is not None, "DatabaseBackend is not running"
