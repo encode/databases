@@ -173,6 +173,19 @@ async def shutdown():
     await database.disconnect()
 ```
 
+## Connection options
+
+The PostgreSQL and MySQL backends provide a few connection options for SSL
+and for configuring the connection pool.
+
+```python
+# Use an SSL connection.
+database = Database('postgresql://localhost/example?ssl=true')
+
+# Use a connection pool of between 5-20 connections.
+database = Database('mysql://localhost/example?min_size=5&max_size=20')
+```
+
 ## Test isolation
 
 For strict test isolation you will always want to rollback the test database
