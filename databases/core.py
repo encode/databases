@@ -3,7 +3,7 @@ import functools
 import sys
 import typing
 from types import TracebackType
-from urllib.parse import SplitResult, urlsplit, parse_qsl
+from urllib.parse import SplitResult, parse_qsl, urlsplit
 
 from sqlalchemy.engine import RowProxy
 from sqlalchemy.sql import ClauseElement

@@ -26,16 +26,16 @@ class MySQLBackend(DatabaseBackend):
         options = self._database_url.options
 
         kwargs = {}
-        min_size = options.get('min_size')
-        max_size = options.get('max_size')
-        ssl = options.get('ssl')
+        min_size = options.get("min_size")
+        max_size = options.get("max_size")
+        ssl = options.get("ssl")
 
         if min_size is not None:
-            kwargs['minsize'] = int(min_size)
+            kwargs["minsize"] = int(min_size)
         if max_size is not None:
-            kwargs['maxsize'] = int(max_size)
+            kwargs["maxsize"] = int(max_size)
         if ssl is not None:
-            kwargs['ssl'] = {'true': True, 'false': False}[ssl.lower()]
+            kwargs["ssl"] = {"true": True, "false": False}[ssl.lower()]
         return kwargs
 
     async def connect(self) -> None:
@@ -48,7 +48,7 @@ class MySQLBackend(DatabaseBackend):
             password=self._database_url.password,
             db=self._database_url.database,
             autocommit=True,
-            **kwargs
+            **kwargs,
         )
 
     async def disconnect(self) -> None:
