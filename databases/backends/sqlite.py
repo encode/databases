@@ -16,8 +16,8 @@ logger = logging.getLogger("databases")
 
 
 class SQLiteBackend(DatabaseBackend):
-    def __init__(self, database_url: DatabaseURL) -> None:
-        self._database_url = database_url
+    def __init__(self, database_url: typing.Union[DatabaseURL, str]) -> None:
+        self._database_url = DatabaseURL(database_url)
         self._dialect = pysqlite.dialect(paramstyle="qmark")
         self._pool = SQLitePool(database_url)
 
