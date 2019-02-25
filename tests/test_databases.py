@@ -168,14 +168,14 @@ async def test_results_support_mapping_interface(database_url):
             # fetch_all()
             query = notes.select()
             results = await database.fetch_all(query=query)
-            results_dict = dict(results[0])
+            results_as_dicts = [dict(item) for item in results]
 
-            assert len(results) == 3
-            assert len(results_dict) == 3
+            assert len(results[0]) == 3
+            assert len(results_as_dicts[0]) == 3
 
-            assert isinstance(results_dict["id"], int)
-            assert results_dict["text"] == "example1"
-            assert results_dict["completed"] == True
+            assert isinstance(results_as_dicts[0]["id"], int)
+            assert results_as_dicts[0]["text"] == "example1"
+            assert results_as_dicts[0]["completed"] == True
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
