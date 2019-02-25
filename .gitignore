@@ -3,6 +3,7 @@ test.db
 .coverage
 .pytest_cache/
 .mypy_cache/
+__pycache__/
 *.egg-info/
 htmlcov/
 venv/
