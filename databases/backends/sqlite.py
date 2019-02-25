@@ -97,6 +97,8 @@ class SQLiteConnection(ConnectionBackend):
 
         async with self._connection.execute(query, args) as cursor:
             row = await cursor.fetchone()
+            if row is None:
+                return
             metadata = ResultMetaData(context, cursor.description)
             return RowProxy(metadata, row, metadata._processors, metadata._keymap)
 
