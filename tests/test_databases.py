@@ -170,7 +170,9 @@ async def test_results_support_mapping_interface(database_url):
             results = await database.fetch_all(query=query)
             results_dict = dict(results[0])
 
+            assert len(results) == 3
             assert len(results_dict) == 3
+
             assert isinstance(results_dict["id"], int)
             assert results_dict["text"] == "example1"
             assert results_dict["completed"] == True
