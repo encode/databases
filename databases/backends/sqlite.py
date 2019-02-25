@@ -102,7 +102,7 @@ class SQLiteConnection(ConnectionBackend):
             metadata = ResultMetaData(context, cursor.description)
             return RowProxy(metadata, row, metadata._processors, metadata._keymap)
 
-    async def execute(self, query: ClauseElement, values: dict = None) -> None:
+    async def execute(self, query: ClauseElement, values: dict = None) -> typing.Any:
         assert self._connection is not None, "Connection is not acquired"
         if values is not None:
             query = query.values(values)

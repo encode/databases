@@ -27,7 +27,7 @@ class ConnectionBackend:
     async def fetch_one(self, query: ClauseElement) -> typing.Optional[typing.Mapping]:
         raise NotImplementedError()  # pragma: no cover
 
-    async def execute(self, query: ClauseElement, values: dict = None) -> None:
+    async def execute(self, query: ClauseElement, values: dict = None) -> typing.Any:
         raise NotImplementedError()  # pragma: no cover
 
     async def execute_many(self, query: ClauseElement, values: list) -> None:
