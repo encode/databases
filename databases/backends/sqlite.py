@@ -79,7 +79,7 @@ class SQLiteConnection(ConnectionBackend):
         await self._pool.release(self._connection)
         self._connection = None
 
-    async def fetch_all(self, query: ClauseElement) -> typing.List[RowProxy]:
+    async def fetch_all(self, query: ClauseElement) -> typing.List[typing.Mapping]:
         assert self._connection is not None, "Connection is not acquired"
         query, args, context = self._compile(query)
 
@@ -91,7 +91,7 @@ class SQLiteConnection(ConnectionBackend):
                 for row in rows
             ]
 
-    async def fetch_one(self, query: ClauseElement) -> typing.Optional[RowProxy]:
+    async def fetch_one(self, query: ClauseElement) -> typing.Optional[typing.Mapping]:
         assert self._connection is not None, "Connection is not acquired"
         query, args, context = self._compile(query)
 

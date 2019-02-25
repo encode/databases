@@ -190,7 +190,6 @@ async def test_fetch_one_returning_no_results(database_url):
             assert result is None
 
 
-
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
 async def test_execute_return_val(database_url):

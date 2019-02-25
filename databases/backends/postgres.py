@@ -111,13 +111,13 @@ class PostgresConnection(ConnectionBackend):
         self._connection = await self._database._pool.release(self._connection)
         self._connection = None
 
-    async def fetch_all(self, query: ClauseElement) -> typing.List[Record]:
+    async def fetch_all(self, query: ClauseElement) -> typing.List[typing.Mapping]:
         assert self._connection is not None, "Connection is not acquired"
         query, args, result_columns = self._compile(query)
         rows = await self._connection.fetch(query, *args)
         return [Record(row, result_columns, self._dialect) for row in rows]
 
-    async def fetch_one(self, query: ClauseElement) -> typing.Optional[Record]:
+    async def fetch_one(self, query: ClauseElement) -> typing.Optional[typing.Mapping]:
         assert self._connection is not None, "Connection is not acquired"
         query, args, result_columns = self._compile(query)
         row = await self._connection.fetchrow(query, *args)
