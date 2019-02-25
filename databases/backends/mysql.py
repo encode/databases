@@ -105,6 +105,8 @@ class MySQLConnection(ConnectionBackend):
         try:
             await cursor.execute(query, args)
             row = await cursor.fetchone()
+            if row is None:
+                return None
             metadata = ResultMetaData(context, cursor.description)
             return RowProxy(metadata, row, metadata._processors, metadata._keymap)
         finally:
