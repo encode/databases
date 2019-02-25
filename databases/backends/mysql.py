@@ -83,7 +83,7 @@ class MySQLConnection(ConnectionBackend):
         await self._database._pool.release(self._connection)
         self._connection = None
 
-    async def fetch_all(self, query: ClauseElement) -> typing.List[RowProxy]:
+    async def fetch_all(self, query: ClauseElement) -> typing.List[typing.Mapping]:
         assert self._connection is not None, "Connection is not acquired"
         query, args, context = self._compile(query)
         cursor = await self._connection.cursor()
@@ -98,13 +98,15 @@ class MySQLConnection(ConnectionBackend):
         finally:
             await cursor.close()
 
-    async def fetch_one(self, query: ClauseElement) -> RowProxy:
+    async def fetch_one(self, query: ClauseElement) -> typing.Optional[typing.Mapping]:
         assert self._connection is not None, "Connection is not acquired"
         query, args, context = self._compile(query)
         cursor = await self._connection.cursor()
         try:
             await cursor.execute(query, args)
             row = await cursor.fetchone()
+            if row is None:
+                return None
             metadata = ResultMetaData(context, cursor.description)
             return RowProxy(metadata, row, metadata._processors, metadata._keymap)
         finally:
