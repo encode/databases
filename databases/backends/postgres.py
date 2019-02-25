@@ -1,5 +1,6 @@
 import logging
 import typing
+from collections.abc import Mapping
 
 import asyncpg
 from sqlalchemy.dialects.postgresql import pypostgresql
@@ -63,7 +64,7 @@ class PostgresBackend(DatabaseBackend):
         return PostgresConnection(self, self._dialect)
 
 
-class Record:
+class Record(Mapping):
     def __init__(self, row: tuple, result_columns: tuple, dialect: Dialect) -> None:
         self._row = row
         self._result_columns = result_columns
@@ -86,6 +87,12 @@ class Record:
             return processor(raw)
         return raw
 
+    def __iter__(self) -> typing.Iterator:
+        return iter(self._column_map)
+
+    def __len__(self) -> int:
+        return len(self._column_map)
+
 
 class PostgresConnection(ConnectionBackend):
     def __init__(self, database: PostgresBackend, dialect: Dialect):
@@ -104,13 +111,13 @@ class PostgresConnection(ConnectionBackend):
         self._connection = await self._database._pool.release(self._connection)
         self._connection = None
 
-    async def fetch_all(self, query: ClauseElement) -> typing.Any:
+    async def fetch_all(self, query: ClauseElement) -> typing.List[Record]:
         assert self._connection is not None, "Connection is not acquired"
         query, args, result_columns = self._compile(query)
         rows = await self._connection.fetch(query, *args)
         return [Record(row, result_columns, self._dialect) for row in rows]
 
-    async def fetch_one(self, query: ClauseElement) -> typing.Any:
+    async def fetch_one(self, query: ClauseElement) -> typing.Optional[Record]:
         assert self._connection is not None, "Connection is not acquired"
         query, args, result_columns = self._compile(query)
         row = await self._connection.fetchrow(query, *args)

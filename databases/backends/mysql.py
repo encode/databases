@@ -98,7 +98,7 @@ class MySQLConnection(ConnectionBackend):
         finally:
             await cursor.close()
 
-    async def fetch_one(self, query: ClauseElement) -> RowProxy:
+    async def fetch_one(self, query: ClauseElement) -> typing.Optional[RowProxy]:
         assert self._connection is not None, "Connection is not acquired"
         query, args, context = self._compile(query)
         cursor = await self._connection.cursor()

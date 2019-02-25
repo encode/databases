@@ -153,6 +153,46 @@ async def test_queries(database_url):
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
+async def test_results_support_mapping_interface(database_url):
+    """
+    Casting results to a dict should work, since the interface defines them
+    as supporting the mapping interface.
+    """
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            # execute()
+            query = notes.insert()
+            values = {"text": "example1", "completed": True}
+            await database.execute(query, values)
+
+            # fetch_all()
+            query = notes.select()
+            results = await database.fetch_all(query=query)
+            results_dict = dict(results[0])
+
+            assert len(results_dict) == 3
+            assert isinstance(results_dict["id"], int)
+            assert results_dict["text"] == "example1"
+            assert results_dict["completed"] == True
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_fetch_one_returning_no_results(database_url):
+    """
+    fetch_one should return `None` when no results match.
+    """
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            # fetch_all()
+            query = notes.select()
+            result = await database.fetch_one(query=query)
+            assert result is None
+
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
 async def test_execute_return_val(database_url):
     """
     Test using return value from `execute()` to get an inserted primary key.
