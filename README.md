@@ -65,7 +65,7 @@ custom column types.
 
 ## Queries
 
-You can now use any [SQLAlchemy core][sqlalchemy-core] queries:
+You can now use any [SQLAlchemy core][sqlalchemy-core] queries ([official tutorial][sqlalchemy-core-tutorial]):
 
 ```python
 from databases import Database
@@ -275,6 +275,7 @@ If you're using the `databases.DatabaseURL` datatype, you can obtain this using
 <p align="center"><i>Databases is <a href="https://github.com/encode/databases/blob/master/LICENSE.md">BSD licensed</a> code. Designed & built in Brighton, England.</i></p>
 
 [sqlalchemy-core]: https://docs.sqlalchemy.org/en/latest/core/
+[sqlalchemy-core-tutorial]: https://docs.sqlalchemy.org/en/latest/core/tutorial.html
 [alembic]: https://alembic.sqlalchemy.org/en/latest/
 [asyncpg]: https://github.com/MagicStack/asyncpg
 [aiomysql]: https://github.com/aio-libs/aiomysql
