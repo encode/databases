@@ -169,7 +169,7 @@ class MySQLConnection(ConnectionBackend):
             compiled._textual_ordered_columns,
         )
 
-        logger.debug(compiled.string, args)
+        logger.debug("Query: %s\nArgs: %s", compiled.string, args)
         return compiled.string, args, CompilationContext(execution_context)
 
 
