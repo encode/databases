@@ -45,6 +45,7 @@ Driver support is providing using one of [asyncpg][asyncpg], [aiomysql][aiomysql
 Declare your tables using SQLAlchemy:
 
 ```python
+# tables.py
 import sqlalchemy
 
 
@@ -65,10 +66,17 @@ custom column types.
 
 ## Queries
 
-You can now use any [SQLAlchemy core][sqlalchemy-core] queries:
+You can now use any [SQLAlchemy core][sqlalchemy-core] queries ([official tutorial][sqlalchemy-core-tutorial]):
 
 ```python
+# main.py
+
+# Note: type annotations are optional and are only shown here for documentation.
+from typing import Any, List, Mapping, Optional
+
 from databases import Database
+
+from tables import notes
 
 database = Database('postgresql://localhost/example')
 
@@ -79,7 +87,7 @@ await database.connect()
 # Execute
 query = notes.insert()
 values = {"text": "example1", "completed": True}
-await database.execute(query, values)
+inserted_id: Any = await database.execute(query, values)
 
 # Execute many
 query = notes.insert()
@@ -87,15 +95,15 @@ values = [
     {"text": "example2", "completed": False},
     {"text": "example3", "completed": True},
 ]
-await database.execute_many(query, values)
+inserted_ids: List[Any] = await database.execute_many(query, values)
 
 # Fetch multiple rows
 query = notes.select()
-rows = await database.fetch_all(query)
+rows: List[Mapping] = await database.fetch_all(query)
 
 # Fetch single row
 query = notes.select()
-row = await database.fetch_one(query)
+row: Optional[Mapping] = await database.fetch_one(query)
 
 # Fetch multiple rows without loading them all into memory at once
 query = notes.select()
@@ -275,6 +283,7 @@ If you're using the `databases.DatabaseURL` datatype, you can obtain this using
 <p align="center"><i>Databases is <a href="https://github.com/encode/databases/blob/master/LICENSE.md">BSD licensed</a> code. Designed & built in Brighton, England.</i></p>
 
 [sqlalchemy-core]: https://docs.sqlalchemy.org/en/latest/core/
+[sqlalchemy-core-tutorial]: https://docs.sqlalchemy.org/en/latest/core/tutorial.html
 [alembic]: https://alembic.sqlalchemy.org/en/latest/
 [asyncpg]: https://github.com/MagicStack/asyncpg
 [aiomysql]: https://github.com/aio-libs/aiomysql
