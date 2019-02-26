@@ -168,7 +168,7 @@ class PostgresConnection(ConnectionBackend):
             for key, val in compiled_params
         ]
 
-        logger.debug(compiled_query, args)
+        logger.debug("Query: %s\nArgs: %s", compiled_query, args)
         return compiled_query, args, compiled._result_columns
 
 
