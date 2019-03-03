@@ -9,7 +9,7 @@ from sqlalchemy.engine.result import ResultMetaData, RowProxy
 from sqlalchemy.sql import ClauseElement
 from sqlalchemy.types import TypeEngine
 
-from databases.core import DatabaseURL
+from databases.core import DatabaseURL, NoBackendMethod
 from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend
 
 logger = logging.getLogger("databases")
@@ -115,6 +115,21 @@ class SQLiteConnection(ConnectionBackend):
         assert self._connection is not None, "Connection is not acquired"
         for value in values:
             await self.execute(query, value)
+
+    async def raw_api_call(self, method: str, *args: typing.Any, **kwargs: typing.Any) -> typing.Any:
+        """
+        NOTE: highly experimental, seems to be a dead-end for generalized solution 
+        """
+        assert self._connection is not None, "Connection is not acquired"
+        try:
+            api_method = getattr(self._connection, method)
+            return await api_method(*args, **kwargs)
+        except AttributeError:
+            raise NoBackendMethod(f'{self.database._backend._dialect.driver} has no "{method}" implemented.')
+
+    async def expose_backend_connection(self) -> aiosqlite.core.Connection:
+        assert self._connection is not None, "Connection is not acquired"
+        return self._connection
 
     async def iterate(
         self, query: ClauseElement

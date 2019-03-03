@@ -514,3 +514,135 @@ async def test_connection_context(database_url):
         test_complete.set()
         await task_1
         await task_2
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_queries_with_raw_api_call(database_url):
+    """
+    Test that the basic `execute()`, `execute_many()`, `fetch_all()``, and
+    `fetch_one()` interfaces are working as expected being called as raw driver calls.
+    """
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            # Insert query
+            if str(database_url).startswith('mysql'):
+                insert_query = "INSERT INTO notes (text, completed) VALUES (%s, %s)"
+            else:
+                insert_query = "INSERT INTO notes (text, completed) VALUES ($1, $2)"
+
+            # execute()
+            values = ("example1", True)
+
+            if str(database_url).startswith('postgresql'):
+                await database.raw_api_call('execute', insert_query, *values)
+            else:
+                await database.raw_api_call('execute', insert_query, values)
+
+            # execute_many()
+            values = [("example2", False), ("example3", True)]
+            await database.raw_api_call('executemany', insert_query, values)
+
+            # Select query
+            select_query = "SELECT notes.id, notes.text, notes.completed FROM notes"
+
+            # fetch_all()
+            if str(database_url).startswith('postgresql'):
+                results = await database.raw_api_call('fetch', select_query)
+            elif str(database_url).startswith('mysql'):
+                results = await database.raw_api_call('fetchall', select_query)
+            elif str(database_url).startswith('sqlite'):
+                results = await database.raw_api_call('execute_fetchall', select_query)
+
+            assert len(results) == 3
+            # Raw output for the raw request
+            assert results[0][1] == "example1"
+            assert results[0][2] == True
+            assert results[1][1] == "example2"
+            assert results[1][2] == False
+            assert results[2][1] == "example3"
+            assert results[2][2] == True
+
+            # # fetch_one()
+            # import pdb; pdb.set_trace()
+            # if str(database_url).startswith('postgresql'):
+            #     result = await database.raw_api_call('fetchrow', select_query)
+            # else:
+            #     result = await database.raw_api_call('fetchone', select_query)
+            # assert result[1] == "example1"
+            # assert result[2] == True
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_queries_with_expose_backend_connection(database_url):
+    """
+    Replication of `execute()`, `execute_many()`, `fetch_all()``, and
+    `fetch_one()` using the raw driver interface.
+    """
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            # Insert query
+            if str(database_url).startswith('mysql'):
+                insert_query = "INSERT INTO notes (text, completed) VALUES (%s, %s)"
+            else:
+                insert_query = "INSERT INTO notes (text, completed) VALUES ($1, $2)"
+
+            # execute()
+            values = ("example1", True)
+
+            con = await database.expose_backend_connection()
+
+            if str(database_url).startswith('postgresql'):
+                await con.execute(insert_query, *values)
+            elif str(database_url).startswith('mysql'):
+                cursor = await con.cursor()
+                await cursor.execute(insert_query, values)
+            elif str(database_url).startswith('sqlite'):
+                await con.execute(insert_query, values)
+
+            # execute_many()
+            values = [("example2", False), ("example3", True)]
+            
+            if str(database_url).startswith('mysql'):
+                cursor = await con.cursor()
+                await cursor.executemany(insert_query, values)
+            else:
+                await con.executemany(insert_query, values)
+
+            # Select query
+            select_query = "SELECT notes.id, notes.text, notes.completed FROM notes"
+
+            # fetch_all()
+            if str(database_url).startswith('postgresql'):
+                results = await con.fetch(select_query)
+            elif str(database_url).startswith('mysql'):
+                cursor = await con.cursor()
+                await cursor.execute(select_query)
+                results = await cursor.fetchall()
+            elif str(database_url).startswith('sqlite'):
+                results = await con.execute_fetchall(select_query)
+
+            assert len(results) == 3
+            # Raw output for the raw request
+            assert results[0][1] == "example1"
+            assert results[0][2] == True
+            assert results[1][1] == "example2"
+            assert results[1][2] == False
+            assert results[2][1] == "example3"
+            assert results[2][2] == True
+
+            # fetch_one()
+            if str(database_url).startswith('postgresql'):
+                result = await con.fetchrow(select_query)
+            else:
+                cursor = await con.cursor()
+                await cursor.execute(select_query)
+                result = await cursor.fetchone()
+            
+            # Raw output for the raw request
+            assert result[1] == "example1"
+            assert result[2] == True
+
+# TODO unittests at the connection level
+# TODO (?) Double-check connections are released back to the pool
