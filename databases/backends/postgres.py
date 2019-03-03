@@ -7,7 +7,7 @@ from sqlalchemy.dialects.postgresql import pypostgresql
 from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.sql import ClauseElement
 
-from databases.core import DatabaseURL, NoBackendMethod
+from databases.core import DatabaseURL
 from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend
 
 logger = logging.getLogger("databases")
@@ -143,17 +143,6 @@ class PostgresConnection(ConnectionBackend):
             single_query = query.values(item)
             single_query, args, result_columns = self._compile(single_query)
             await self._connection.execute(single_query, *args)
-
-    async def raw_api_call(self, method: str, *args: typing.Any, **kwargs: typing.Any) -> typing.Any:
-        """
-        NOTE: highly experimental, seems to be a dead-end for generalized solution 
-        """
-        assert self._connection is not None, "Connection is not acquired"
-        try:
-            api_method = getattr(self._connection, method)
-            return await api_method(*args, **kwargs)
-        except AttributeError:
-            raise NoBackendMethod(f'{self.database._backend._dialect.driver} has no "{method}" implemented.')
 
     async def expose_backend_connection(self) -> asyncpg.connection.Connection:
         assert self._connection is not None, "Connection is not acquired"

@@ -33,6 +33,9 @@ class ConnectionBackend:
     async def execute_many(self, query: ClauseElement, values: list) -> None:
         raise NotImplementedError()  # pragma: no cover
 
+    async def expose_backend_connection(self) -> typing.Any:
+        raise NotImplementedError()  # pragma: no cover
+
     async def iterate(
         self, query: ClauseElement
     ) -> typing.AsyncGenerator[typing.Mapping, None]:

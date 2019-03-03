@@ -104,10 +104,6 @@ class Database:
         async with self.connection() as connection:
             return await connection.execute_many(query=query, values=values)
 
-    async def raw_api_call(self, method: str, *args: typing.Any, **kwargs: typing.Any) -> typing.Any:
-        async with self.connection() as connection:
-            return await connection.raw_api_call(method, *args, **kwargs)
-
     async def expose_backend_connection(self) -> typing.Any:
         async with self.connection() as connection:
             return await connection.expose_backend_connection()
@@ -175,9 +171,6 @@ class Connection:
 
     async def execute_many(self, query: ClauseElement, values: list) -> None:
         await self._connection.execute_many(query, values)
-
-    async def raw_api_call(self, method: str, *args: typing.Any, **kwargs: typing.Any) -> typing.Any:
-        return await self._connection.raw_api_call(method, *args, **kwargs)
 
     async def expose_backend_connection(self) -> typing.Any:
         return await self._connection.expose_backend_connection()
@@ -362,7 +355,3 @@ class DatabaseURL:
         if self.password:
             url = str(self.replace(password="********"))
         return f"{self.__class__.__name__}({repr(url)})"
-
-
-class NoBackendMethod(Exception):
-    pass

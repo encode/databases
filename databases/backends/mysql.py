@@ -10,7 +10,7 @@ from sqlalchemy.engine.result import ResultMetaData, RowProxy
 from sqlalchemy.sql import ClauseElement
 from sqlalchemy.types import TypeEngine
 
-from databases.core import DatabaseURL, NoBackendMethod
+from databases.core import DatabaseURL
 from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend
 
 logger = logging.getLogger("databases")
@@ -132,25 +132,6 @@ class MySQLConnection(ConnectionBackend):
                 single_query = query.values(item)
                 single_query, args, context = self._compile(single_query)
                 await cursor.execute(single_query, args)
-        finally:
-            await cursor.close()
-
-    async def raw_api_call(self, method: str, *args: typing.Any, **kwargs: typing.Any) -> typing.Any:
-        """
-        NOTE: highly experimental, seems to be a dead-end for generalized solution 
-        """
-        assert self._connection is not None, "Connection is not acquired"
-        cursor = await self._connection.cursor()
-        try:
-            if 'execute' not in method:
-                await cursor.execute(*args, **kwargs)
-                api_method = getattr(cursor, method)
-                return await api_method()
-            else:
-                api_method = getattr(cursor, method)
-                return await api_method(*args, **kwargs)
-        except AttributeError:
-            raise NoBackendMethod(f'{self.database._backend._dialect.driver} has no "{method}" implemented.')
         finally:
             await cursor.close()
 
