@@ -564,7 +564,6 @@ async def test_queries_with_raw_api_call(database_url):
             assert results[2][2] == True
 
             # # fetch_one()
-            # import pdb; pdb.set_trace()
             # if str(database_url).startswith('postgresql'):
             #     result = await database.raw_api_call('fetchrow', select_query)
             # else:
