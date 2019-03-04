@@ -518,6 +518,25 @@ async def test_connection_context(database_url):
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
+async def test_connection_context_with_raw_connection(database_url):
+    """
+    Test connection contexts with respect to the raw connection.
+    """
+    async with Database(database_url) as database:
+        async with database.connection() as connection_1:
+            async with database.connection() as connection_2:
+                assert connection_1 is connection_2
+
+                raw_connection_0 = await database.raw_connection()
+                raw_connection_1 = await connection_1.raw_connection()
+                raw_connection_2 = await connection_2.raw_connection()
+
+                assert raw_connection_0 is raw_connection_1 is raw_connection_2
+                assert raw_connection_0 is connection_1._connection._connection
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
 async def test_queries_with_expose_backend_connection(database_url):
     """
     Replication of `execute()`, `execute_many()`, `fetch_all()``, and
@@ -525,8 +544,11 @@ async def test_queries_with_expose_backend_connection(database_url):
     """
     async with Database(database_url) as database:
         async with database.transaction(force_rollback=True):
+            # Get the raw connection
+            con = await database.raw_connection()
+
             # Insert query
-            if str(database_url).startswith('mysql'):
+            if str(database_url).startswith("mysql"):
                 insert_query = "INSERT INTO notes (text, completed) VALUES (%s, %s)"
             else:
                 insert_query = "INSERT INTO notes (text, completed) VALUES ($1, $2)"
@@ -534,20 +556,18 @@ async def test_queries_with_expose_backend_connection(database_url):
             # execute()
             values = ("example1", True)
 
-            con = await database.expose_backend_connection()
-
-            if str(database_url).startswith('postgresql'):
+            if str(database_url).startswith("postgresql"):
                 await con.execute(insert_query, *values)
-            elif str(database_url).startswith('mysql'):
+            elif str(database_url).startswith("mysql"):
                 cursor = await con.cursor()
                 await cursor.execute(insert_query, values)
-            elif str(database_url).startswith('sqlite'):
+            elif str(database_url).startswith("sqlite"):
                 await con.execute(insert_query, values)
 
             # execute_many()
             values = [("example2", False), ("example3", True)]
-            
-            if str(database_url).startswith('mysql'):
+
+            if str(database_url).startswith("mysql"):
                 cursor = await con.cursor()
                 await cursor.executemany(insert_query, values)
             else:
@@ -557,13 +577,13 @@ async def test_queries_with_expose_backend_connection(database_url):
             select_query = "SELECT notes.id, notes.text, notes.completed FROM notes"
 
             # fetch_all()
-            if str(database_url).startswith('postgresql'):
+            if str(database_url).startswith("postgresql"):
                 results = await con.fetch(select_query)
-            elif str(database_url).startswith('mysql'):
+            elif str(database_url).startswith("mysql"):
                 cursor = await con.cursor()
                 await cursor.execute(select_query)
                 results = await cursor.fetchall()
-            elif str(database_url).startswith('sqlite'):
+            elif str(database_url).startswith("sqlite"):
                 results = await con.execute_fetchall(select_query)
 
             assert len(results) == 3
@@ -576,48 +596,13 @@ async def test_queries_with_expose_backend_connection(database_url):
             assert results[2][2] == True
 
             # fetch_one()
-            if str(database_url).startswith('postgresql'):
+            if str(database_url).startswith("postgresql"):
                 result = await con.fetchrow(select_query)
             else:
                 cursor = await con.cursor()
                 await cursor.execute(select_query)
                 result = await cursor.fetchone()
-            
+
             # Raw output for the raw request
             assert result[1] == "example1"
             assert result[2] == True
-
-
-@pytest.mark.parametrize("database_url", DATABASE_URLS)
-@async_adapter
-async def test_queries_with_sqlalchemy_test(database_url):
-    """
-    Test for inserting and retriving the data using the `sqlalchemy.text` query object.
-    """
-    async with Database(database_url) as database:
-        async with database.transaction(force_rollback=True):
-            # Insert query
-            insert_query = "INSERT INTO notes (text, completed) VALUES (:text, :completed)"
-            
-            # execute_many()
-            query = sqlalchemy.text(insert_query)
-            values = [("example1", True), ("example2", False), ("example3", True)]
-            for text, completed in values:
-                current_query = query.bindparams(text=text, completed=completed)
-                await database.execute(current_query)
-
-            # Select query
-            select_query = "SELECT notes.id, notes.text, notes.completed FROM notes"
-
-            # fetch_all()
-            query = sqlalchemy.text(select_query)
-            results = await database.fetch_all(query)
-
-            assert len(results) == 3
-            # Raw output for the raw request
-            assert results[0][1] == "example1"
-            assert results[0][2] == True
-            assert results[1][1] == "example2"
-            assert results[1][2] == False
-            assert results[2][1] == "example3"
-            assert results[2][2] == True

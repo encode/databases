@@ -74,21 +74,18 @@ class Record(Mapping):
             for idx, (column_name, _, _, datatype) in enumerate(self._result_columns)
         }
 
-    def __getitem__(self, key: typing.Any) -> typing.Any:
+    def __getitem__(self, key: str) -> typing.Any:
+        idx, datatype = self._column_map[key]
+        raw = self._row[idx]
         try:
-            idx, datatype = self._column_map[key]
-            raw = self._row[idx]
-            try:
-                processor = _result_processors[datatype]
-            except KeyError:
-                processor = datatype.result_processor(self._dialect, None)
-                _result_processors[datatype] = processor
-
-            if processor is not None:
-                return processor(raw)
-            return raw
+            processor = _result_processors[datatype]
         except KeyError:
-            return self._row[key]
+            processor = datatype.result_processor(self._dialect, None)
+            _result_processors[datatype] = processor
+
+        if processor is not None:
+            return processor(raw)
+        return raw
 
     def __iter__(self) -> typing.Iterator:
         return iter(self._column_map)
@@ -145,10 +142,6 @@ class PostgresConnection(ConnectionBackend):
             single_query, args, result_columns = self._compile(single_query)
             await self._connection.execute(single_query, *args)
 
-    async def expose_backend_connection(self) -> asyncpg.connection.Connection:
-        assert self._connection is not None, "Connection is not acquired"
-        return self._connection
-
     async def iterate(
         self, query: ClauseElement
     ) -> typing.AsyncGenerator[typing.Any, None]:
@@ -156,6 +149,10 @@ class PostgresConnection(ConnectionBackend):
         query, args, result_columns = self._compile(query)
         async for row in self._connection.cursor(query, *args):
             yield Record(row, result_columns, self._dialect)
+
+    async def raw_connection(self) -> asyncpg.connection.Connection:
+        assert self._connection is not None, "Connection is not acquired"
+        return self._connection
 
     def transaction(self) -> TransactionBackend:
         return PostgresTransaction(connection=self)

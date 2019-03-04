@@ -135,10 +135,6 @@ class MySQLConnection(ConnectionBackend):
         finally:
             await cursor.close()
 
-    async def expose_backend_connection(self) -> aiomysql.connection.Connection:
-        assert self._connection is not None, "Connection is not acquired"
-        return self._connection
-
     async def iterate(
         self, query: ClauseElement
     ) -> typing.AsyncGenerator[typing.Any, None]:
@@ -152,6 +148,10 @@ class MySQLConnection(ConnectionBackend):
                 yield RowProxy(metadata, row, metadata._processors, metadata._keymap)
         finally:
             await cursor.close()
+
+    async def raw_connection(self) -> aiomysql.connection.Connection:
+        assert self._connection is not None, "Connection is not acquired"
+        return self._connection
 
     def transaction(self) -> TransactionBackend:
         return MySQLTransaction(self)

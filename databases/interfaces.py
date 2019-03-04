@@ -33,9 +33,6 @@ class ConnectionBackend:
     async def execute_many(self, query: ClauseElement, values: list) -> None:
         raise NotImplementedError()  # pragma: no cover
 
-    async def expose_backend_connection(self) -> typing.Any:
-        raise NotImplementedError()  # pragma: no cover
-
     async def iterate(
         self, query: ClauseElement
     ) -> typing.AsyncGenerator[typing.Mapping, None]:
@@ -43,6 +40,9 @@ class ConnectionBackend:
         # mypy needs async iterators to contain a `yield`
         # https://github.com/python/mypy/issues/5385#issuecomment-407281656
         yield True  # pragma: no cover
+
+    async def raw_connection(self) -> typing.Any:
+        raise NotImplementedError()  # pragma: no cover
 
     def transaction(self) -> "TransactionBackend":
         raise NotImplementedError()  # pragma: no cover

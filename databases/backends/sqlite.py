@@ -116,7 +116,7 @@ class SQLiteConnection(ConnectionBackend):
         for value in values:
             await self.execute(query, value)
 
-    async def expose_backend_connection(self) -> aiosqlite.core.Connection:
+    async def raw_connection(self) -> aiosqlite.core.Connection:
         assert self._connection is not None, "Connection is not acquired"
         return self._connection
 

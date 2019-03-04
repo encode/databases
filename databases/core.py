@@ -104,16 +104,16 @@ class Database:
         async with self.connection() as connection:
             return await connection.execute_many(query=query, values=values)
 
-    async def expose_backend_connection(self) -> typing.Any:
-        async with self.connection() as connection:
-            return await connection.expose_backend_connection()
-
     async def iterate(
         self, query: ClauseElement
     ) -> typing.AsyncGenerator[RowProxy, None]:
         async with self.connection() as connection:
             async for record in connection.iterate(query):
                 yield record
+
+    async def raw_connection(self) -> typing.Any:
+        async with self.connection() as connection:
+            return await connection.raw_connection()
 
     def connection(self) -> "Connection":
         if self._global_connection is not None:
@@ -172,8 +172,8 @@ class Connection:
     async def execute_many(self, query: ClauseElement, values: list) -> None:
         await self._connection.execute_many(query, values)
 
-    async def expose_backend_connection(self) -> typing.Any:
-        return await self._connection.expose_backend_connection()
+    async def raw_connection(self) -> typing.Any:
+        return await self._connection.raw_connection()
 
     async def iterate(
         self, query: ClauseElement
