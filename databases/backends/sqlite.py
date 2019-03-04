@@ -153,6 +153,11 @@ class SQLiteConnection(ConnectionBackend):
         logger.debug("Query: %s\nArgs: %s", compiled.string, args)
         return compiled.string, args, CompilationContext(execution_context)
 
+    @property
+    def raw_connection(self) -> aiosqlite.core.Connection:
+        assert self._connection is not None, "Connection is not acquired"
+        return self._connection
+
 
 class SQLiteTransaction(TransactionBackend):
     def __init__(self, connection: SQLiteConnection):

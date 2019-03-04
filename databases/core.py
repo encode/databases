@@ -177,6 +177,10 @@ class Connection:
     def transaction(self, *, force_rollback: bool = False) -> "Transaction":
         return Transaction(self, force_rollback)
 
+    @property
+    def raw_connection(self) -> typing.Any:
+        return self._connection.raw_connection
+
 
 class Transaction:
     def __init__(self, connection: Connection, force_rollback: bool) -> None:

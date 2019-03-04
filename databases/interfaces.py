@@ -44,6 +44,10 @@ class ConnectionBackend:
     def transaction(self) -> "TransactionBackend":
         raise NotImplementedError()  # pragma: no cover
 
+    @property
+    def raw_connection(self) -> typing.Any:
+        raise NotImplementedError()  # pragma: no cover
+
 
 class TransactionBackend:
     async def start(self, is_root: bool) -> None:

@@ -171,6 +171,11 @@ class PostgresConnection(ConnectionBackend):
         logger.debug("Query: %s\nArgs: %s", compiled_query, args)
         return compiled_query, args, compiled._result_columns
 
+    @property
+    def raw_connection(self) -> asyncpg.connection.Connection:
+        assert self._connection is not None, "Connection is not acquired"
+        return self._connection
+
 
 class PostgresTransaction(TransactionBackend):
     def __init__(self, connection: PostgresConnection):
