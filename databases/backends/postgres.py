@@ -6,6 +6,7 @@ import asyncpg
 from sqlalchemy.dialects.postgresql import pypostgresql
 from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.sql import ClauseElement
+from sqlalchemy.sql.elements import quoted_name
 
 from databases.core import DatabaseURL
 from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend
@@ -79,7 +80,7 @@ class Record(Mapping):
         }
 
     def __getitem__(self, key) -> typing.Any:
-        if type(key) is str:
+        if type(key) is str or quoted_name:
             idx, datatype = self._column_map[key]
         else:
             idx, datatype = self._column_map_full[str(key)]
