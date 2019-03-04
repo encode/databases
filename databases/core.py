@@ -111,10 +111,6 @@ class Database:
             async for record in connection.iterate(query):
                 yield record
 
-    async def raw_connection(self) -> typing.Any:
-        async with self.connection() as connection:
-            return await connection.raw_connection()
-
     def connection(self) -> "Connection":
         if self._global_connection is not None:
             return self._global_connection
@@ -172,9 +168,6 @@ class Connection:
     async def execute_many(self, query: ClauseElement, values: list) -> None:
         await self._connection.execute_many(query, values)
 
-    async def raw_connection(self) -> typing.Any:
-        return await self._connection.raw_connection()
-
     async def iterate(
         self, query: ClauseElement
     ) -> typing.AsyncGenerator[typing.Any, None]:
@@ -183,6 +176,10 @@ class Connection:
 
     def transaction(self, *, force_rollback: bool = False) -> "Transaction":
         return Transaction(self, force_rollback)
+
+    @property
+    def raw_connection(self) -> typing.Any:
+        return self._connection.raw_connection
 
 
 class Transaction:

@@ -41,10 +41,11 @@ class ConnectionBackend:
         # https://github.com/python/mypy/issues/5385#issuecomment-407281656
         yield True  # pragma: no cover
 
-    async def raw_connection(self) -> typing.Any:
+    def transaction(self) -> "TransactionBackend":
         raise NotImplementedError()  # pragma: no cover
 
-    def transaction(self) -> "TransactionBackend":
+    @property
+    def raw_connection(self) -> typing.Any:
         raise NotImplementedError()  # pragma: no cover
 
 

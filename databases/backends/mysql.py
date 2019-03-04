@@ -149,10 +149,6 @@ class MySQLConnection(ConnectionBackend):
         finally:
             await cursor.close()
 
-    async def raw_connection(self) -> aiomysql.connection.Connection:
-        assert self._connection is not None, "Connection is not acquired"
-        return self._connection
-
     def transaction(self) -> TransactionBackend:
         return MySQLTransaction(self)
 
@@ -175,6 +171,11 @@ class MySQLConnection(ConnectionBackend):
 
         logger.debug("Query: %s\nArgs: %s", compiled.string, args)
         return compiled.string, args, CompilationContext(execution_context)
+
+    @property
+    def raw_connection(self) -> aiomysql.connection.Connection:
+        assert self._connection is not None, "Connection is not acquired"
+        return self._connection
 
 
 class MySQLTransaction(TransactionBackend):

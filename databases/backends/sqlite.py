@@ -116,10 +116,6 @@ class SQLiteConnection(ConnectionBackend):
         for value in values:
             await self.execute(query, value)
 
-    async def raw_connection(self) -> aiosqlite.core.Connection:
-        assert self._connection is not None, "Connection is not acquired"
-        return self._connection
-
     async def iterate(
         self, query: ClauseElement
     ) -> typing.AsyncGenerator[typing.Any, None]:
@@ -156,6 +152,11 @@ class SQLiteConnection(ConnectionBackend):
 
         logger.debug("Query: %s\nArgs: %s", compiled.string, args)
         return compiled.string, args, CompilationContext(execution_context)
+
+    @property
+    def raw_connection(self) -> aiosqlite.core.Connection:
+        assert self._connection is not None, "Connection is not acquired"
+        return self._connection
 
 
 class SQLiteTransaction(TransactionBackend):
