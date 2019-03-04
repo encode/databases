@@ -96,8 +96,6 @@ class Record(Mapping):
     def __len__(self) -> int:
         return len(self._column_map)
 
-    # TODO (?) Nice __repr__
-
 
 class PostgresConnection(ConnectionBackend):
     def __init__(self, database: PostgresBackend, dialect: Dialect):
