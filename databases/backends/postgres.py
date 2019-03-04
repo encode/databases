@@ -74,18 +74,21 @@ class Record(Mapping):
             for idx, (column_name, _, _, datatype) in enumerate(self._result_columns)
         }
 
-    def __getitem__(self, key: str) -> typing.Any:
-        idx, datatype = self._column_map[key]
-        raw = self._row[idx]
+    def __getitem__(self, key: typing.Any) -> typing.Any:
         try:
-            processor = _result_processors[datatype]
-        except KeyError:
-            processor = datatype.result_processor(self._dialect, None)
-            _result_processors[datatype] = processor
+            idx, datatype = self._column_map[key]
+            raw = self._row[idx]
+            try:
+                processor = _result_processors[datatype]
+            except KeyError:
+                processor = datatype.result_processor(self._dialect, None)
+                _result_processors[datatype] = processor
 
-        if processor is not None:
-            return processor(raw)
-        return raw
+            if processor is not None:
+                return processor(raw)
+            return raw
+        except KeyError:
+            return self._row[key]
 
     def __iter__(self) -> typing.Iterator:
         return iter(self._column_map)

@@ -587,5 +587,37 @@ async def test_queries_with_expose_backend_connection(database_url):
             assert result[1] == "example1"
             assert result[2] == True
 
-# TODO unittests at the connection level
-# TODO (?) Double-check connections are released back to the pool
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_queries_with_sqlalchemy_test(database_url):
+    """
+    Test for inserting and retriving the data using the `sqlalchemy.text` query object.
+    """
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            # Insert query
+            insert_query = "INSERT INTO notes (text, completed) VALUES (:text, :completed)"
+            
+            # execute_many()
+            query = sqlalchemy.text(insert_query)
+            values = [("example1", True), ("example2", False), ("example3", True)]
+            for text, completed in values:
+                current_query = query.bindparams(text=text, completed=completed)
+                await database.execute(current_query)
+
+            # Select query
+            select_query = "SELECT notes.id, notes.text, notes.completed FROM notes"
+
+            # fetch_all()
+            query = sqlalchemy.text(select_query)
+            results = await database.fetch_all(query)
+
+            assert len(results) == 3
+            # Raw output for the raw request
+            assert results[0][1] == "example1"
+            assert results[0][2] == True
+            assert results[1][1] == "example2"
+            assert results[1][2] == False
+            assert results[2][1] == "example3"
+            assert results[2][2] == True
