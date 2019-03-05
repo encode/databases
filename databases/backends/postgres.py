@@ -79,7 +79,7 @@ class Record(Mapping):
             for idx, (_, _, column, datatype) in enumerate(self._result_columns)
         }
 
-    def __getitem__(self, key) -> typing.Any:
+    def __getitem__(self, key: typing.Any) -> typing.Any:
         if type(key) is Column:
             idx, datatype = self._column_map_full[str(key)]
         else:
