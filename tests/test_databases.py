@@ -180,6 +180,37 @@ async def test_results_support_mapping_interface(database_url):
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
+async def test_results_support_column_reference(database_url):
+    """
+    Casting results to a dict should work, since the interface defines them
+    as supporting the mapping interface.
+    """
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            now = datetime.datetime.now().replace(microsecond=0)
+            today = datetime.date.today()
+
+            # execute()
+            query = articles.insert()
+            values = {"title": "Hello, world Article", "published": now}
+            await database.execute(query, values)
+
+            query = custom_date.insert()
+            values = {"title": "Hello, world Custom", "published": today}
+            await database.execute(query, values)
+
+            # fetch_all()
+            query = sqlalchemy.select([articles, custom_date])
+            results = await database.fetch_all(query=query)
+            assert len(results) == 1
+            assert results[0][articles.c.title] == "Hello, world Article"
+            assert results[0][articles.c.published] == now
+            assert results[0][custom_date.c.title] == "Hello, world Custom"
+            assert results[0][custom_date.c.published] == today
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
 async def test_fetch_one_returning_no_results(database_url):
     """
     fetch_one should return `None` when no results match.
