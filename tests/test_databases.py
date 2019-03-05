@@ -195,7 +195,7 @@ async def test_results_support_column_reference(database_url):
             values = {"title": "Hello, world Article", "published": now}
             await database.execute(query, values)
 
-            query = custom_date.insert()            
+            query = custom_date.insert()
             values = {"title": "Hello, world Custom", "published": today}
             await database.execute(query, values)
 
