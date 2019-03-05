@@ -6,6 +6,7 @@ import asyncpg
 from sqlalchemy.dialects.postgresql import pypostgresql
 from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.sql import ClauseElement
+from sqlalchemy.sql.schema import Column
 
 from databases.core import DatabaseURL
 from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend
@@ -79,10 +80,10 @@ class Record(Mapping):
         }
 
     def __getitem__(self, key) -> typing.Any:
-        if type(key) is str:
-            idx, datatype = self._column_map[key]
-        else:
+        if type(key) is Column:
             idx, datatype = self._column_map_full[str(key)]
+        else:
+            idx, datatype = self._column_map[key]
         raw = self._row[idx]
         try:
             processor = _result_processors[datatype]
