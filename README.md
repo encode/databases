@@ -186,6 +186,82 @@ database = Database('postgresql://localhost/example?ssl=true')
 database = Database('mysql://localhost/example?min_size=5&max_size=20')
 ```
 
+## Accessing the raw driver connection interface
+
+#### asyncpg
+
+```python
+async with database.connection() as connection:
+    async with database.transaction():
+        # Get the raw connection
+        raw_connection = connection.raw_connection
+        # Define the query
+        insert_query = "INSERT INTO notes (text, completed) VALUES ($1, $2)"
+        # Prepare values
+        values = [("example2", False), ("example3", True)]
+        # Execute the query
+        await raw_connection.executemany(insert_query, values)
+```
+
+#### aiomysql
+```python
+async with database.connection() as connection:
+    async with database.transaction():
+        # Get the raw connection object
+        raw_connection = connection.raw_connection
+        # Define the query
+        insert_query = "INSERT INTO notes (text, completed) VALUES (%s, %s)"
+        # Prepare values
+        values = [("example1", False), ("example2", True)]
+        # Execute the query
+        cursor = await raw_connection.cursor()
+        await cursor.execute(insert_query, values)
+```
+
+#### Example of the complex transaction using asyncpg
+```python
+async with database.connection() as connection:
+    # Get the raw connection object
+    raw_connection = connection.raw_connection
+    # Explicitly start the transaction
+    transaction = raw_connection.transaction()
+    await transaction.start()
+    
+    try:
+        # As example, we can postpone constraints check before the commit 
+        await raw_connection.execute("SET CONSTRAINTS ALL DEFERRED;")
+        # Define the upsert query that returns back created rows (as `asyncpg.Record`) 
+        some_table_notes_query = """
+            INSERT INTO some_table (uuid, description)
+            (SELECT r.uuid, r.description
+             FROM unnest($1::some_table[]) as r)
+            ON CONFLICT (uuid)
+            DO UPDATE SET description = EXCLUDED.description
+            RETURNING *;
+        """
+        # Prepare values
+        values = [(uuid4(), "example1"), (uuid4(), "example2"), ...]
+        # Execute the query
+        some_table_rows = await raw_connection.fetch(some_table_notes_query, values)
+        # As example, we can query violated constrains with respect to another table
+        select_query = """
+            SELECT * FROM some_table
+            LEFT JOIN another_table ON (another_table.some_fk = some_table.pk)
+            WHERE some_table.pk is NULL;
+        """
+        violations = raw_connection.fetch(select_query)
+    except:
+        transaction.rollback()
+        return {'state': 'transaction failed'}
+    
+    if violations:
+        transaction.rollback()
+        return {'state': 'violations detected', 'violations': violations}
+    else:
+        transaction.commit()
+        return {'state': 'transaction successful', 'some_table_rows': some_table_rows}
+```
+
 ## Test isolation
 
 For strict test isolation you will always want to rollback the test database
