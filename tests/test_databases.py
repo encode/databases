@@ -514,3 +514,47 @@ async def test_connection_context(database_url):
         test_complete.set()
         await task_1
         await task_2
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_connection_acquire_and_release(database_url):
+    """
+    Test for the `connection = await database.connection() ... connection.release()`
+    """
+    # Get the database back-end via the context manager
+    async with Database(database_url) as database:
+        # Part 1: Context manager
+        # Get the connection via the context manager
+        async with database.connection() as connection_1:
+            # Check the connection in the context manager
+            assert connection_1 is database._connection_context.get()
+            # Check the number of connection
+            assert connection_1._connection_counter == 1
+            # Check the connection works
+            data = await connection_1.fetch_all(sqlalchemy.text("select * from notes"))
+            assert data == []
+        # Check the connection is released
+        assert connection_1._connection._connection is None
+        # Check the number of connection
+        assert connection_1._connection_counter == 0
+
+        # Part 2: explicit/function call
+        # Get the connection explicitly
+        # (but via the context manager behind the scene)
+        connection_2 = await database.connection()
+        # Check the connection in the context manager
+        assert connection_2 is database._connection_context.get()
+        # Check the number of connection
+        assert connection_2._connection_counter == 1
+        # Check the connection works
+        data = await connection_2.fetch_all(sqlalchemy.text("select * from notes"))
+        assert data == []
+        # Release the connection explicitly
+        await connection_2.release()
+        # Check the connection is released
+        assert connection_2._connection._connection is None
+        # Check the number of connection
+        assert connection_2._connection_counter == 0
+
+        assert connection_1 is connection_2  # Hm?
