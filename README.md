@@ -109,6 +109,27 @@ await database.disconnect()
 Connections are managed as task-local state, with driver implementations
 transparently using connection pooling behind the scenes.
 
+## Connections
+
+Connections are managed by async context blocks:
+
+```python
+async with database.connection():
+    ...
+```
+
+For a lower-level transaction API:
+
+```python
+connection = await database.connection()
+try:
+    ...
+except:
+    ...
+finally:
+    connection.release()
+```
+
 ## Transactions
 
 Transactions are managed by async context blocks:
