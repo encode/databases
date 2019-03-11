@@ -156,6 +156,12 @@ class Connection:
             if self._connection_counter == 0:
                 await self._connection.release()
 
+    def __await__(self) -> typing.Generator[typing.Any, None, "Connection"]:
+        return self.__aenter__().__await__()
+
+    async def release(self) -> None:
+        await self.__aexit__()
+
     async def fetch_all(self, query: ClauseElement) -> typing.Any:
         return await self._connection.fetch_all(query=query)
 
