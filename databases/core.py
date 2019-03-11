@@ -27,14 +27,14 @@ class Database:
     def __init__(
         self, url: typing.Union[str, "DatabaseURL"], *, force_rollback: bool = False
     ):
-        self._url = DatabaseURL(url)
+        self.url = DatabaseURL(url)
         self._force_rollback = force_rollback
         self.is_connected = False
 
-        backend_str = self.SUPPORTED_BACKENDS[self._url.dialect]
+        backend_str = self.SUPPORTED_BACKENDS[self.url.dialect]
         backend_cls = import_from_string(backend_str)
         assert issubclass(backend_cls, DatabaseBackend)
-        self._backend = backend_cls(self._url)
+        self._backend = backend_cls(self.url)
 
         # Connections are stored as task-local state.
         self._connection_context = ContextVar("connection_context")  # type: ContextVar
@@ -352,3 +352,6 @@ class DatabaseURL:
         if self.password:
             url = str(self.replace(password="********"))
         return f"{self.__class__.__name__}({repr(url)})"
+
+    def __eq__(self, other: typing.Any) -> bool:
+        return str(self) == str(other)

@@ -632,3 +632,14 @@ async def test_queries_with_expose_backend_connection(database_url):
                 # Raw output for the raw request
                 assert result[1] == "example1"
                 assert result[2] == True
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_database_url_interface(database_url):
+    """
+    Test that Database instances expose a `.url` attribute.
+    """
+    async with Database(database_url) as database:
+        assert isinstance(database.url, DatabaseURL)
+        assert database.url == database_url
