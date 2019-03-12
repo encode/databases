@@ -636,6 +636,17 @@ async def test_queries_with_expose_backend_connection(database_url):
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
+async def test_database_url_interface(database_url):
+    """
+    Test that Database instances expose a `.url` attribute.
+    """
+    async with Database(database_url) as database:
+        assert isinstance(database.url, DatabaseURL)
+        assert database.url == database_url
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
 async def test_connection_acquire_and_release(database_url):
     """
     Test for the `connection = await database.connection() ... connection.release()`
