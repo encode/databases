@@ -5,6 +5,7 @@ import typing
 from types import TracebackType
 from urllib.parse import SplitResult, parse_qsl, urlsplit
 
+from sqlalchemy import text
 from sqlalchemy.engine import RowProxy
 from sqlalchemy.sql import ClauseElement
 
@@ -88,27 +89,36 @@ class Database:
     ) -> None:
         await self.disconnect()
 
-    async def fetch_all(self, query: ClauseElement) -> typing.List[RowProxy]:
+    async def fetch_all(
+        self, query: typing.Union[ClauseElement, str], values: dict = None
+    ) -> typing.List[RowProxy]:
         async with self.connection() as connection:
-            return await connection.fetch_all(query=query)
+            return await connection.fetch_all(query=self._build_query(query, values))
 
-    async def fetch_one(self, query: ClauseElement) -> RowProxy:
+    async def fetch_one(
+        self, query: typing.Union[ClauseElement, str], values: dict = None
+    ) -> RowProxy:
         async with self.connection() as connection:
-            return await connection.fetch_one(query=query)
+            return await connection.fetch_one(query=self._build_query(query, values))
 
-    async def execute(self, query: ClauseElement, values: dict = None) -> typing.Any:
+    async def execute(
+        self, query: typing.Union[ClauseElement, str], values: dict = None
+    ) -> typing.Any:
         async with self.connection() as connection:
-            return await connection.execute(query=query, values=values)
+            return await connection.execute(self._build_query(query, values))
 
-    async def execute_many(self, query: ClauseElement, values: list) -> None:
+    async def execute_many(
+        self, query: typing.Union[ClauseElement, str], values: list
+    ) -> None:
         async with self.connection() as connection:
-            return await connection.execute_many(query=query, values=values)
+            queries = [self._build_query(query, values_set) for values_set in values]
+            return await connection.execute_many(queries)
 
     async def iterate(
-        self, query: ClauseElement
+        self, query: typing.Union[ClauseElement, str], values: dict = None
     ) -> typing.AsyncGenerator[RowProxy, None]:
         async with self.connection() as connection:
-            async for record in connection.iterate(query):
+            async for record in connection.iterate(self._build_query(query, values)):
                 yield record
 
     def connection(self) -> "Connection":
@@ -124,6 +134,19 @@ class Database:
 
     def transaction(self, *, force_rollback: bool = False) -> "Transaction":
         return self.connection().transaction(force_rollback=force_rollback)
+
+    @staticmethod
+    def _build_query(
+        query: typing.Union[ClauseElement, str], values: dict = None
+    ) -> ClauseElement:
+        if isinstance(query, str):
+            query = text(query)
+
+            return query.bindparams(**values) if values is not None else query
+        elif values:
+            return query.values(**values)
+
+        return query
 
 
 class Connection:
@@ -162,11 +185,11 @@ class Connection:
     async def fetch_one(self, query: ClauseElement) -> typing.Any:
         return await self._connection.fetch_one(query=query)
 
-    async def execute(self, query: ClauseElement, values: dict = None) -> typing.Any:
-        return await self._connection.execute(query, values)
+    async def execute(self, query: ClauseElement) -> typing.Any:
+        return await self._connection.execute(query)
 
-    async def execute_many(self, query: ClauseElement, values: list) -> None:
-        await self._connection.execute_many(query, values)
+    async def execute_many(self, queries: typing.List[ClauseElement]) -> None:
+        await self._connection.execute_many(queries)
 
     async def iterate(
         self, query: ClauseElement

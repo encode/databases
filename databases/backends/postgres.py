@@ -66,7 +66,9 @@ class PostgresBackend(DatabaseBackend):
 
 
 class Record(Mapping):
-    def __init__(self, row: tuple, result_columns: tuple, dialect: Dialect) -> None:
+    def __init__(
+        self, row: asyncpg.Record, result_columns: tuple, dialect: Dialect
+    ) -> None:
         self._row = row
         self._result_columns = result_columns
         self._dialect = dialect
@@ -80,11 +82,14 @@ class Record(Mapping):
         }
 
     def __getitem__(self, key: typing.Any) -> typing.Any:
-        if type(key) is Column:
-            idx, datatype = self._column_map_full[str(key)]
-        else:
-            idx, datatype = self._column_map[key]
-        raw = self._row[idx]
+        if len(self._column_map) == 0:  # raw query
+            return self._row[tuple(self._row.keys()).index(key)]
+        if len(self._column_map) > 0:
+            if type(key) is Column:
+                idx, datatype = self._column_map_full[str(key)]
+            else:
+                idx, datatype = self._column_map[key]
+            raw = self._row[idx]
         try:
             processor = _result_processors[datatype]
         except KeyError:
@@ -133,20 +138,17 @@ class PostgresConnection(ConnectionBackend):
             return None
         return Record(row, result_columns, self._dialect)
 
-    async def execute(self, query: ClauseElement, values: dict = None) -> typing.Any:
+    async def execute(self, query: ClauseElement) -> typing.Any:
         assert self._connection is not None, "Connection is not acquired"
-        if values is not None:
-            query = query.values(values)
         query, args, result_columns = self._compile(query)
         return await self._connection.fetchval(query, *args)
 
-    async def execute_many(self, query: ClauseElement, values: list) -> None:
+    async def execute_many(self, queries: typing.List[ClauseElement]) -> None:
         assert self._connection is not None, "Connection is not acquired"
         # asyncpg uses prepared statements under the hood, so we just
         # loop through multiple executes here, which should all end up
         # using the same prepared statement.
-        for item in values:
-            single_query = query.values(item)
+        for single_query in queries:
             single_query, args, result_columns = self._compile(single_query)
             await self._connection.execute(single_query, *args)
 

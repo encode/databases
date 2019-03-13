@@ -102,19 +102,17 @@ class SQLiteConnection(ConnectionBackend):
             metadata = ResultMetaData(context, cursor.description)
             return RowProxy(metadata, row, metadata._processors, metadata._keymap)
 
-    async def execute(self, query: ClauseElement, values: dict = None) -> typing.Any:
+    async def execute(self, query: ClauseElement) -> typing.Any:
         assert self._connection is not None, "Connection is not acquired"
-        if values is not None:
-            query = query.values(values)
         query, args, context = self._compile(query)
         cursor = await self._connection.execute(query, args)
         await cursor.close()
         return cursor.lastrowid
 
-    async def execute_many(self, query: ClauseElement, values: list) -> None:
+    async def execute_many(self, queries: typing.List[ClauseElement]) -> None:
         assert self._connection is not None, "Connection is not acquired"
-        for value in values:
-            await self.execute(query, value)
+        for single_query in queries:
+            await self.execute(single_query)
 
     async def iterate(
         self, query: ClauseElement

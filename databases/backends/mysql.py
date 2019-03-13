@@ -112,10 +112,8 @@ class MySQLConnection(ConnectionBackend):
         finally:
             await cursor.close()
 
-    async def execute(self, query: ClauseElement, values: dict = None) -> typing.Any:
+    async def execute(self, query: ClauseElement) -> typing.Any:
         assert self._connection is not None, "Connection is not acquired"
-        if values is not None:
-            query = query.values(values)
         query, args, context = self._compile(query)
         cursor = await self._connection.cursor()
         try:
@@ -124,12 +122,11 @@ class MySQLConnection(ConnectionBackend):
         finally:
             await cursor.close()
 
-    async def execute_many(self, query: ClauseElement, values: list) -> None:
+    async def execute_many(self, queries: typing.List[ClauseElement]) -> None:
         assert self._connection is not None, "Connection is not acquired"
         cursor = await self._connection.cursor()
         try:
-            for item in values:
-                single_query = query.values(item)
+            for single_query in queries:
                 single_query, args, context = self._compile(single_query)
                 await cursor.execute(single_query, args)
         finally:
