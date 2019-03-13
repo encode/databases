@@ -84,12 +84,11 @@ class Record(Mapping):
     def __getitem__(self, key: typing.Any) -> typing.Any:
         if len(self._column_map) == 0:  # raw query
             return self._row[tuple(self._row.keys()).index(key)]
-        if len(self._column_map) > 0:
-            if type(key) is Column:
-                idx, datatype = self._column_map_full[str(key)]
-            else:
-                idx, datatype = self._column_map[key]
-            raw = self._row[idx]
+        elif type(key) is Column:
+            idx, datatype = self._column_map_full[str(key)]
+        else:
+            idx, datatype = self._column_map[key]
+        raw = self._row[idx]
         try:
             processor = _result_processors[datatype]
         except KeyError:
