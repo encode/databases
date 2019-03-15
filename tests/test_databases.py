@@ -656,34 +656,31 @@ async def test_connection_acquire_and_release(database_url):
         # Part 1: Context manager
         # Get the connection via the context manager
         async with database.connection() as connection_1:
-            # Check the connection in the context manager
-            assert connection_1 is database._connection_context.get()
-            # Check the number of connection
-            assert connection_1._connection_counter == 1
+            # Check there's an aquired connection
+            assert connection_1.raw_connection
             # Check the connection works
             data = await connection_1.fetch_all(sqlalchemy.text("select * from notes"))
             assert data == []
+
         # Check the connection is released
-        assert connection_1._connection._connection is None
-        # Check the number of connection
-        assert connection_1._connection_counter == 0
+        with pytest.raises(AssertionError) as excinfo:
+            connection_1.raw_connection
+        assert "Connection is not acquired" in str(excinfo.value)
 
         # Part 2: explicit/function call
         # Get the connection explicitly
         # (but via the context manager behind the scene)
         connection_2 = await database.connection()
-        # Check the connection in the context manager
-        assert connection_2 is database._connection_context.get()
-        # Check the number of connection
-        assert connection_2._connection_counter == 1
+        # Check there's an aquired connection
+        assert connection_2.raw_connection
         # Check the connection works
         data = await connection_2.fetch_all(sqlalchemy.text("select * from notes"))
         assert data == []
         # Release the connection explicitly
         await connection_2.release()
         # Check the connection is released
-        assert connection_2._connection._connection is None
-        # Check the number of connection
-        assert connection_2._connection_counter == 0
+        with pytest.raises(AssertionError) as excinfo:
+            connection_2.raw_connection
+        assert "Connection is not acquired" in str(excinfo.value)
 
         assert connection_1 is connection_2

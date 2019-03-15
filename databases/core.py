@@ -150,17 +150,17 @@ class Connection:
         exc_value: BaseException = None,
         traceback: TracebackType = None,
     ) -> None:
-        async with self._connection_lock:
-            assert self._connection is not None
-            self._connection_counter -= 1
-            if self._connection_counter == 0:
-                await self._connection.release()
+        await self.release()
 
     def __await__(self) -> typing.Generator[typing.Any, None, "Connection"]:
         return self.__aenter__().__await__()
 
     async def release(self) -> None:
-        await self.__aexit__()
+        async with self._connection_lock:
+            assert self._connection is not None
+            self._connection_counter -= 1
+            if self._connection_counter == 0:
+                await self._connection.release()
 
     async def fetch_all(self, query: ClauseElement) -> typing.Any:
         return await self._connection.fetch_all(query=query)
