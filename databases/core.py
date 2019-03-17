@@ -141,7 +141,11 @@ class Connection:
         async with self._connection_lock:
             self._connection_counter += 1
             if self._connection_counter == 1:
-                await self._connection.acquire()
+                try:
+                    await self._connection.acquire()
+                except Exception as err:
+                    self._connection_counter -= 1
+                    raise err
         return self
 
     async def __aexit__(
@@ -155,6 +159,21 @@ class Connection:
             self._connection_counter -= 1
             if self._connection_counter == 0:
                 await self._connection.release()
+
+    def __call__(self, func: typing.Callable) -> typing.Callable:
+        """
+        Called if using `@database.connection()` as a decorator.
+        """
+        @functools.wraps(func)
+        async def wrapper(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
+            connected_by_decorator = False
+            if not self._backend._pool:
+                await self._backend.connect()
+                connected_by_decorator = True
+
+            async with self:
+                return await func(*args, **kwargs)
+        return wrapper
 
     async def fetch_all(self, query: ClauseElement) -> typing.Any:
         return await self._connection.fetch_all(query=query)

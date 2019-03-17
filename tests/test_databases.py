@@ -643,3 +643,36 @@ async def test_database_url_interface(database_url):
     async with Database(database_url) as database:
         assert isinstance(database.url, DatabaseURL)
         assert database.url == database_url
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_connection_decorator(database_url):
+    """
+    Ensure that @database.connection() is supported.
+    """
+    # Calling the db without the context manager as
+    # __aenter__ calls `database.connect` 
+    # that creates connection behind the scenes
+    database = Database(database_url, force_rollback=True)
+
+    async def insert_data_without_decorator():
+        query = notes.insert().values(text="example", completed=True)
+        await database.execute(query)
+
+    # The sqlite backend has no the pool implemented yet
+    # So connection will exist anyway
+    if not str(database_url).startswith("sqlite"):
+        with pytest.raises(AssertionError) as excinfo:
+            await insert_data_without_decorator()
+        assert "DatabaseBackend is not running" in str(excinfo.value)
+
+    @database.connection()
+    async def insert_data_with_decorator():
+        query = notes.insert().values(text="example", completed=True)
+        await database.execute(query)
+
+    await insert_data_with_decorator()
+    query = notes.select()
+    results = await database.fetch_all(query=query)
+    assert len(results) == 1
