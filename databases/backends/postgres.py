@@ -39,10 +39,13 @@ class PostgresBackend(DatabaseBackend):
         options = self._database_url.options
 
         kwargs = {}
+        host = options.get("host")
         min_size = options.get("min_size")
         max_size = options.get("max_size")
         ssl = options.get("ssl")
 
+        if host:
+            kwargs["host"] = host
         if min_size is not None:
             kwargs["min_size"] = int(min_size)
         if max_size is not None:

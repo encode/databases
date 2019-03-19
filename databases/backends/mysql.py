@@ -26,6 +26,29 @@ class MySQLBackend(DatabaseBackend):
         options = self._database_url.options
 
         kwargs = {}
+
+        # Main options
+        host = options.get("host")
+        port = options.get("port")
+        user = options.get("user")
+        password = options.get("password")
+        db = options.get("db")
+        autocommit = options.get("autocommit")
+
+        if host is not None:
+            kwargs["host"] = host
+        if port is not None:
+            kwargs["port"] = port
+        if user is not None:
+            kwargs["user"] = user
+        if password is not None:
+            kwargs["password"] = password
+        if db is not None:
+            kwargs["db"] = db
+        if autocommit is not None:
+            kwargs["autocommit"] = {"true": True, "false": False}[autocommit.lower()]
+
+        # Additional options
         min_size = options.get("min_size")
         max_size = options.get("max_size")
         ssl = options.get("ssl")
@@ -42,12 +65,14 @@ class MySQLBackend(DatabaseBackend):
         assert self._pool is None, "DatabaseBackend is already running"
         kwargs = self._get_connection_kwargs()
         self._pool = await aiomysql.create_pool(
-            host=self._database_url.hostname,
-            port=self._database_url.port or 3306,
-            user=self._database_url.username or getpass.getuser(),
-            password=self._database_url.password,
-            db=self._database_url.database,
-            autocommit=True,
+            host=kwargs.pop("host", None) or self._database_url.hostname,
+            port=kwargs.pop("port", None) or self._database_url.port or 3306,
+            user=kwargs.pop("user", None)
+            or self._database_url.username
+            or getpass.getuser(),
+            password=kwargs.pop("password", None) or self._database_url.password,
+            db=kwargs.pop("db", None) or self._database_url.database,
+            autocommit=kwargs.pop("autocommit") if "autocommit" in kwargs else True,
             **kwargs,
         )
 

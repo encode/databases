@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import functools
 import os
+from unittest.mock import MagicMock, patch
 
 import pytest
 import sqlalchemy
@@ -23,6 +24,11 @@ class MyEpochType(sqlalchemy.types.TypeDecorator):
 
     def process_result_value(self, value, dialect):
         return self.epoch + datetime.timedelta(days=value)
+
+
+class AsyncMock(MagicMock):
+    async def __call__(self, *args, **kwargs):
+        return super(AsyncMock, self).__call__(*args, **kwargs)
 
 
 metadata = sqlalchemy.MetaData()
@@ -643,3 +649,61 @@ async def test_database_url_interface(database_url):
     async with Database(database_url) as database:
         assert isinstance(database.url, DatabaseURL)
         assert database.url == database_url
+
+
+@async_adapter
+async def test_postgres_database_url_with_complex_host():
+    """
+    Test that Database instances expose a `.url` attribute.
+    """
+    test_url = (
+        "postgresql://user:@/db?host=host:project:region:db&port=5432&password=pwd"
+    )
+    with patch(
+        "databases.backends.postgres.asyncpg.create_pool", AsyncMock()
+    ) as mock_pool:
+        database = Database(test_url)
+        await database.connect()
+        assert mock_pool.call_args[1] == {"host": "host:project:region:db"}
+
+
+@async_adapter
+async def test_mysql_database_url_with_complex_host():
+    """
+    Test that Database instances expose a `.url` attribute.
+    """
+    test_url = "mysql://user:@/db?host=host:project:region:db&port=5432&password=pwd"
+    with patch(
+        "databases.backends.mysql.aiomysql.create_pool", AsyncMock()
+    ) as mock_pool:
+        database = Database(test_url)
+        await database.connect()
+        assert mock_pool.call_args[1] == {
+            "host": "host:project:region:db",
+            "port": "5432",
+            "user": "user",
+            "password": "pwd",
+            "db": "db",
+            "autocommit": True,
+        }
+
+
+@async_adapter
+async def test_mysql_database_url_with_options():
+    """
+    Test that Database instances expose a `.url` attribute.
+    """
+    test_url = "mysql://host:5432?db=db&password=pwd&user=user&autocommit=False"
+    with patch(
+        "databases.backends.mysql.aiomysql.create_pool", AsyncMock()
+    ) as mock_pool:
+        database = Database(test_url)
+        await database.connect()
+        assert mock_pool.call_args[1] == {
+            "host": "host",
+            "port": 5432,
+            "user": "user",
+            "password": "pwd",
+            "db": "db",
+            "autocommit": False,
+        }
