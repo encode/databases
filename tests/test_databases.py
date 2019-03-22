@@ -103,7 +103,7 @@ def async_adapter(wrapped_func):
 async def test_queries(database_url):
     """
     Test that the basic `execute()`, `execute_many()`, `fetch_all()``, and
-    `fetch_one()` interfaces are all supported.
+    `fetch_one()` interfaces are all supported (using SQLAlchemy core).
     """
     async with Database(database_url) as database:
         async with database.transaction(force_rollback=True):
@@ -139,6 +139,57 @@ async def test_queries(database_url):
 
             # iterate()
             query = notes.select()
+            iterate_results = []
+            async for result in database.iterate(query=query):
+                iterate_results.append(result)
+            assert len(iterate_results) == 3
+            assert iterate_results[0]["text"] == "example1"
+            assert iterate_results[0]["completed"] == True
+            assert iterate_results[1]["text"] == "example2"
+            assert iterate_results[1]["completed"] == False
+            assert iterate_results[2]["text"] == "example3"
+            assert iterate_results[2]["completed"] == True
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_queries_raw(database_url):
+    """
+    Test that the basic `execute()`, `execute_many()`, `fetch_all()``, and
+    `fetch_one()` interfaces are all supported (raw queries).
+    """
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            # execute()
+            query = "INSERT INTO notes(text, completed) VALUES (:text, :completed)"
+            values = {"text": "example1", "completed": True}
+            await database.execute(query, values)
+
+            # execute_many()
+            query = "INSERT INTO notes(text, completed) VALUES (:text, :completed)"
+            values = [
+                {"text": "example2", "completed": False},
+                {"text": "example3", "completed": True},
+            ]
+            await database.execute_many(query, values)
+
+            # fetch_all()
+            query = "SELECT * FROM notes WHERE completed = :completed"
+            results = await database.fetch_all(query=query, values={"completed": True})
+            assert len(results) == 2
+            assert results[0]["text"] == "example1"
+            assert results[0]["completed"] == True
+            assert results[1]["text"] == "example3"
+            assert results[1]["completed"] == True
+
+            # fetch_one()
+            query = "SELECT * FROM notes WHERE completed = :completed"
+            result = await database.fetch_one(query=query, values={"completed": False})
+            assert result["text"] == "example2"
+            assert result["completed"] == False
+
+            # iterate()
+            query = "SELECT * FROM notes"
             iterate_results = []
             async for result in database.iterate(query=query):
                 iterate_results.append(result)
@@ -234,8 +285,8 @@ async def test_execute_return_val(database_url):
             query = notes.insert()
             values = {"text": "example1", "completed": True}
             pk = await database.execute(query, values)
-
             assert isinstance(pk, int)
+
             query = notes.select().where(notes.c.id == pk)
             result = await database.fetch_one(query)
             assert result["text"] == "example1"
