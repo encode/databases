@@ -79,7 +79,7 @@ await database.connect()
 # Execute
 query = notes.insert()
 values = {"text": "example1", "completed": True}
-await database.execute(query, values)
+await database.execute(query=query, values=values)
 
 # Execute many
 query = notes.insert()
@@ -87,19 +87,19 @@ values = [
     {"text": "example2", "completed": False},
     {"text": "example3", "completed": True},
 ]
-await database.execute_many(query, values)
+await database.execute_many(query=query, values=values)
 
 # Fetch multiple rows
 query = notes.select()
-rows = await database.fetch_all(query)
+rows = await database.fetch_all(query=query)
 
 # Fetch single row
 query = notes.select()
-row = await database.fetch_one(query)
+row = await database.fetch_one(query=query)
 
 # Fetch multiple rows without loading them all into memory at once
 query = notes.select()
-async for row in database.iterate(query):
+async for row in database.iterate(query=query):
     ...
 
 # Close all connection in the connection pool
@@ -108,6 +108,35 @@ await database.disconnect()
 
 Connections are managed as task-local state, with driver implementations
 transparently using connection pooling behind the scenes.
+
+## Raw queries
+
+In addition to SQLAlchemy core queries, you can also perform raw SQL queries:
+
+```python
+# Execute
+query = "INSERT INTO notes(text, completed) VALUES (:text, :completed)"
+values = {"text": "example1", "completed": True}
+await database.execute(query=query, values=values)
+
+# Execute many
+query = "INSERT INTO notes(text, completed) VALUES (:text, :completed)"
+values = [
+    {"text": "example2", "completed": False},
+    {"text": "example3", "completed": True},
+]
+await database.execute_many(query=query, values=values)
+
+# Fetch multiple rows
+query = "SELECT * FROM notes WHERE completed = :completed"
+rows = await database.fetch_all(query=query, values={"completed": True})
+
+# Fetch single row
+query = "SELECT * FROM notes WHERE id = :id"
+result = await database.fetch_one(query=query, values={"id": 1})
+```
+
+Note that query arguments should follow the `:query_arg` style.
 
 ## Transactions
 
