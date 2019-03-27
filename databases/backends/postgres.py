@@ -73,10 +73,11 @@ class Record(Mapping):
         self._result_columns = result_columns
         self._dialect = dialect
         self._column_map = {}
+        self._column_map_int = {}
         self._column_map_full = {}
         for idx, (column_name, _, column, datatype) in enumerate(self._result_columns):
             self._column_map[column_name] = (idx, datatype)
-            self._column_map[idx] = (idx, datatype)
+            self._column_map_int[idx] = (idx, datatype)
             self._column_map_full[str(column[0])] = (idx, datatype)
 
     def __getitem__(self, key: typing.Any) -> typing.Any:
@@ -84,6 +85,8 @@ class Record(Mapping):
             return self._row[tuple(self._row.keys()).index(key)]
         elif type(key) is Column:
             idx, datatype = self._column_map_full[str(key)]
+        elif type(key) is int:
+            idx, datatype = self._column_map_int[key]
         else:
             idx, datatype = self._column_map[key]
         raw = self._row[idx]
