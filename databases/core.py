@@ -6,7 +6,6 @@ from types import TracebackType
 from urllib.parse import SplitResult, parse_qsl, urlsplit
 
 from sqlalchemy import text
-from sqlalchemy.engine import RowProxy
 from sqlalchemy.sql import ClauseElement
 
 from databases.importer import import_from_string
@@ -91,18 +90,21 @@ class Database:
 
     async def fetch_all(
         self, query: typing.Union[ClauseElement, str], values: dict = None
-    ) -> typing.List[RowProxy]:
+    ) -> typing.List[typing.Mapping]:
         async with self.connection() as connection:
             return await connection.fetch_all(query, values)
 
     async def fetch_one(
         self, query: typing.Union[ClauseElement, str], values: dict = None
-    ) -> RowProxy:
+    ) -> typing.Optional[typing.Mapping]:
         async with self.connection() as connection:
             return await connection.fetch_one(query, values)
 
     async def fetch_val(
-        self, query: typing.Union[ClauseElement, str], values: dict = None, column: typing.Any = 0
+        self,
+        query: typing.Union[ClauseElement, str],
+        values: dict = None,
+        column: typing.Any = 0,
     ) -> typing.Any:
         async with self.connection() as connection:
             return await connection.fetch_val(query, values, column=column)
@@ -121,7 +123,7 @@ class Database:
 
     async def iterate(
         self, query: typing.Union[ClauseElement, str], values: dict = None
-    ) -> typing.AsyncGenerator[RowProxy, None]:
+    ) -> typing.AsyncGenerator[typing.Mapping, None]:
         async with self.connection() as connection:
             async for record in connection.iterate(query, values):
                 yield record
@@ -173,19 +175,22 @@ class Connection:
 
     async def fetch_all(
         self, query: typing.Union[ClauseElement, str], values: dict = None
-    ) -> typing.Any:
+    ) -> typing.List[typing.Mapping]:
         return await self._connection.fetch_all(self._build_query(query, values))
 
     async def fetch_one(
         self, query: typing.Union[ClauseElement, str], values: dict = None
-    ) -> typing.Any:
+    ) -> typing.Optional[typing.Mapping]:
         return await self._connection.fetch_one(self._build_query(query, values))
 
     async def fetch_val(
-        self, query: typing.Union[ClauseElement, str], values: dict = None, column: typing.Any = 0
+        self,
+        query: typing.Union[ClauseElement, str],
+        values: dict = None,
+        column: typing.Any = 0,
     ) -> typing.Any:
         row = await self._connection.fetch_one(self._build_query(query, values))
-        return row[column]
+        return None if row is None else row[column]
 
     async def execute(
         self, query: typing.Union[ClauseElement, str], values: dict = None
