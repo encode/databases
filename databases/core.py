@@ -101,6 +101,12 @@ class Database:
         async with self.connection() as connection:
             return await connection.fetch_one(query, values)
 
+    async def fetch_val(
+        self, query: typing.Union[ClauseElement, str], values: dict = None, column: typing.Any = 0
+    ) -> typing.Any:
+        async with self.connection() as connection:
+            return await connection.fetch_val(query, values, column=column)
+
     async def execute(
         self, query: typing.Union[ClauseElement, str], values: dict = None
     ) -> typing.Any:
@@ -174,6 +180,12 @@ class Connection:
         self, query: typing.Union[ClauseElement, str], values: dict = None
     ) -> typing.Any:
         return await self._connection.fetch_one(self._build_query(query, values))
+
+    async def fetch_val(
+        self, query: typing.Union[ClauseElement, str], values: dict = None, column: typing.Any = 0
+    ) -> typing.Any:
+        row = await self._connection.fetch_one(self._build_query(query, values))
+        return row[column]
 
     async def execute(
         self, query: typing.Union[ClauseElement, str], values: dict = None
