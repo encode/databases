@@ -74,7 +74,7 @@ class Record(Mapping):
         self._dialect = dialect
         self._column_map = {}
         self._column_map_full = {}
-        for idx, (column_name, _, _, datatype) in enumerate(self._result_columns):
+        for idx, (column_name, _, column, datatype) in enumerate(self._result_columns):
             self._column_map[column_name] = (idx, datatype)
             self._column_map[idx] = (idx, datatype)
             self._column_map_full[str(column[0])] = (idx, datatype)
