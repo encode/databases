@@ -7,6 +7,7 @@ from sqlalchemy.dialects.postgresql import pypostgresql
 from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.sql import ClauseElement
 from sqlalchemy.sql.schema import Column
+from sqlalchemy.types import TypeEngine
 
 from databases.core import DatabaseURL
 from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend
@@ -72,20 +73,27 @@ class Record(Mapping):
         self._row = row
         self._result_columns = result_columns
         self._dialect = dialect
-        self._column_map = {
-            column_name: (idx, datatype)
-            for idx, (column_name, _, _, datatype) in enumerate(self._result_columns)
-        }
-        self._column_map_full = {
-            str(column[0]): (idx, datatype)
-            for idx, (_, _, column, datatype) in enumerate(self._result_columns)
-        }
+        self._column_map = (
+            {}
+        )  # type: typing.Mapping[str, typing.Tuple[int, TypeEngine]]
+        self._column_map_int = (
+            {}
+        )  # type: typing.Mapping[int, typing.Tuple[int, TypeEngine]]
+        self._column_map_full = (
+            {}
+        )  # type: typing.Mapping[str, typing.Tuple[int, TypeEngine]]
+        for idx, (column_name, _, column, datatype) in enumerate(self._result_columns):
+            self._column_map[column_name] = (idx, datatype)
+            self._column_map_int[idx] = (idx, datatype)
+            self._column_map_full[str(column[0])] = (idx, datatype)
 
     def __getitem__(self, key: typing.Any) -> typing.Any:
         if len(self._column_map) == 0:  # raw query
             return self._row[tuple(self._row.keys()).index(key)]
         elif type(key) is Column:
             idx, datatype = self._column_map_full[str(key)]
+        elif type(key) is int:
+            idx, datatype = self._column_map_int[key]
         else:
             idx, datatype = self._column_map[key]
         raw = self._row[idx]

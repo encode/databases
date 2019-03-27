@@ -97,6 +97,10 @@ rows = await database.fetch_all(query=query)
 query = notes.select()
 row = await database.fetch_one(query=query)
 
+# Fetch single value, defaults to `column=0`.
+query = notes.select()
+value = await database.fetch_val(query=query)
+
 # Fetch multiple rows without loading them all into memory at once
 query = notes.select()
 async for row in database.iterate(query=query):
