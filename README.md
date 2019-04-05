@@ -18,7 +18,8 @@ It allows you to make queries using the powerful [SQLAlchemy Core][sqlalchemy-co
 expression language, and provides support for PostgreSQL, MySQL, and SQLite.
 
 Databases is suitable for integrating against any async Web framework, such as [Starlette][starlette],
-[Sanic][sanic], [Responder][responder], [Quart][quart], [aiohttp][aiohttp], [FastAPI][fastapi], or [Bocadillo][bocadillo].
+[Sanic][sanic], [Responder][responder], [Quart][quart], [aiohttp][aiohttp], [Tornado][tornado], [FastAPI][fastapi], 
+or [Bocadillo][bocadillo].
 
 **Requirements**: Python 3.6+
 
@@ -319,5 +320,6 @@ If you're using the `databases.DatabaseURL` datatype, you can obtain this using
 [responder]: https://github.com/kennethreitz/responder
 [quart]: https://gitlab.com/pgjones/quart
 [aiohttp]: https://github.com/aio-libs/aiohttp
+[tornado]: https://github.com/tornadoweb/tornado
 [fastapi]: https://github.com/tiangolo/fastapi
 [bocadillo]: https://github.com/bocadilloproject/bocadillo
