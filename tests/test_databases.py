@@ -155,6 +155,26 @@ async def test_queries(database_url):
             assert iterate_results[2]["text"] == "example3"
             assert iterate_results[2]["completed"] == True
 
+            # update
+            query = (notes.update()
+                     .values(completed=sqlalchemy.sql.bindparam('completed'))
+                     .where(notes.c.text == sqlalchemy.sql.bindparam('_text')))
+            values = [
+                {'_text': 'example1', 'completed': False},
+                {'_text': 'example2', 'completed': True},
+            ]
+            results = await database.execute_many(query, values)
+
+            query = notes.select().order_by(notes.c.id.asc())
+            results = await database.fetch_all(query=query)
+            assert len(results) == 3
+            assert results[0]["text"] == "example1"
+            assert results[0]["completed"] == False
+            assert results[1]["text"] == "example2"
+            assert results[1]["completed"] == True
+            assert results[2]["text"] == "example3"
+            assert results[2]["completed"] == True
+
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
@@ -205,6 +225,24 @@ async def test_queries_raw(database_url):
             assert iterate_results[1]["completed"] == False
             assert iterate_results[2]["text"] == "example3"
             assert iterate_results[2]["completed"] == True
+
+            # update
+            query = "UPDATE notes SET completed = :completed WHERE text = :_text"
+            values = [
+                {'_text': 'example1', 'completed': False},
+                {'_text': 'example2', 'completed': True},
+            ]
+            results = await database.execute_many(query, values)
+
+            query = "SELECT * FROM notes ORDER BY id ASC"
+            results = await database.fetch_all(query=query)
+            assert len(results) == 3
+            assert results[0]["text"] == "example1"
+            assert results[0]["completed"] == False
+            assert results[1]["text"] == "example2"
+            assert results[1]["completed"] == True
+            assert results[2]["text"] == "example3"
+            assert results[2]["completed"] == True
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
