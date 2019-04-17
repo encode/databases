@@ -43,12 +43,12 @@ def test_mysql_explicit_pool_size():
 
 
 def test_mysql_ssl():
-    backend = MySQLBackend("postgres://localhost/database?ssl=true")
+    backend = MySQLBackend("mysql://localhost/database?ssl=true")
     kwargs = backend._get_connection_kwargs()
     assert kwargs == {"ssl": True}
 
 
 def test_mysql_explicit_ssl():
-    backend = MySQLBackend("postgres://localhost/database", ssl=True)
+    backend = MySQLBackend("mysql://localhost/database", ssl=True)
     kwargs = backend._get_connection_kwargs()
     assert kwargs == {"ssl": True}
