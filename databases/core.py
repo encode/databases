@@ -25,16 +25,22 @@ class Database:
     }
 
     def __init__(
-        self, url: typing.Union[str, "DatabaseURL"], *, force_rollback: bool = False
+        self,
+        url: typing.Union[str, "DatabaseURL"],
+        *,
+        force_rollback: bool = False,
+        **options: typing.Any,
     ):
         self.url = DatabaseURL(url)
-        self._force_rollback = force_rollback
+        self.options = options
         self.is_connected = False
+
+        self._force_rollback = force_rollback
 
         backend_str = self.SUPPORTED_BACKENDS[self.url.dialect]
         backend_cls = import_from_string(backend_str)
         assert issubclass(backend_cls, DatabaseBackend)
-        self._backend = backend_cls(self.url)
+        self._backend = backend_cls(self.url, **self.options)
 
         # Connections are stored as task-local state.
         self._connection_context = ContextVar("connection_context")  # type: ContextVar

@@ -19,8 +19,11 @@ _result_processors = {}  # type: dict
 
 
 class PostgresBackend(DatabaseBackend):
-    def __init__(self, database_url: typing.Union[DatabaseURL, str]) -> None:
+    def __init__(
+        self, database_url: typing.Union[DatabaseURL, str], **options: typing.Any
+    ) -> None:
         self._database_url = DatabaseURL(database_url)
+        self._options = options
         self._dialect = self._get_dialect()
         self._pool = None
 
@@ -37,12 +40,12 @@ class PostgresBackend(DatabaseBackend):
         return dialect
 
     def _get_connection_kwargs(self) -> dict:
-        options = self._database_url.options
+        url_options = self._database_url.options
 
         kwargs = {}
-        min_size = options.get("min_size")
-        max_size = options.get("max_size")
-        ssl = options.get("ssl")
+        min_size = url_options.get("min_size")
+        max_size = url_options.get("max_size")
+        ssl = url_options.get("ssl")
 
         if min_size is not None:
             kwargs["min_size"] = int(min_size)
@@ -50,6 +53,9 @@ class PostgresBackend(DatabaseBackend):
             kwargs["max_size"] = int(max_size)
         if ssl is not None:
             kwargs["ssl"] = {"true": True, "false": False}[ssl.lower()]
+
+        kwargs.update(self._options)
+
         return kwargs
 
     async def connect(self) -> None:
