@@ -40,7 +40,13 @@ class MySQLBackend(DatabaseBackend):
         if ssl is not None:
             kwargs["ssl"] = {"true": True, "false": False}[ssl.lower()]
 
-        kwargs.update(self._options)
+        for key, value in self._options.items():
+            # Coerce 'min_size' and 'max_size' for consistency.
+            if key == 'min_size':
+                key = 'minsize'
+            elif key == 'max_size'
+                key = 'maxsize'
+            kwargs[key] = value
 
         return kwargs
 
