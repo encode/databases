@@ -16,10 +16,13 @@ logger = logging.getLogger("databases")
 
 
 class SQLiteBackend(DatabaseBackend):
-    def __init__(self, database_url: typing.Union[DatabaseURL, str]) -> None:
+    def __init__(
+        self, database_url: typing.Union[DatabaseURL, str], **options: typing.Any
+    ) -> None:
         self._database_url = DatabaseURL(database_url)
+        self._options = options
         self._dialect = pysqlite.dialect(paramstyle="qmark")
-        self._pool = SQLitePool(self._database_url)
+        self._pool = SQLitePool(self._database_url, **self._options)
 
     async def connect(self) -> None:
         pass
@@ -45,12 +48,13 @@ class SQLiteBackend(DatabaseBackend):
 
 
 class SQLitePool:
-    def __init__(self, url: DatabaseURL) -> None:
+    def __init__(self, url: DatabaseURL, **options: typing.Any) -> None:
         self._url = url
+        self._options = options
 
     async def acquire(self) -> aiosqlite.Connection:
         connection = aiosqlite.connect(
-            database=self._url.database, isolation_level=None
+            database=self._url.database, isolation_level=None, **self._options
         )
         await connection.__aenter__()
         return connection

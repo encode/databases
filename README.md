@@ -18,7 +18,7 @@ It allows you to make queries using the powerful [SQLAlchemy Core][sqlalchemy-co
 expression language, and provides support for PostgreSQL, MySQL, and SQLite.
 
 Databases is suitable for integrating against any async Web framework, such as [Starlette][starlette],
-[Sanic][sanic], [Responder][responder], [Quart][quart], [aiohttp][aiohttp], [Tornado][tornado], [FastAPI][fastapi], 
+[Sanic][sanic], [Responder][responder], [Quart][quart], [aiohttp][aiohttp], [Tornado][tornado], [FastAPI][fastapi],
 or [Bocadillo][bocadillo].
 
 **Requirements**: Python 3.6+
@@ -218,6 +218,13 @@ database = Database('postgresql://localhost/example?ssl=true')
 
 # Use a connection pool of between 5-20 connections.
 database = Database('mysql://localhost/example?min_size=5&max_size=20')
+```
+
+You can also use keyword arguments to pass in any connection options.
+Available keyword arguments may differ between database backends.
+
+```python
+database = Database('postgresql://localhost/example', ssl=True, min_size=5, max_size=20)
 ```
 
 ## Test isolation
