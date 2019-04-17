@@ -119,6 +119,12 @@ class Record(Mapping):
     def __len__(self) -> int:
         return len(self._column_map)
 
+    def __getattr__(self, name: typing.Any) -> typing.Any:
+        try:
+            return self[name]
+        except KeyError as e:
+            raise AttributeError(e.args[0])
+
 
 class PostgresConnection(ConnectionBackend):
     def __init__(self, database: PostgresBackend, dialect: Dialect):
