@@ -41,9 +41,9 @@ $ pip install databases[sqlite]
 
 Driver support is providing using one of [asyncpg][asyncpg], [aiomysql][aiomysql], or [aiosqlite][aiosqlite].
 
-**Note**: Use `ipython` to try these example from the console, since it supports `await`.
-
 ## Getting started
+
+**Note**: Use `ipython` to try these example from the console, since it supports `await`.
 
 Declare your tables using SQLAlchemy:
 
