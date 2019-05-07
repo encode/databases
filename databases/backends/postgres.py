@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import typing
 from collections.abc import Mapping
@@ -66,7 +67,7 @@ class PostgresBackend(DatabaseBackend):
 
     async def disconnect(self) -> None:
         assert self._pool is not None, "DatabaseBackend is not running"
-        await self._pool.close()
+        await asyncio.wait_for(self._pool.close(), timeout=30)
         self._pool = None
 
     def connection(self) -> "PostgresConnection":
