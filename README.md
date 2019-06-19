@@ -21,6 +21,8 @@ Databases is suitable for integrating against any async Web framework, such as [
 [Sanic][sanic], [Responder][responder], [Quart][quart], [aiohttp][aiohttp], [Tornado][tornado], [FastAPI][fastapi],
 or [Bocadillo][bocadillo].
 
+**Community**: https://discuss.encode.io/c/databases
+
 **Requirements**: Python 3.6+
 
 ---
