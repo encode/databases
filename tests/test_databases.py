@@ -699,3 +699,17 @@ async def test_database_url_interface(database_url):
     async with Database(database_url) as database:
         assert isinstance(database.url, DatabaseURL)
         assert database.url == database_url
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_concurrent_access_on_single_connection(database_url):
+    async with Database(database_url, force_rollback=True) as database:
+        async def db_lookup():
+            if str(database_url).startswith("postgresql"):
+                await database.fetch_one("SELECT pg_sleep(1)")
+
+        await asyncio.gather(
+            db_lookup(),
+            db_lookup(),
+        )
