@@ -184,13 +184,13 @@ class Connection:
     async def fetch_all(
         self, query: typing.Union[ClauseElement, str], values: dict = None
     ) -> typing.List[typing.Mapping]:
-        async with self._self._query_lock:
+        async with self._query_lock:
             return await self._connection.fetch_all(self._build_query(query, values))
 
     async def fetch_one(
         self, query: typing.Union[ClauseElement, str], values: dict = None
     ) -> typing.Optional[typing.Mapping]:
-        async with self._self._query_lock:
+        async with self._query_lock:
             return await self._connection.fetch_one(self._build_query(query, values))
 
     async def fetch_val(
@@ -199,27 +199,27 @@ class Connection:
         values: dict = None,
         column: typing.Any = 0,
     ) -> typing.Any:
-        async with self._self._query_lock:
+        async with self._query_lock:
             row = await self._connection.fetch_one(self._build_query(query, values))
         return None if row is None else row[column]
 
     async def execute(
         self, query: typing.Union[ClauseElement, str], values: dict = None
     ) -> typing.Any:
-        async with self._self._query_lock:
+        async with self._query_lock:
             return await self._connection.execute(self._build_query(query, values))
 
     async def execute_many(
         self, query: typing.Union[ClauseElement, str], values: list
     ) -> None:
         queries = [self._build_query(query, values_set) for values_set in values]
-        async with self._self._query_lock:
+        async with self._query_lock:
             await self._connection.execute_many(queries)
 
     async def iterate(
         self, query: typing.Union[ClauseElement, str], values: dict = None
     ) -> typing.AsyncGenerator[typing.Any, None]:
-        async with self._self._query_lock:
+        async with self._query_lock:
             async for record in self._connection.iterate(self._build_query(query, values)):
                 yield record
 
