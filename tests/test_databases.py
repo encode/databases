@@ -699,3 +699,24 @@ async def test_database_url_interface(database_url):
     async with Database(database_url) as database:
         assert isinstance(database.url, DatabaseURL)
         assert database.url == database_url
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_iterate_outside_transaction(database_url):
+    """
+    Ensure `iterate()` works even without a transaction on all drivers.
+
+    The asyncpg driver relies on server-side cursors without hold
+    for iteration, which requires a transaction to be created.
+    This is mentionned in both their documentation and their test suite.
+    """
+    async with Database(database_url) as database:
+        query = "SELECT * FROM (VALUES (1), (2), (3), (4), (5)) as t"
+        iterate_results = []
+
+        async for result in database.iterate(query=query):
+            iterate_results.append(result)
+
+        assert len(iterate_results) == 5
+        assert iterate_results == [(1,), (2,), (3,), (4,), (5,)]
