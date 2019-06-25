@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import decimal
 import functools
 import os
 
@@ -59,6 +60,14 @@ custom_date = sqlalchemy.Table(
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
     sqlalchemy.Column("title", sqlalchemy.String(length=100)),
     sqlalchemy.Column("published", MyEpochType),
+)
+
+# Used to test Numeric
+prices = sqlalchemy.Table(
+    "prices",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("price", sqlalchemy.Numeric(precision=30, scale=20)),
 )
 
 
@@ -454,6 +463,33 @@ async def test_datetime_field(database_url):
             assert len(results) == 1
             assert results[0]["title"] == "Hello, world"
             assert results[0]["published"] == now
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_decimal_field(database_url):
+    """
+    Test Decimal (NUMERIC) columns, to ensure records are coerced to/from proper Python types.
+    """
+
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            price = decimal.Decimal("0.700000000000001")
+
+            # execute()
+            query = prices.insert()
+            values = {"price": price}
+            await database.execute(query, values)
+
+            # fetch_all()
+            query = prices.select()
+            results = await database.fetch_all(query=query)
+            assert len(results) == 1
+            if database_url.startswith("sqlite"):
+                # aiosqlite does not support native decimals --> a roud-off error is expected
+                assert results[0]["price"] == pytest.approx(price)
+            else:
+                assert results[0]["price"] == price
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)

@@ -23,6 +23,7 @@ class MySQLBackend(DatabaseBackend):
         self._database_url = DatabaseURL(database_url)
         self._options = options
         self._dialect = pymysql.dialect(paramstyle="pyformat")
+        self._dialect.supports_native_decimal = True
         self._pool = None
 
     def _get_connection_kwargs(self) -> dict:

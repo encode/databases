@@ -36,6 +36,7 @@ class PostgresBackend(DatabaseBackend):
         dialect._backslash_escapes = False
         dialect.supports_sane_multi_rowcount = True  # psycopg 2.0.9+
         dialect._has_native_hstore = True
+        dialect.supports_native_decimal = True
 
         return dialect
 

@@ -22,6 +22,8 @@ class SQLiteBackend(DatabaseBackend):
         self._database_url = DatabaseURL(database_url)
         self._options = options
         self._dialect = pysqlite.dialect(paramstyle="qmark")
+        # aiosqlite does not support decimals
+        self._dialect.supports_native_decimal = False
         self._pool = SQLitePool(self._database_url, **self._options)
 
     async def connect(self) -> None:
