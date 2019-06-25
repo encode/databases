@@ -1,0 +1,19 @@
+site_name: Databases
+site_description: Async database support for Python.
+
+theme:
+    name: 'material'
+
+repo_name: encode/databases
+repo_url: https://github.com/encode/databases
+# edit_uri: ""
+
+nav:
+    - Introduction: 'index.md'
+    - Database Queries: 'database_queries.md'
+    - Connections & Transactions: 'connections_and_transactions.md'
+    - Tests & Migrations: 'tests_and_migrations.md'
+
+markdown_extensions:
+  - admonition
+  - codehilite
