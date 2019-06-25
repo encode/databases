@@ -704,6 +704,7 @@ async def test_database_url_interface(database_url):
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
 async def test_concurrent_access_on_single_connection(database_url):
+    database_url = DatabaseURL(database_url)
     if database_url.dialect != "postgresql":
         pytest.skip("Test requires `pg_sleep()`")
 
