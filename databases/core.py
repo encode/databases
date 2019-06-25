@@ -219,11 +219,12 @@ class Connection:
     async def iterate(
         self, query: typing.Union[ClauseElement, str], values: dict = None
     ) -> typing.AsyncGenerator[typing.Any, None]:
-        async with self._query_lock:
-            async for record in self._connection.iterate(
-                self._build_query(query, values)
-            ):
-                yield record
+        async with self.transaction():
+            async with self._query_lock:
+                async for record in self._connection.iterate(
+                    self._build_query(query, values)
+                ):
+                    yield record
 
     def transaction(self, *, force_rollback: bool = False) -> "Transaction":
         return Transaction(self, force_rollback)

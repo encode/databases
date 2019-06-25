@@ -704,10 +704,65 @@ async def test_database_url_interface(database_url):
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
 async def test_concurrent_access_on_single_connection(database_url):
+    database_url = DatabaseURL(database_url)
+    if database_url.dialect != "postgresql":
+        pytest.skip("Test requires `pg_sleep()`")
+
     async with Database(database_url, force_rollback=True) as database:
 
         async def db_lookup():
-            if str(database_url).startswith("postgresql"):
-                await database.fetch_one("SELECT pg_sleep(1)")
+            await database.fetch_one("SELECT pg_sleep(1)")
 
         await asyncio.gather(db_lookup(), db_lookup())
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_iterate_outside_transaction_with_values(database_url):
+    """
+    Ensure `iterate()` works even without a transaction on all drivers.
+    The asyncpg driver relies on server-side cursors without hold
+    for iteration, which requires a transaction to be created.
+    This is mentionned in both their documentation and their test suite.
+    """
+
+    database_url = DatabaseURL(database_url)
+    if database_url.dialect == "mysql":
+        pytest.skip("MySQL does not support `FROM (VALUES ...)` (F641)")
+
+    async with Database(database_url) as database:
+        query = "SELECT * FROM (VALUES (1), (2), (3), (4), (5)) as t"
+        iterate_results = []
+
+        async for result in database.iterate(query=query):
+            iterate_results.append(result)
+
+        assert len(iterate_results) == 5
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_iterate_outside_transaction_with_temp_table(database_url):
+    """
+    Same as test_iterate_outside_transaction_with_values but uses a
+    temporary table instead of a list of values.
+    """
+
+    database_url = DatabaseURL(database_url)
+    if database_url.dialect == "sqlite":
+        pytest.skip("SQLite interface does not work with temporary tables.")
+
+    async with Database(database_url) as database:
+        query = "CREATE TEMPORARY TABLE no_transac(num INTEGER)"
+        await database.execute(query)
+
+        query = "INSERT INTO no_transac(num) VALUES (1), (2), (3), (4), (5)"
+        await database.execute(query)
+
+        query = "SELECT * FROM no_transac"
+        iterate_results = []
+
+        async for result in database.iterate(query=query):
+            iterate_results.append(result)
+
+        assert len(iterate_results) == 5
