@@ -86,7 +86,7 @@ rows = await database.fetch_all(query=query)
 print('High Scores:', rows)
 ```
 
-Check out the documentation on [making database queries](database_queries.md)
+Check out the documentation on [making database queries](https://www.encode.io/databases/database_queries/)
 for examples of how to start using databases together with SQLAlchemy core expressions.
 
 
