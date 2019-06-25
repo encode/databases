@@ -738,7 +738,11 @@ async def test_iterate_outside_transaction_with_values(database_url):
             iterate_results.append(result)
 
         assert len(iterate_results) == 5
-        assert iterate_results == [(1,), (2,), (3,), (4,), (5,)]
+        assert iterate_results[0] == (1,)
+        assert iterate_results[1] == (2,)
+        assert iterate_results[2] == (3,)
+        assert iterate_results[3] == (4,)
+        assert iterate_results[4] == (5,)
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
@@ -767,4 +771,8 @@ async def test_iterate_outside_transaction_with_temp_table(database_url):
             iterate_results.append(result)
 
         assert len(iterate_results) == 5
-        assert iterate_results == [(1,), (2,), (3,), (4,), (5,)]
+        assert iterate_results[0] == (1,)
+        assert iterate_results[1] == (2,)
+        assert iterate_results[2] == (3,)
+        assert iterate_results[3] == (4,)
+        assert iterate_results[4] == (5,)
