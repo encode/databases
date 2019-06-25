@@ -169,10 +169,16 @@ class PostgresConnection(ConnectionBackend):
         self, query: ClauseElement
     ) -> typing.AsyncGenerator[typing.Any, None]:
         assert self._connection is not None, "Connection is not acquired"
-        async with self.transaction():
+        transaction = PostgresTransaction(self)
+        await transaction.start()
+        try:
             query, args, result_columns = self._compile(query)
             async for row in self._connection.cursor(query, *args):
                 yield Record(row, result_columns, self._dialect)
+        except:
+            transaction.rollback()
+        else:
+            transaction.commit()
 
     def transaction(self) -> TransactionBackend:
         return PostgresTransaction(connection=self)
