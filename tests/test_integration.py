@@ -23,6 +23,7 @@ notes = sqlalchemy.Table(
 )
 
 
+# TODO Move to `conftest.py` with tables creation
 @pytest.fixture(autouse=True, scope="module")
 def create_test_database():
     # Create test databases

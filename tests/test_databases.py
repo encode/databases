@@ -71,9 +71,10 @@ prices = sqlalchemy.Table(
 )
 
 
+# TODO Move to `conftest.py`
 @pytest.fixture(autouse=True, scope="module")
 def create_test_database():
-    # Create test databases
+    # Create test databases with tables creation
     for url in DATABASE_URLS:
         database_url = DatabaseURL(url)
         if database_url.dialect == "mysql":
