@@ -2,12 +2,21 @@ import asyncio
 import datetime
 import decimal
 import functools
+import itertools
+import logging
 import os
+import random
+import time
 
 import pytest
 import sqlalchemy
+from faker import Faker
+from sqlalchemy import alias, column, select, cast
+from sqlalchemy.dialects import postgresql
+from sqlalchemy.dialects.postgresql import array
 
 from databases import Database, DatabaseURL
+from tests.psql_utils import unnest_func
 
 assert "TEST_DATABASE_URLS" in os.environ, "TEST_DATABASE_URLS is not set."
 
@@ -802,3 +811,96 @@ async def test_iterate_outside_transaction_with_temp_table(database_url):
             iterate_results.append(result)
 
         assert len(iterate_results) == 5
+
+
+POSTGRES_ONLY = [u for u in DATABASE_URLS if 'postgres' in u]
+
+lake = sqlalchemy.Table(
+    "lake",
+    metadata,
+    sqlalchemy.Column("time", sqlalchemy.Text, primary_key=True),
+    sqlalchemy.Column("ticker", sqlalchemy.Text, primary_key=True),
+    sqlalchemy.Column("field1", sqlalchemy.Integer),
+    sqlalchemy.Column("field2", sqlalchemy.String),
+    sqlalchemy.Column("field3", sqlalchemy.Float),
+    sqlalchemy.Column("field4", sqlalchemy.String),
+)
+
+fake = Faker()
+fake.random.seed(1007)
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+
+@pytest.mark.parametrize("database_url", POSTGRES_ONLY)
+@async_adapter
+async def test_slow(database_url):
+    import datetime
+    start_date = datetime.date(year=2015, month=1, day=1)
+    end_date = datetime.date(year=2016, month=1, day=1)
+    delta = end_date - start_date
+    date_list = []
+    for i in range(delta.days + 1):
+        date_list.append((start_date + datetime.timedelta(days=i)).strftime("%Y-%m-%d"))
+    ticker_list = [f"ticker{i}" for i in range (10)]
+    tdlist = list(itertools.product(ticker_list, date_list))
+
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            query = lake.insert()
+            values = [
+                {"time": ttime,
+                 "ticker": ticker,
+                 "field1": random.randint(0, 9),
+                 "field2": fake.password(),
+                 "field3": random.random(),
+                 "field4": fake.email(),
+
+                 } for ticker,ttime in tdlist]
+            await database.execute_many(query, values)
+
+            raw = """
+            select l.field3, l.field2, l.field4, l.field1
+            from lake l
+                     join (
+                select x.unnest, x.ordinality
+                from unnest(array ['ticker3','ticker1', 'ticker2']) with ordinality
+                         as x (unnest, ordinality)) as r on l.ticker = r.unnest
+            where time = '2015-06-28'
+            order by r.ordinality;
+            """
+            raw0 = time.time()
+            raw_result = await database.fetch_all(raw)
+            raw1 = time.time()
+            logger.info(f"raw: {raw1-raw0}")
+
+            l = alias(lake)
+            fields_asked = ["field3", "field2", "field4", "field1"]
+            columns_asked = [column(fa) for fa in fields_asked]
+            ticker_arr = array(("ticker3", "ticker1", "ticker2"))
+            x = unnest_func(ticker_arr).alias("x")
+            r = select([x.c.unnest, x.c.ordinality]).select_from(x).alias("r")
+            core = (
+                select(columns_asked)
+                    .select_from(l.join(r, l.c.ticker == r.c.unnest))
+                    .where(l.c.time == "2015-06-28")
+                    .order_by(r.c.ordinality)
+            )
+
+            core0 = time.time()
+            core_result = await database.fetch_all(core)
+            core1 = time.time()
+            logger.info(f"core: {core1-core0}")
+
+            for idx, _ in enumerate(raw_result):
+                assert raw_result[idx]._row == core_result[idx]._row
+
+            raw_core = str(core.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}))
+            rawcore0 = time.time()
+            rawcore_result = await database.fetch_all(raw_core)
+            rawcore1 = time.time()
+            logger.info(f"rawcore: {rawcore1 - rawcore0}")
+
+            for idx, _ in enumerate(raw_result):
+                assert raw_result[idx]._row == rawcore_result[idx]._row
