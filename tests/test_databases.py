@@ -826,8 +826,6 @@ lake = sqlalchemy.Table(
     sqlalchemy.Column("field4", sqlalchemy.String),
 )
 
-fake = Faker()
-fake.random.seed(1007)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -837,15 +835,15 @@ logger.setLevel(logging.INFO)
 @async_adapter
 async def test_slow(database_url):
     import datetime
-    start_date = datetime.date(year=2015, month=1, day=1)
-    end_date = datetime.date(year=2016, month=1, day=1)
+    start_date = datetime.date(year=2015, month=6, day=1)
+    end_date = datetime.date(year=2015, month=6, day=29)
     delta = end_date - start_date
     date_list = []
     for i in range(delta.days + 1):
         date_list.append((start_date + datetime.timedelta(days=i)).strftime("%Y-%m-%d"))
-    ticker_list = [f"ticker{i}" for i in range (10)]
+    ticker_list = [f"ticker{i}" for i in range (10000)]
     tdlist = list(itertools.product(ticker_list, date_list))
-
+    random.seed(0)
     async with Database(database_url) as database:
         async with database.transaction(force_rollback=True):
             query = lake.insert()
@@ -853,32 +851,19 @@ async def test_slow(database_url):
                 {"time": ttime,
                  "ticker": ticker,
                  "field1": random.randint(0, 9),
-                 "field2": fake.password(),
+                 "field2": f"f2{ticker}{ttime}",
                  "field3": random.random(),
-                 "field4": fake.email(),
+                 "field4": None,
 
                  } for ticker,ttime in tdlist]
             await database.execute_many(query, values)
 
-            raw = """
-            select l.field3, l.field2, l.field4, l.field1
-            from lake l
-                     join (
-                select x.unnest, x.ordinality
-                from unnest(array ['ticker3','ticker1', 'ticker2']) with ordinality
-                         as x (unnest, ordinality)) as r on l.ticker = r.unnest
-            where time = '2015-06-28'
-            order by r.ordinality;
-            """
-            raw0 = time.time()
-            raw_result = await database.fetch_all(raw)
-            raw1 = time.time()
-            logger.info(f"raw: {raw1-raw0}")
 
+            rand_tickers = (f"ticker{r}" for r in random.choices(list(range(len(ticker_list))), k=2000))
             l = alias(lake)
             fields_asked = ["field3", "field2", "field4", "field1"]
             columns_asked = [column(fa) for fa in fields_asked]
-            ticker_arr = array(("ticker3", "ticker1", "ticker2"))
+            ticker_arr = array(rand_tickers)
             x = unnest_func(ticker_arr).alias("x")
             r = select([x.c.unnest, x.c.ordinality]).select_from(x).alias("r")
             core = (
@@ -893,14 +878,11 @@ async def test_slow(database_url):
             core1 = time.time()
             logger.info(f"core: {core1-core0}")
 
-            for idx, _ in enumerate(raw_result):
-                assert raw_result[idx]._row == core_result[idx]._row
-
             raw_core = str(core.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}))
             rawcore0 = time.time()
             rawcore_result = await database.fetch_all(raw_core)
             rawcore1 = time.time()
             logger.info(f"rawcore: {rawcore1 - rawcore0}")
 
-            for idx, _ in enumerate(raw_result):
-                assert raw_result[idx]._row == rawcore_result[idx]._row
+            for idx, _ in enumerate(core_result):
+                assert core_result[idx]._row == rawcore_result[idx]._row
