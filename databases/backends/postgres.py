@@ -115,10 +115,10 @@ class Record(Mapping):
         return raw
 
     def __iter__(self) -> typing.Iterator:
-        return iter(self._column_map)
+        return iter(self._row.keys())
 
     def __len__(self) -> int:
-        return len(self._column_map)
+        return len(self._row)
 
 
 class PostgresConnection(ConnectionBackend):
