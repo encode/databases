@@ -7,21 +7,21 @@ def test_invalid_format():
     with pytest.raises(ImportFromStringError) as exc:
         import_from_string("example:")
     expected = 'Import string "example:" must be in format "<module>:<attribute>".'
-    assert expected in str(exc)
+    assert exc.match(expected)
 
 
 def test_invalid_module():
     with pytest.raises(ImportFromStringError) as exc:
         import_from_string("module_does_not_exist:myattr")
     expected = 'Could not import module "module_does_not_exist".'
-    assert expected in str(exc)
+    assert exc.match(expected)
 
 
 def test_invalid_attr():
     with pytest.raises(ImportFromStringError) as exc:
         import_from_string("tempfile:attr_does_not_exist")
     expected = 'Attribute "attr_does_not_exist" not found in module "tempfile".'
-    assert expected in str(exc)
+    assert exc.match(expected)
 
 
 def test_internal_import_error():
