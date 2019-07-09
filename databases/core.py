@@ -362,7 +362,10 @@ class DatabaseURL:
 
     @property
     def database(self) -> str:
-        return self.components.path.lstrip("/")
+        path = self.components.path
+        if path.startswith("/"):
+            path = path[1:]
+        return path
 
     @property
     def options(self) -> dict:
