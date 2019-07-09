@@ -802,3 +802,26 @@ async def test_iterate_outside_transaction_with_temp_table(database_url):
             iterate_results.append(result)
 
         assert len(iterate_results) == 5
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@pytest.mark.parametrize("select_query", [notes.select(), "SELECT * FROM notes"])
+@async_adapter
+async def test_column_names(database_url, select_query):
+    """
+    Test that the basic `execute()`, `execute_many()`, `fetch_all()``, and
+    `fetch_one()` interfaces are all supported (using SQLAlchemy core).
+    """
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            # insert values
+            query = notes.insert()
+            values = {"text": "example1", "completed": True}
+            await database.execute(query, values)
+            # fetch results
+            results = await database.fetch_all(query=select_query)
+            assert len(results) == 1
+
+            assert sorted(results[0].keys()) == ["completed", "id", "text"]
+            assert results[0]["text"] == "example1"
+            assert results[0]["completed"] == True
