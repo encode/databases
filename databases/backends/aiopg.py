@@ -63,7 +63,7 @@ class AiopgBackend(DatabaseBackend):
 
         return kwargs
 
-    async def connect(self) -> None:  # TODO as MySQL one?
+    async def connect(self) -> None:
         assert self._pool is None, "DatabaseBackend is already running"
         kwargs = self._get_connection_kwargs()
         self._pool = await aiopg.create_pool(
@@ -72,7 +72,6 @@ class AiopgBackend(DatabaseBackend):
             user=self._database_url.username or getpass.getuser(),
             password=self._database_url.password,
             database=self._database_url.database,
-            # autocommit=True,
             **kwargs,
         )
 
@@ -112,8 +111,6 @@ class AiopgConnection(ConnectionBackend):
         assert self._connection is not None, "Connection is not acquired"
         query, args, context = self._compile(query)
         cursor = await self._connection.cursor()
-        # TODO
-        import pdb; pdb.set_trace()
         try:
             await cursor.execute(query, args)
             rows = await cursor.fetchall()
@@ -129,8 +126,6 @@ class AiopgConnection(ConnectionBackend):
         assert self._connection is not None, "Connection is not acquired"
         query, args, context = self._compile(query)
         cursor = await self._connection.cursor()
-        # TODO
-        import pdb; pdb.set_trace()
         try:
             await cursor.execute(query, args)
             row = await cursor.fetchone()
@@ -145,8 +140,6 @@ class AiopgConnection(ConnectionBackend):
         assert self._connection is not None, "Connection is not acquired"
         query, args, context = self._compile(query)
         cursor = await self._connection.cursor()
-        # TODO
-        import pdb; pdb.set_trace()
         try:
             await cursor.execute(query, args)
             return cursor.lastrowid
@@ -156,8 +149,6 @@ class AiopgConnection(ConnectionBackend):
     async def execute_many(self, queries: typing.List[ClauseElement]) -> None:
         assert self._connection is not None, "Connection is not acquired"
         cursor = await self._connection.cursor()
-        # TODO
-        import pdb; pdb.set_trace()
         try:
             for single_query in queries:
                 single_query, args, context = self._compile(single_query)
@@ -171,8 +162,6 @@ class AiopgConnection(ConnectionBackend):
         assert self._connection is not None, "Connection is not acquired"
         query, args, context = self._compile(query)
         cursor = await self._connection.cursor()
-        # TODO
-        import pdb; pdb.set_trace()
         try:
             await cursor.execute(query, args)
             metadata = ResultMetaData(context, cursor.description)
@@ -217,17 +206,14 @@ class AiopgTransaction(TransactionBackend):
         self._savepoint_name = ""
 
     async def start(self, is_root: bool) -> None:
-        import pdb; pdb.set_trace()
         assert self._connection._connection is not None, "Connection is not acquired"
         self._is_root = is_root
         cursor = await self._connection._connection.cursor()
         if self._is_root:
-            # await self._connection._connection.begin()
             await cursor.execute("BEGIN")
         else:
             id = str(uuid.uuid4()).replace("-", "_")
             self._savepoint_name = f"STARLETTE_SAVEPOINT_{id}"
-            # cursor = await self._connection._connection.cursor()
             try:
                 await cursor.execute(f"SAVEPOINT {self._savepoint_name}")
             finally:
@@ -237,10 +223,8 @@ class AiopgTransaction(TransactionBackend):
         assert self._connection._connection is not None, "Connection is not acquired"
         cursor = await self._connection._connection.cursor()
         if self._is_root:
-            # await self._connection._connection.commit()
             await cursor.execute("COMMIT")
         else:
-            # cursor = await self._connection._connection.cursor()
             try:
                 await cursor.execute(f"RELEASE SAVEPOINT {self._savepoint_name}")
             finally:
@@ -250,10 +234,8 @@ class AiopgTransaction(TransactionBackend):
         assert self._connection._connection is not None, "Connection is not acquired"
         cursor = await self._connection._connection.cursor()
         if self._is_root:
-            # await self._connection._connection.rollback()
             await cursor.execute("ROLLBACK")
         else:
-            # cursor = await self._connection._connection.cursor()
             try:
                 await cursor.execute(f"ROLLBACK TO SAVEPOINT {self._savepoint_name}")
             finally:
