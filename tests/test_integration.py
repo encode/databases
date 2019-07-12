@@ -23,7 +23,6 @@ notes = sqlalchemy.Table(
 )
 
 
-# TODO Move to `conftest.py` with tables creation
 @pytest.fixture(autouse=True, scope="module")
 def create_test_database():
     # Create test databases
@@ -31,6 +30,8 @@ def create_test_database():
         database_url = DatabaseURL(url)
         if database_url.dialect == "mysql":
             url = str(database_url.replace(driver="pymysql"))
+        elif database_url.driver == "aiopg":
+            url = str(database_url.replace(driver=None))
         engine = sqlalchemy.create_engine(url)
         metadata.create_all(engine)
 
@@ -42,6 +43,8 @@ def create_test_database():
         database_url = DatabaseURL(url)
         if database_url.dialect == "mysql":
             url = str(database_url.replace(driver="pymysql"))
+        elif database_url.driver == "aiopg":
+            url = str(database_url.replace(driver=None))
         engine = sqlalchemy.create_engine(url)
         metadata.drop_all(engine)
 

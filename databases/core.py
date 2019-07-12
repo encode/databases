@@ -18,17 +18,9 @@ else:  # pragma: no cover
 
 
 class Database:
-    # TODO Nested schema?
-    # {
-    #     "postgresql": {
-    #         "asyncpg": "...",  # Default
-    #         "aiopg": "..."
-    #     }
-    # }
     SUPPORTED_BACKENDS = {
-        # TODO `postgresql+asyncpg`?
         "postgresql": "databases.backends.postgres:PostgresBackend",
-        "postgresql+psycopg2": "databases.backends.aiopg:AiopgBackend",
+        "postgresql+aiopg": "databases.backends.aiopg:AiopgBackend",
         "mysql": "databases.backends.mysql:MySQLBackend",
         "sqlite": "databases.backends.sqlite:SQLiteBackend",
     }

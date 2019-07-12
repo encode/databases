@@ -1,9 +1,9 @@
+import getpass
 import logging
 import typing
 import uuid
 
 import aiopg
-
 from sqlalchemy.dialects.postgresql import pypostgresql
 from sqlalchemy.engine.interfaces import Dialect, ExecutionContext
 from sqlalchemy.engine.result import ResultMetaData, RowProxy
@@ -38,7 +38,7 @@ class AiopgBackend(DatabaseBackend):
 
         return dialect
 
-    def _get_connection_kwargs(self) -> dict:  # TODO move to `core.py`
+    def _get_connection_kwargs(self) -> dict:
         url_options = self._database_url.options
 
         kwargs = {}
