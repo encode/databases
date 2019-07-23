@@ -1,7 +1,7 @@
 """
 Unit tests for the backend connection arguments.
 """
-from contextlib import suppress
+from contextlib import ExitStack as does_not_raise
 from urllib.parse import urlparse
 
 import pytest
@@ -39,7 +39,7 @@ def test_postgres_explicit_ssl():
 
 
 urls_with_options = [
-    (f"{POSTGRES_URLS[0]}?min_size=1&max_size=20", suppress()),
+    (f"{POSTGRES_URLS[0]}?min_size=1&max_size=20", does_not_raise()),
     (f"{POSTGRES_URLS[0]}?min_size=0&max_size=0", pytest.raises(ValueError)),
     (f"{POSTGRES_URLS[0]}?min_size=10&max_size=0", pytest.raises(ValueError)),
 ]
