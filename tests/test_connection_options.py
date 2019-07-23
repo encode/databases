@@ -2,6 +2,7 @@
 Unit tests for the backend connection arguments.
 """
 from contextlib import suppress
+
 import pytest
 
 from databases import Database
@@ -39,6 +40,8 @@ urls_with_options = [
     (f"{POSTGRES_URLS[0]}?min_size=0&max_size=0", pytest.raises(ValueError)),
     (f"{POSTGRES_URLS[0]}?min_size=10&max_size=0", pytest.raises(ValueError)),
 ]
+
+
 @pytest.mark.parametrize("database_url, expectation", urls_with_options)
 @async_adapter
 async def test_postgres_pool_size_connect(database_url, expectation):
