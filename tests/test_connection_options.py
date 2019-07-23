@@ -2,13 +2,16 @@
 Unit tests for the backend connection arguments.
 """
 from contextlib import suppress
+from urllib.parse import urlparse
 
 import pytest
 
 from databases import Database
 from databases.backends.mysql import MySQLBackend
 from databases.backends.postgres import PostgresBackend
-from tests.test_databases import POSTGRES_URLS, async_adapter
+from tests.test_databases import async_adapter, DATABASE_URLS
+
+POSTGRES_URLS = [url for url in DATABASE_URLS if urlparse(url).scheme == "postgresql"]
 
 
 def test_postgres_pool_size():
