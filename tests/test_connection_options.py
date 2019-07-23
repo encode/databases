@@ -1,7 +1,7 @@
 """
 Unit tests for the backend connection arguments.
 """
-from contextlib import ExitStack as does_not_raise
+from contextlib import contextmanager
 from urllib.parse import urlparse
 
 import pytest
@@ -36,6 +36,11 @@ def test_postgres_explicit_ssl():
     backend = PostgresBackend("postgres://localhost/database", ssl=True)
     kwargs = backend._get_connection_kwargs()
     assert kwargs == {"ssl": True}
+
+
+@contextmanager
+def does_not_raise():
+    yield
 
 
 urls_with_options = [
