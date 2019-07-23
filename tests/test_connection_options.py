@@ -9,7 +9,7 @@ import pytest
 from databases import Database
 from databases.backends.mysql import MySQLBackend
 from databases.backends.postgres import PostgresBackend
-from tests.test_databases import async_adapter, DATABASE_URLS
+from tests.test_databases import DATABASE_URLS, async_adapter
 
 POSTGRES_URLS = [url for url in DATABASE_URLS if urlparse(url).scheme == "postgresql"]
 

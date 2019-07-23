@@ -1,7 +1,6 @@
 import logging
 import typing
 from collections.abc import Mapping
-from urllib.parse import urlparse
 
 import asyncpg
 from sqlalchemy.dialects.postgresql import pypostgresql
