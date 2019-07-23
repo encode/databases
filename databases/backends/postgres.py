@@ -1,6 +1,7 @@
 import logging
 import typing
 from collections.abc import Mapping
+from urllib.parse import urlparse
 
 import asyncpg
 from sqlalchemy.dialects.postgresql import pypostgresql
@@ -62,7 +63,7 @@ class PostgresBackend(DatabaseBackend):
     async def connect(self) -> None:
         assert self._pool is None, "DatabaseBackend is already running"
         kwargs = self._get_connection_kwargs()
-        self._pool = await asyncpg.create_pool(str(self._database_url), **kwargs)
+        self._pool = await asyncpg.create_pool(str(urlparse(self._database_url._url)._replace(query=None).geturl()), **kwargs)
 
     async def disconnect(self) -> None:
         assert self._pool is not None, "DatabaseBackend is not running"
