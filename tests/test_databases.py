@@ -3,6 +3,7 @@ import datetime
 import decimal
 import functools
 import os
+from urllib.parse import urlparse
 
 import pytest
 import sqlalchemy
@@ -12,6 +13,7 @@ from databases import Database, DatabaseURL
 assert "TEST_DATABASE_URLS" in os.environ, "TEST_DATABASE_URLS is not set."
 
 DATABASE_URLS = [url.strip() for url in os.environ["TEST_DATABASE_URLS"].split(",")]
+POSTGRES_URLS = [url for url in DATABASE_URLS if urlparse(url).scheme =='postgresql']
 
 
 class MyEpochType(sqlalchemy.types.TypeDecorator):
