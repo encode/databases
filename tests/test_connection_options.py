@@ -43,8 +43,11 @@ urls_with_options = [
 @async_adapter
 async def test_postgres_pool_size_connect(database_url, expectation):
     with expectation:
-        async with Database(database_url) as db:
-            db.connect()
+        database = Database(database_url)
+        await database.connect()
+        assert database.is_connected
+        await database.disconnect()
+        assert not database.is_connected
 
 
 def test_mysql_pool_size():
