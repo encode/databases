@@ -1,3 +1,4 @@
+import getpass
 import logging
 import typing
 from collections.abc import Mapping
@@ -62,8 +63,16 @@ class PostgresBackend(DatabaseBackend):
     async def connect(self) -> None:
         assert self._pool is None, "DatabaseBackend is already running"
         kwargs = self._get_connection_kwargs()
-        url = str(self._database_url.replace(query=""))
-        self._pool = await asyncpg.create_pool(url, **kwargs)
+        # url = str(self._database_url.replace(query=""))
+        # self._pool = await asyncpg.create_pool(url, **kwargs)
+        self._pool = await asyncpg.create_pool(
+            host=self._database_url.hostname,
+            port=self._database_url.port or 5432,
+            user=self._database_url.username or getpass.getuser(),
+            password=self._database_url.password,
+            database=self._database_url.database,
+            **kwargs,
+        )
 
     async def disconnect(self) -> None:
         assert self._pool is not None, "DatabaseBackend is not running"
