@@ -96,7 +96,7 @@ class Record(Mapping):
 
     def __getitem__(self, key: typing.Any) -> typing.Any:
         if len(self._column_map) == 0:  # raw query
-            return self._row[tuple(self._row.keys()).index(key)]
+            return self._row[key if type(key) is int else tuple(self._row.keys()).index(key)]
         elif type(key) is Column:
             idx, datatype = self._column_map_full[str(key)]
         elif type(key) is int:

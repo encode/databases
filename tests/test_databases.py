@@ -202,6 +202,14 @@ async def test_queries_raw(database_url):
             assert result["text"] == "example2"
             assert result["completed"] == False
 
+            # fetch_val()
+            query = "SELECT completed FROM notes WHERE text = :text"
+            result = await database.fetch_val(query=query, values={"text": "example1"})
+            assert result == True
+            query = "SELECT completed FROM notes WHERE text = :text"
+            result = await database.fetch_val(query=query, values={"text": "example1"}, column="completed")
+            assert result == True
+
             # iterate()
             query = "SELECT * FROM notes"
             iterate_results = []
