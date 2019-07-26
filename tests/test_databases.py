@@ -151,6 +151,12 @@ async def test_queries(database_url):
             result = await database.fetch_val(query=query)
             assert result == "example1"
 
+            # row access
+            query = sqlalchemy.sql.select([notes.c.text])
+            result = await database.fetch_one(query=query)
+            assert result["text"] == "example1"
+            assert result[0] == "example1"
+
             # iterate()
             query = notes.select()
             iterate_results = []
