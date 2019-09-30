@@ -56,26 +56,26 @@ def test_mysql_explicit_ssl():
 
 
 def test_aiopg_pool_size():
-    backend = AiopgBackend("postgres+aiopg://localhost/database?min_size=1&max_size=20")
+    backend = AiopgBackend("postgresql+aiopg://localhost/database?min_size=1&max_size=20")
     kwargs = backend._get_connection_kwargs()
     assert kwargs == {"minsize": 1, "maxsize": 20}
 
 
 def test_aiopg_explicit_pool_size():
     backend = AiopgBackend(
-        "postgres+aiopg://localhost/database", min_size=1, max_size=20
+        "postgresql+aiopg://localhost/database", min_size=1, max_size=20
     )
     kwargs = backend._get_connection_kwargs()
     assert kwargs == {"minsize": 1, "maxsize": 20}
 
 
 def test_aiopg_ssl():
-    backend = AiopgBackend("postgres+aiopg://localhost/database?ssl=true")
+    backend = AiopgBackend("postgresql+aiopg://localhost/database?ssl=true")
     kwargs = backend._get_connection_kwargs()
     assert kwargs == {"ssl": True}
 
 
 def test_aiopg_explicit_ssl():
-    backend = AiopgBackend("postgres+aiopg://localhost/database", ssl=True)
+    backend = AiopgBackend("postgresql+aiopg://localhost/database", ssl=True)
     kwargs = backend._get_connection_kwargs()
     assert kwargs == {"ssl": True}
