@@ -151,7 +151,7 @@ async def test_queries(database_url):
             result = await database.fetch_val(query=query)
             assert result == "example1"
 
-            # row access
+            # row access (needed to maintain test coverage for Record.__getitem__ in postgres backend)
             query = sqlalchemy.sql.select([notes.c.text])
             result = await database.fetch_one(query=query)
             assert result["text"] == "example1"
@@ -212,7 +212,7 @@ async def test_queries_raw(database_url):
             query = "SELECT completed FROM notes WHERE text = :text"
             result = await database.fetch_val(query=query, values={"text": "example1"})
             assert result == True
-            query = "SELECT completed FROM notes WHERE text = :text"
+            query = "SELECT * FROM notes WHERE text = :text"
             result = await database.fetch_val(
                 query=query, values={"text": "example1"}, column="completed"
             )
