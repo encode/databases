@@ -106,6 +106,16 @@ def async_adapter(wrapped_func):
 
     return run_sync
 
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_selectable_queries_with_params(database_url):
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            param = sqlalchemy.bindparam('price')
+            query = sqlalchemy.select([prices]).where(prices.c.price < param)
+            rows = await database.fetch_all(query=query, values={'price': 10})
+            list(rows)
+
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
