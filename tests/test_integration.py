@@ -28,9 +28,9 @@ def create_test_database():
     # Create test databases
     for url in DATABASE_URLS:
         database_url = DatabaseURL(url)
-        if database_url.dialect == "mysql":
+        if database_url.scheme == "mysql":
             url = str(database_url.replace(driver="pymysql"))
-        elif database_url.driver == "aiopg":
+        elif database_url.scheme == "postgresql+aiopg":
             url = str(database_url.replace(driver=None))
         engine = sqlalchemy.create_engine(url)
         metadata.create_all(engine)
@@ -41,9 +41,9 @@ def create_test_database():
     # Drop test databases
     for url in DATABASE_URLS:
         database_url = DatabaseURL(url)
-        if database_url.dialect == "mysql":
+        if database_url.scheme == "mysql":
             url = str(database_url.replace(driver="pymysql"))
-        elif database_url.driver == "aiopg":
+        elif database_url.scheme == "postgresql+aiopg":
             url = str(database_url.replace(driver=None))
         engine = sqlalchemy.create_engine(url)
         metadata.drop_all(engine)
