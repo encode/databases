@@ -1,10 +1,12 @@
 import getpass
+import json
 import logging
 import typing
 import uuid
 
 import aiopg
-from sqlalchemy.dialects.postgresql import pypostgresql
+from aiopg.sa.engine import APGCompiler_psycopg2
+from sqlalchemy.dialects.postgresql.psycopg2 import PGDialect_psycopg2
 from sqlalchemy.engine.interfaces import Dialect, ExecutionContext
 from sqlalchemy.engine.result import ResultMetaData, RowProxy
 from sqlalchemy.sql import ClauseElement
@@ -26,8 +28,10 @@ class AiopgBackend(DatabaseBackend):
         self._pool = None
 
     def _get_dialect(self) -> Dialect:
-        dialect = pypostgresql.dialect(paramstyle="pyformat")
-
+        dialect = PGDialect_psycopg2(
+            json_serializer=json.dumps, json_deserializer=lambda x: x
+        )
+        dialect.statement_compiler = APGCompiler_psycopg2
         dialect.implicit_returning = True
         dialect.supports_native_enum = True
         dialect.supports_smallserial = True  # 9.2+

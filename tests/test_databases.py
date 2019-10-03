@@ -2,7 +2,6 @@ import asyncio
 import datetime
 import decimal
 import functools
-import json
 import os
 
 import pytest
@@ -514,14 +513,10 @@ async def test_json_field(database_url):
     async with Database(database_url) as database:
         async with database.transaction(force_rollback=True):
             # execute()
-            query = session.insert()
             data = {"text": "hello", "boolean": True, "int": 1}
             values = {"data": data}
-
-            if database.url.scheme == "postgresql+aiopg":
-                await database.execute(query, {"data": json.dumps(data)})
-            else:
-                await database.execute(query, values)
+            query = session.insert()
+            await database.execute(query, values)
 
             # fetch_all()
             query = session.select()
@@ -544,6 +539,7 @@ async def test_custom_field(database_url):
             # execute()
             query = custom_date.insert()
             values = {"title": "Hello, world", "published": today}
+
             await database.execute(query, values)
 
             # fetch_all()
