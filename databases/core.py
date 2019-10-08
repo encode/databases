@@ -20,6 +20,7 @@ else:  # pragma: no cover
 class Database:
     SUPPORTED_BACKENDS = {
         "postgresql": "databases.backends.postgres:PostgresBackend",
+        "postgres": "databases.backends.postgres:PostgresBackend",
         "mysql": "databases.backends.mysql:MySQLBackend",
         "sqlite": "databases.backends.sqlite:SQLiteBackend",
     }
