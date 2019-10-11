@@ -70,6 +70,14 @@ prices = sqlalchemy.Table(
     sqlalchemy.Column("price", sqlalchemy.Numeric(precision=30, scale=20)),
 )
 
+# Used to test Interval column
+durations = sqlalchemy.Table(
+    "intervals",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("duration", sqlalchemy.Interval),
+)
+
 
 @pytest.fixture(autouse=True, scope="module")
 def create_test_database():
@@ -535,6 +543,29 @@ async def test_custom_field(database_url):
             assert len(results) == 1
             assert results[0]["title"] == "Hello, world"
             assert results[0]["published"] == today
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_interval_field(database_url):
+    """
+    Test custom column types.
+    """
+
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            duration = datetime.timedelta(days=3, minutes=2)
+
+            # execute()
+            query = durations.insert()
+            values = {"duration": duration}
+            await database.execute(query, values)
+
+            # fetch_all()
+            query = durations.select()
+            results = await database.fetch_all(query=query)
+            assert len(results) == 1
+            assert results[0]["duration"] == duration
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
