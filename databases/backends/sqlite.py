@@ -112,8 +112,9 @@ class SQLiteConnection(ConnectionBackend):
         assert self._connection is not None, "Connection is not acquired"
         query, args, context = self._compile(query)
         cursor = await self._connection.execute(query, args)
+        rowcount = cursor.rowcount
         await cursor.close()
-        return cursor.lastrowid
+        return rowcount
 
     async def execute_many(self, queries: typing.List[ClauseElement]) -> None:
         assert self._connection is not None, "Connection is not acquired"
