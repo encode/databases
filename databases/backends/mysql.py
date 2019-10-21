@@ -131,7 +131,9 @@ class MySQLConnection(ConnectionBackend):
         cursor = await self._connection.cursor()
         try:
             await cursor.execute(query, args)
-            return cursor.rowcount
+            if cursor.lastrowid == 0:
+                return cursor.rowcount
+            return cursor.lastrowid
         finally:
             await cursor.close()
 
