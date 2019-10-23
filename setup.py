@@ -52,7 +52,8 @@ setup(
     extras_require={
         "postgresql": ["asyncpg", "psycopg2-binary"],
         "mysql": ["aiomysql", "pymysql"],
-        "sqlite": ["aiosqlite"]
+        "sqlite": ["aiosqlite"],
+        "mssql": ["aioodbc"]
     },
     classifiers=[
         "Development Status :: 3 - Alpha",

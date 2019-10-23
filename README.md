@@ -15,7 +15,7 @@
 Databases gives you simple asyncio support for a range of databases.
 
 It allows you to make queries using the powerful [SQLAlchemy Core][sqlalchemy-core]
-expression language, and provides support for PostgreSQL, MySQL, and SQLite.
+expression language, and provides support for PostgreSQL, MySQL, SQLite and MSSQL.
 
 Databases is suitable for integrating against any async Web framework, such as [Starlette][starlette],
 [Sanic][sanic], [Responder][responder], [Quart][quart], [aiohttp][aiohttp], [Tornado][tornado], [FastAPI][fastapi], or [Bocadillo][bocadillo].
@@ -84,6 +84,10 @@ await database.execute_many(query=query, values=values)
 query = "SELECT * FROM HighScores"
 rows = await database.fetch_all(query=query)
 print('High Scores:', rows)
+
+# In order to work on MSSQL server on *nix systems, Microsoft ODBC driver for SQL server needs to be installed.
+# Database url for MSSQL server can be passed as following 
+db_url = 'aioodbc+mssql://db_user:db_password@localhost:port/db_name?driver=ODBC+Driver+17+for+SQL+Server&paramstyle=qmark'
 ```
 
 Check out the documentation on [making database queries](https://www.encode.io/databases/database_queries/)
@@ -99,6 +103,7 @@ for examples of how to start using databases together with SQLAlchemy core expre
 [asyncpg]: https://github.com/MagicStack/asyncpg
 [aiomysql]: https://github.com/aio-libs/aiomysql
 [aiosqlite]: https://github.com/jreese/aiosqlite
+[aioodbc]: https://github.com/aio-libs/aioodbc
 
 [starlette]: https://github.com/encode/starlette
 [sanic]: https://github.com/huge-success/sanic

@@ -97,6 +97,7 @@ for examples of how to start using databases together with SQLAlchemy core expre
 [asyncpg]: https://github.com/MagicStack/asyncpg
 [aiomysql]: https://github.com/aio-libs/aiomysql
 [aiosqlite]: https://github.com/jreese/aiosqlite
+[aioodbc]: https://github.com/aio-libs/aioodbc
 
 [starlette]: https://github.com/encode/starlette
 [sanic]: https://github.com/huge-success/sanic
