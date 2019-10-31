@@ -9,7 +9,7 @@ from sqlalchemy.sql import ClauseElement
 from sqlalchemy.sql.schema import Column
 from sqlalchemy.types import TypeEngine
 
-from databases.core import DatabaseURL
+from databases.core import DatabaseURL, LOG_EXTRA
 from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend
 
 logger = logging.getLogger("databases")
@@ -193,7 +193,7 @@ class PostgresConnection(ConnectionBackend):
         ]
 
         query_message = compiled_query.replace(" \n", " ").replace("\n", " ")
-        logger.debug("Query: %s Args: %s", query_message, repr(tuple(args)))
+        logger.debug("Query: %s Args: %s", query_message, repr(tuple(args)), extra=LOG_EXTRA)
         return compiled_query, args, compiled._result_columns
 
     @property

@@ -9,7 +9,7 @@ from sqlalchemy.engine.result import ResultMetaData, RowProxy
 from sqlalchemy.sql import ClauseElement
 from sqlalchemy.types import TypeEngine
 
-from databases.core import DatabaseURL
+from databases.core import DatabaseURL, LOG_EXTRA
 from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend
 
 logger = logging.getLogger("databases")
@@ -155,7 +155,7 @@ class SQLiteConnection(ConnectionBackend):
         )
 
         query_message = compiled.string.replace(" \n", " ").replace("\n", " ")
-        logger.debug("Query: %s Args: %s", query_message, repr(tuple(args)))
+        logger.debug("Query: %s Args: %s", query_message, repr(tuple(args)), extra=LOG_EXTRA)
         return compiled.string, args, CompilationContext(execution_context)
 
     @property

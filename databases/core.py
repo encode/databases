@@ -17,6 +17,12 @@ if sys.version_info >= (3, 7):  # pragma: no cover
 else:  # pragma: no cover
     from aiocontextvars import ContextVar
 
+try:  # pragma: no cover
+    import click
+    LOG_EXTRA = {"color_message": "Query: " + click.style("%s", bold=True) + " Args: %s"}
+except ImportError:  # pragma: no cover
+    LOG_EXTRA = None
+
 
 logger = logging.getLogger("databases")
 
