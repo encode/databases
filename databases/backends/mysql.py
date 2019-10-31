@@ -179,7 +179,8 @@ class MySQLConnection(ConnectionBackend):
             compiled._textual_ordered_columns,
         )
 
-        logger.debug("Query: %s\nArgs: %s", compiled.string, args)
+        query_message = compiled.string.replace(" \n", " ").replace("\n", " ")
+        logger.debug("Query: %s Args: %s", query_message, repr(args))
         return compiled.string, args, CompilationContext(execution_context)
 
     @property

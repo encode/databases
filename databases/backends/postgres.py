@@ -192,7 +192,8 @@ class PostgresConnection(ConnectionBackend):
             for key, val in compiled_params
         ]
 
-        logger.debug("Query: %s\nArgs: %s", compiled_query, args)
+        query_message = compiled_query.replace(" \n", " ").replace("\n", " ")
+        logger.debug("Query: %s Args: %s", query_message, repr(tuple(args)))
         return compiled_query, args, compiled._result_columns
 
     @property
