@@ -87,7 +87,7 @@ class Database:
         await self._backend.connect()
         logger.info(
             "Connected to database %s",
-            repr(self.url.obscure_password),
+            self.url.obscure_password,
             extra=CONNECT_EXTRA,
         )
         self.is_connected = True
@@ -109,7 +109,7 @@ class Database:
         await self._backend.disconnect()
         logger.info(
             "Disconnected from database %s",
-            repr(self.url.obscure_password),
+            self.url.obscure_password,
             extra=DISCONNECT_EXTRA,
         )
         self.is_connected = False
