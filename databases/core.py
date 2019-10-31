@@ -86,9 +86,7 @@ class Database:
 
         await self._backend.connect()
         logger.info(
-            "Connected to database %s",
-            self.url.obscure_password,
-            extra=CONNECT_EXTRA,
+            "Connected to database %s", self.url.obscure_password, extra=CONNECT_EXTRA
         )
         self.is_connected = True
 
