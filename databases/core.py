@@ -20,6 +20,7 @@ else:  # pragma: no cover
 try:  # pragma: no cover
     import click
 
+    # Extra log info for optional coloured terminal outputs.
     LOG_EXTRA = {
         "color_message": "Query: " + click.style("%s", bold=True) + " Args: %s"
     }
