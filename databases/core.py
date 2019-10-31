@@ -19,9 +19,12 @@ else:  # pragma: no cover
 
 try:  # pragma: no cover
     import click
-    LOG_EXTRA = {"color_message": "Query: " + click.style("%s", bold=True) + " Args: %s"}
+
+    LOG_EXTRA = {
+        "color_message": "Query: " + click.style("%s", bold=True) + " Args: %s"
+    }
 except ImportError:  # pragma: no cover
-    LOG_EXTRA = None
+    LOG_EXTRA = {}
 
 
 logger = logging.getLogger("databases")

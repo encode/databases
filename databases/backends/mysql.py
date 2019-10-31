@@ -10,7 +10,7 @@ from sqlalchemy.engine.result import ResultMetaData, RowProxy
 from sqlalchemy.sql import ClauseElement
 from sqlalchemy.types import TypeEngine
 
-from databases.core import DatabaseURL, LOG_EXTRA
+from databases.core import LOG_EXTRA, DatabaseURL
 from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend
 
 logger = logging.getLogger("databases")
