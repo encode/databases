@@ -1,5 +1,6 @@
 import asyncio
 import functools
+import logging
 import sys
 import typing
 from types import TracebackType
@@ -15,6 +16,27 @@ if sys.version_info >= (3, 7):  # pragma: no cover
     from contextvars import ContextVar
 else:  # pragma: no cover
     from aiocontextvars import ContextVar
+
+try:  # pragma: no cover
+    import click
+
+    # Extra log info for optional coloured terminal outputs.
+    LOG_EXTRA = {
+        "color_message": "Query: " + click.style("%s", bold=True) + " Args: %s"
+    }
+    CONNECT_EXTRA = {
+        "color_message": "Connected to database " + click.style("%s", bold=True)
+    }
+    DISCONNECT_EXTRA = {
+        "color_message": "Disconnected from database " + click.style("%s", bold=True)
+    }
+except ImportError:  # pragma: no cover
+    LOG_EXTRA = {}
+    CONNECT_EXTRA = {}
+    DISCONNECT_EXTRA = {}
+
+
+logger = logging.getLogger("databases")
 
 
 class Database:
@@ -63,6 +85,9 @@ class Database:
         assert not self.is_connected, "Already connected."
 
         await self._backend.connect()
+        logger.info(
+            "Connected to database %s", self.url.obscure_password, extra=CONNECT_EXTRA
+        )
         self.is_connected = True
 
         if self._force_rollback:
@@ -80,6 +105,11 @@ class Database:
             await self._global_transaction.__aexit__()
 
         await self._backend.disconnect()
+        logger.info(
+            "Disconnected from database %s",
+            self.url.obscure_password,
+            extra=DISCONNECT_EXTRA,
+        )
         self.is_connected = False
 
     async def __aenter__(self) -> "Database":
@@ -412,14 +442,17 @@ class DatabaseURL:
         components = self.components._replace(**kwargs)
         return self.__class__(components.geturl())
 
+    @property
+    def obscure_password(self) -> str:
+        if self.password:
+            return self.replace(password="********")._url
+        return self._url
+
     def __str__(self) -> str:
         return self._url
 
     def __repr__(self) -> str:
-        url = str(self)
-        if self.password:
-            url = str(self.replace(password="********"))
-        return f"{self.__class__.__name__}({repr(url)})"
+        return f"{self.__class__.__name__}({repr(self.obscure_password)})"
 
     def __eq__(self, other: typing.Any) -> bool:
         return str(self) == str(other)
