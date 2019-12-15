@@ -41,6 +41,7 @@ logger = logging.getLogger("databases")
 
 class Database:
     SUPPORTED_BACKENDS = {
+        "postgres": "databases.backends.postgres:PostgresBackend",
         "postgresql": "databases.backends.postgres:PostgresBackend",
         "mysql": "databases.backends.mysql:MySQLBackend",
         "sqlite": "databases.backends.sqlite:SQLiteBackend",
