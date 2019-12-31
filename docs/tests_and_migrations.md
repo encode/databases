@@ -87,6 +87,6 @@ For MySQL you'll probably need to explicitly specify the `pymysql` dialect when
 using Alembic since the default MySQL dialect does not support Python 3.
 
 If you're using the `databases.DatabaseURL` datatype, you can obtain this using
-`DATABASE_URL.replace(dialect="pymysql")`
+`DATABASE_URL.replace(driver="pymysql")`
 
 [alembic]: https://alembic.sqlalchemy.org/en/latest/
