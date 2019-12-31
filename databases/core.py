@@ -350,7 +350,7 @@ class _EmptyNetloc(str):
         return True
 
 
-class DatabaseURL:
+class DatabaseURL(str):
     def __init__(self, url: typing.Union[str, "DatabaseURL"]):
         self._url = str(url)
 
@@ -403,7 +403,7 @@ class DatabaseURL:
             self._options = dict(parse_qsl(self.components.query))
         return self._options
 
-    def replace(self, **kwargs: typing.Any) -> "DatabaseURL":
+    def replace(self, **kwargs: typing.Any) -> typing.Union[str, "DatabaseURL"]:
         if (
             "username" in kwargs
             or "password" in kwargs
