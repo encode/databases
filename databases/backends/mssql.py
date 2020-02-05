@@ -28,6 +28,8 @@ class MSSQLBackend(DatabaseBackend):
             'y', 't']
         paramstyle: str = self._database_url.options.get('paramstyle', 'qmark')
         self._dialect = pyodbc.dialect(paramstyle=paramstyle, fast_executemany=fast_executemany)
+        self._options['autocommit'] = self._database_url.options.get('autocommit', 'false').lower() in (
+            'true', 'yes', '1', 'y', 't')
         self._pool: Pool = None
 
     def _get_connection_kwargs(self) -> dict:
@@ -138,7 +140,7 @@ class MSSQLConnection(ConnectionBackend):
                 await cursor.execute(query, *args)
             else:
                 await cursor.execute(query)
-            return cursor.lastrowid
+            return cursor.rowcount
 
     async def execute_many(self, queries: typing.List[ClauseElement]) -> None:
         assert self._connection is not None, 'Connection is not acquired'
