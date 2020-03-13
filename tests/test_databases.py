@@ -276,6 +276,22 @@ async def test_results_support_column_reference(database_url):
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
+async def test_result_values_allow_duplicate_names(database_url):
+    """
+    The values of a result should respect when two columns are selected
+    with the same name.
+    """
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            query = "SELECT 1 AS id, 2 AS id"
+            row = await database.fetch_one(query=query)
+
+            assert list(row.keys()) == ["id", "id"]
+            assert list(row.values()) == [1, 2]
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
 async def test_fetch_one_returning_no_results(database_url):
     """
     fetch_one should return `None` when no results match.
