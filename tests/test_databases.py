@@ -100,7 +100,7 @@ def async_adapter(wrapped_func):
 
     @functools.wraps(wrapped_func)
     def run_sync(*args, **kwargs):
-        loop = asyncio.get_event_loop()
+        loop = asyncio.new_event_loop()
         task = wrapped_func(*args, **kwargs)
         return loop.run_until_complete(task)
 
@@ -750,6 +750,34 @@ async def test_concurrent_access_on_single_connection(database_url):
             await database.fetch_one("SELECT pg_sleep(1)")
 
         await asyncio.gather(db_lookup(), db_lookup())
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+def test_global_connection_is_initialized_lazily(database_url):
+    """
+    Ensure that global connection is initialized at latest possible time
+    so it's _query_lock will belong to same event loop that async_adapter has
+    initialized.
+
+    See https://github.com/encode/databases/issues/157 for more context.
+    """
+
+    database_url = DatabaseURL(database_url)
+    if database_url.dialect != "postgresql":
+        pytest.skip("Test requires `pg_sleep()`")
+
+    database = Database(database_url, force_rollback=True)
+
+    @async_adapter
+    async def run_database_queries():
+        async with database:
+
+            async def db_lookup():
+                await database.fetch_one("SELECT pg_sleep(1)")
+
+            await asyncio.gather(db_lookup(), db_lookup())
+
+    run_database_queries()
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
