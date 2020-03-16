@@ -73,11 +73,13 @@ prices = sqlalchemy.Table(
 
 @pytest.fixture(autouse=True, scope="module")
 def create_test_database():
-    # Create test databases
+    # Create test databases with tables creation
     for url in DATABASE_URLS:
         database_url = DatabaseURL(url)
-        if database_url.dialect == "mysql":
+        if database_url.scheme == "mysql":
             url = str(database_url.replace(driver="pymysql"))
+        elif database_url.scheme == "postgresql+aiopg":
+            url = str(database_url.replace(driver=None))
         engine = sqlalchemy.create_engine(url)
         metadata.create_all(engine)
 
@@ -87,8 +89,10 @@ def create_test_database():
     # Drop test databases
     for url in DATABASE_URLS:
         database_url = DatabaseURL(url)
-        if database_url.dialect == "mysql":
+        if database_url.scheme == "mysql":
             url = str(database_url.replace(driver="pymysql"))
+        elif database_url.scheme == "postgresql+aiopg":
+            url = str(database_url.replace(driver=None))
         engine = sqlalchemy.create_engine(url)
         metadata.drop_all(engine)
 
@@ -301,10 +305,17 @@ async def test_execute_return_val(database_url):
             pk = await database.execute(query, values)
             assert isinstance(pk, int)
 
-            query = notes.select().where(notes.c.id == pk)
-            result = await database.fetch_one(query)
-            assert result["text"] == "example1"
-            assert result["completed"] == True
+            # Apparently for `aiopg` it's OID that will always 0 in this case
+            # As it's only one action within this cursor life cycle
+            # It's recommended to use the `RETURNING` clause
+            # For obtaining the record id
+            if database.url.scheme == "postgresql+aiopg":
+                assert pk == 0
+            else:
+                query = notes.select().where(notes.c.id == pk)
+                result = await database.fetch_one(query)
+                assert result["text"] == "example1"
+                assert result["completed"] == True
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
@@ -502,8 +513,9 @@ async def test_json_field(database_url):
     async with Database(database_url) as database:
         async with database.transaction(force_rollback=True):
             # execute()
+            data = {"text": "hello", "boolean": True, "int": 1}
+            values = {"data": data}
             query = session.insert()
-            values = {"data": {"text": "hello", "boolean": True, "int": 1}}
             await database.execute(query, values)
 
             # fetch_all()
@@ -527,6 +539,7 @@ async def test_custom_field(database_url):
             # execute()
             query = custom_date.insert()
             values = {"title": "Hello, world", "published": today}
+
             await database.execute(query, values)
 
             # fetch_all()
@@ -666,7 +679,7 @@ async def test_queries_with_expose_backend_connection(database_url):
                 raw_connection = connection.raw_connection
 
                 # Insert query
-                if str(database_url).startswith("mysql"):
+                if database.url.scheme in ["mysql", "postgresql+aiopg"]:
                     insert_query = "INSERT INTO notes (text, completed) VALUES (%s, %s)"
                 else:
                     insert_query = "INSERT INTO notes (text, completed) VALUES ($1, $2)"
@@ -674,20 +687,25 @@ async def test_queries_with_expose_backend_connection(database_url):
                 # execute()
                 values = ("example1", True)
 
-                if str(database_url).startswith("postgresql"):
-                    await raw_connection.execute(insert_query, *values)
-                elif str(database_url).startswith("mysql"):
+                if database.url.scheme in ["mysql", "postgresql+aiopg"]:
                     cursor = await raw_connection.cursor()
                     await cursor.execute(insert_query, values)
-                elif str(database_url).startswith("sqlite"):
+                elif database.url.scheme == "postgresql":
+                    await raw_connection.execute(insert_query, *values)
+                elif database.url.scheme == "sqlite":
                     await raw_connection.execute(insert_query, values)
 
                 # execute_many()
                 values = [("example2", False), ("example3", True)]
 
-                if str(database_url).startswith("mysql"):
+                if database.url.scheme == "mysql":
                     cursor = await raw_connection.cursor()
                     await cursor.executemany(insert_query, values)
+                elif database.url.scheme == "postgresql+aiopg":
+                    cursor = await raw_connection.cursor()
+                    # No async support for `executemany`
+                    for value in values:
+                        await cursor.execute(insert_query, value)
                 else:
                     await raw_connection.executemany(insert_query, values)
 
@@ -695,13 +713,13 @@ async def test_queries_with_expose_backend_connection(database_url):
                 select_query = "SELECT notes.id, notes.text, notes.completed FROM notes"
 
                 # fetch_all()
-                if str(database_url).startswith("postgresql"):
-                    results = await raw_connection.fetch(select_query)
-                elif str(database_url).startswith("mysql"):
+                if database.url.scheme in ["mysql", "postgresql+aiopg"]:
                     cursor = await raw_connection.cursor()
                     await cursor.execute(select_query)
                     results = await cursor.fetchall()
-                elif str(database_url).startswith("sqlite"):
+                elif database.url.scheme == "postgresql":
+                    results = await raw_connection.fetch(select_query)
+                elif database.url.scheme == "sqlite":
                     results = await raw_connection.execute_fetchall(select_query)
 
                 assert len(results) == 3
@@ -714,7 +732,7 @@ async def test_queries_with_expose_backend_connection(database_url):
                 assert results[2][2] == True
 
                 # fetch_one()
-                if str(database_url).startswith("postgresql"):
+                if database.url.scheme == "postgresql":
                     result = await raw_connection.fetchrow(select_query)
                 else:
                     cursor = await raw_connection.cursor()

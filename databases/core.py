@@ -42,6 +42,7 @@ logger = logging.getLogger("databases")
 class Database:
     SUPPORTED_BACKENDS = {
         "postgresql": "databases.backends.postgres:PostgresBackend",
+        "postgresql+aiopg": "databases.backends.aiopg:AiopgBackend",
         "postgres": "databases.backends.postgres:PostgresBackend",
         "mysql": "databases.backends.mysql:MySQLBackend",
         "sqlite": "databases.backends.sqlite:SQLiteBackend",
@@ -60,7 +61,7 @@ class Database:
 
         self._force_rollback = force_rollback
 
-        backend_str = self.SUPPORTED_BACKENDS[self.url.dialect]
+        backend_str = self.SUPPORTED_BACKENDS[self.url.scheme]
         backend_cls = import_from_string(backend_str)
         assert issubclass(backend_cls, DatabaseBackend)
         self._backend = backend_cls(self.url, **self.options)
@@ -366,6 +367,10 @@ class DatabaseURL:
         if not hasattr(self, "_components"):
             self._components = urlsplit(self._url)
         return self._components
+
+    @property
+    def scheme(self) -> str:
+        return self.components.scheme
 
     @property
     def dialect(self) -> str:
