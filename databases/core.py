@@ -188,7 +188,7 @@ class Database:
         return self.connection().transaction(force_rollback=force_rollback)
 
     @contextlib.contextmanager
-    def force_rollback(self):
+    def force_rollback(self) -> typing.Iterator[None]:
         initial = self._force_rollback
         self._force_rollback = True
         try:
