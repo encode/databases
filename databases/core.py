@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import functools
 import logging
 import sys
@@ -185,6 +186,15 @@ class Database:
 
     def transaction(self, *, force_rollback: bool = False) -> "Transaction":
         return self.connection().transaction(force_rollback=force_rollback)
+
+    @contextlib.contextmanager
+    def force_rollback(self):
+        initial = self._force_rollback
+        self._force_rollback = True
+        try:
+            yield
+        finally:
+            self._force_rollback = initial
 
 
 class Connection:
