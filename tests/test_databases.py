@@ -339,6 +339,28 @@ async def test_rollback_isolation(database_url):
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
+async def test_rollback_isolation_with_contextmanager(database_url):
+    """
+    Ensure that `database.force_rollback()` provides strict isolation.
+    """
+
+    database = Database(database_url)
+
+    with database.force_rollback():
+        async with database:
+            # Perform some INSERT operations on the database.
+            query = notes.insert().values(text="example1", completed=True)
+            await database.execute(query)
+
+        async with database:
+            # Ensure INSERT operations have been rolled back.
+            query = notes.select()
+            results = await database.fetch_all(query=query)
+            assert len(results) == 0
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
 async def test_transaction_commit(database_url):
     """
     Ensure that transaction commit is supported.
