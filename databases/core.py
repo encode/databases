@@ -275,8 +275,9 @@ class Connection:
                     yield record
 
     def transaction(self, *, force_rollback: bool = False) -> "Transaction":
-        def connection_callable():
+        def connection_callable() -> Connection:
             return self
+
         return Transaction(connection_callable, force_rollback)
 
     @property
@@ -298,7 +299,11 @@ class Connection:
 
 
 class Transaction:
-    def __init__(self, connection_callable: typing.Callable[[None], Connection], force_rollback: bool) -> None:
+    def __init__(
+        self,
+        connection_callable: typing.Callable[[], Connection],
+        force_rollback: bool,
+    ) -> None:
         self._connection_callable = connection_callable
         self._force_rollback = force_rollback
 
