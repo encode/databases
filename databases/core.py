@@ -194,8 +194,6 @@ class Database:
             yield
         finally:
             self._force_rollback = False
-            self._global_transaction = None
-            self._global_connection = None
 
 
 class Connection:
