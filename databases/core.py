@@ -185,7 +185,7 @@ class Database:
             return connection
 
     def transaction(self, *, force_rollback: bool = False) -> "Transaction":
-        return self.connection().transaction(force_rollback=force_rollback)
+        return Transaction(self.connection, force_rollback=force_rollback)
 
     @contextlib.contextmanager
     def force_rollback(self) -> typing.Iterator[None]:
@@ -275,7 +275,10 @@ class Connection:
                     yield record
 
     def transaction(self, *, force_rollback: bool = False) -> "Transaction":
-        return Transaction(self, force_rollback)
+        def connection_callable() -> Connection:
+            return self
+
+        return Transaction(connection_callable, force_rollback)
 
     @property
     def raw_connection(self) -> typing.Any:
@@ -296,10 +299,13 @@ class Connection:
 
 
 class Transaction:
-    def __init__(self, connection: Connection, force_rollback: bool) -> None:
-        self._connection = connection
+    def __init__(
+        self,
+        connection_callable: typing.Callable[[], Connection],
+        force_rollback: bool,
+    ) -> None:
+        self._connection_callable = connection_callable
         self._force_rollback = force_rollback
-        self._transaction = connection._connection.transaction()
 
     async def __aenter__(self) -> "Transaction":
         """
@@ -341,6 +347,9 @@ class Transaction:
         return wrapper
 
     async def start(self) -> "Transaction":
+        self._connection = self._connection_callable()
+        self._transaction = self._connection._connection.transaction()
+
         async with self._connection._transaction_lock:
             is_root = not self._connection._transaction_stack
             await self._connection.__aenter__()

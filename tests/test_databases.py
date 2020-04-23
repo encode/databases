@@ -451,15 +451,16 @@ async def test_transaction_decorator(database_url):
     """
     Ensure that @database.transaction() is supported.
     """
-    async with Database(database_url, force_rollback=True) as database:
+    database = Database(database_url, force_rollback=True)
 
-        @database.transaction()
-        async def insert_data(raise_exception):
-            query = notes.insert().values(text="example", completed=True)
-            await database.execute(query)
-            if raise_exception:
-                raise RuntimeError()
+    @database.transaction()
+    async def insert_data(raise_exception):
+        query = notes.insert().values(text="example", completed=True)
+        await database.execute(query)
+        if raise_exception:
+            raise RuntimeError()
 
+    async with database:
         with pytest.raises(RuntimeError):
             await insert_data(raise_exception=True)
 
