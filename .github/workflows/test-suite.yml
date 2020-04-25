@@ -26,6 +26,16 @@ jobs:
           - 3306
         options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
 
+      postgres:
+        image: postgres:10.8
+        env:
+          POSTGRES_USER: username
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: testsuite
+        ports:
+          - 5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
     steps:
       - uses: "actions/checkout@v2"
       - uses: "actions/setup-python@v1"
@@ -35,5 +45,5 @@ jobs:
         run: "scripts/install"
       - name: "Run tests"
         env:
-          TEST_DATABASE_URLS: "sqlite:///test.db, mysql://root:password@localhost:${{ job.services.mysql.ports[3306] }}/testsuite"
+          TEST_DATABASE_URLS: "sqlite:///test.db, mysql://root:password@localhost:${{ job.services.mysql.ports[3306] }}/testsuite, postgresql://username:password@localhost:${{ job.services.postgresql.ports[5432] }}/testsuite"
         run: "scripts/test"
