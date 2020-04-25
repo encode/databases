@@ -25,14 +25,15 @@ jobs:
         run: "scripts/install"
       - name: "Run tests"
         env:
-          TEST_DATABASE_URLS: "sqlite:///test.db, mysql://localhost:${{ job.services.mysql.ports[3306] }}/testsuite"
+          TEST_DATABASE_URLS: "sqlite:///test.db, mysql://username:password@localhost:${{ job.services.mysql.ports[3306] }}/testsuite"
         run: "scripts/test"
 
     services:
         mysql:
             image: mysql:5.7
             env:
-                MYSQL_ALLOW_EMPTY_PASSWORD: yes
+                MYSQL_USER: username
+                MYSQL_PASSWORD: password
                 MYSQL_DATABASE: testsuite
             ports:
                 - 3306
