@@ -232,14 +232,16 @@ class Connection:
     async def fetch_all(
         self, query: typing.Union[ClauseElement, str], values: dict = None
     ) -> typing.List[typing.Mapping]:
+        built_query = self._build_query(query, values)
         async with self._query_lock:
-            return await self._connection.fetch_all(self._build_query(query, values))
+            return await self._connection.fetch_all(built_query)
 
     async def fetch_one(
         self, query: typing.Union[ClauseElement, str], values: dict = None
     ) -> typing.Optional[typing.Mapping]:
+        built_query = self._build_query(query, values)
         async with self._query_lock:
-            return await self._connection.fetch_one(self._build_query(query, values))
+            return await self._connection.fetch_one(built_query)
 
     async def fetch_val(
         self,
@@ -247,15 +249,17 @@ class Connection:
         values: dict = None,
         column: typing.Any = 0,
     ) -> typing.Any:
+        built_query = self._build_query(query, values)
         async with self._query_lock:
-            row = await self._connection.fetch_one(self._build_query(query, values))
+            row = await self._connection.fetch_one(built_query)
         return None if row is None else row[column]
 
     async def execute(
         self, query: typing.Union[ClauseElement, str], values: dict = None
     ) -> typing.Any:
+        built_query = self._build_query(query, values)
         async with self._query_lock:
-            return await self._connection.execute(self._build_query(query, values))
+            return await self._connection.execute(built_query)
 
     async def execute_many(
         self, query: typing.Union[ClauseElement, str], values: list
@@ -267,11 +271,10 @@ class Connection:
     async def iterate(
         self, query: typing.Union[ClauseElement, str], values: dict = None
     ) -> typing.AsyncGenerator[typing.Any, None]:
+        built_query = self._build_query(query, values)
         async with self.transaction():
             async with self._query_lock:
-                async for record in self._connection.iterate(
-                    self._build_query(query, values)
-                ):
+                async for record in self._connection.iterate(built_query):
                     yield record
 
     def transaction(self, *, force_rollback: bool = False) -> "Transaction":
