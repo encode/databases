@@ -1,5 +1,7 @@
 import asyncio
+import contextlib
 import functools
+import logging
 import sys
 import typing
 from types import TracebackType
@@ -16,10 +18,33 @@ if sys.version_info >= (3, 7):  # pragma: no cover
 else:  # pragma: no cover
     from aiocontextvars import ContextVar
 
+try:  # pragma: no cover
+    import click
+
+    # Extra log info for optional coloured terminal outputs.
+    LOG_EXTRA = {
+        "color_message": "Query: " + click.style("%s", bold=True) + " Args: %s"
+    }
+    CONNECT_EXTRA = {
+        "color_message": "Connected to database " + click.style("%s", bold=True)
+    }
+    DISCONNECT_EXTRA = {
+        "color_message": "Disconnected from database " + click.style("%s", bold=True)
+    }
+except ImportError:  # pragma: no cover
+    LOG_EXTRA = {}
+    CONNECT_EXTRA = {}
+    DISCONNECT_EXTRA = {}
+
+
+logger = logging.getLogger("databases")
+
 
 class Database:
     SUPPORTED_BACKENDS = {
         "postgresql": "databases.backends.postgres:PostgresBackend",
+        "postgresql+aiopg": "databases.backends.aiopg:AiopgBackend",
+        "postgres": "databases.backends.postgres:PostgresBackend",
         "mysql": "databases.backends.mysql:MySQLBackend",
         "sqlite": "databases.backends.sqlite:SQLiteBackend",
     }
@@ -37,7 +62,7 @@ class Database:
 
         self._force_rollback = force_rollback
 
-        backend_str = self.SUPPORTED_BACKENDS[self.url.dialect]
+        backend_str = self.SUPPORTED_BACKENDS[self.url.scheme]
         backend_cls = import_from_string(backend_str)
         assert issubclass(backend_cls, DatabaseBackend)
         self._backend = backend_cls(self.url, **self.options)
@@ -50,12 +75,6 @@ class Database:
         self._global_connection = None  # type: typing.Optional[Connection]
         self._global_transaction = None  # type: typing.Optional[Transaction]
 
-        if self._force_rollback:
-            self._global_connection = Connection(self._backend)
-            self._global_transaction = self._global_connection.transaction(
-                force_rollback=True
-            )
-
     async def connect(self) -> None:
         """
         Establish the connection pool.
@@ -63,10 +82,20 @@ class Database:
         assert not self.is_connected, "Already connected."
 
         await self._backend.connect()
+        logger.info(
+            "Connected to database %s", self.url.obscure_password, extra=CONNECT_EXTRA
+        )
         self.is_connected = True
 
         if self._force_rollback:
-            assert self._global_transaction is not None
+            assert self._global_connection is None
+            assert self._global_transaction is None
+
+            self._global_connection = Connection(self._backend)
+            self._global_transaction = self._global_connection.transaction(
+                force_rollback=True
+            )
+
             await self._global_transaction.__aenter__()
 
     async def disconnect(self) -> None:
@@ -76,10 +105,20 @@ class Database:
         assert self.is_connected, "Already disconnected."
 
         if self._force_rollback:
+            assert self._global_connection is not None
             assert self._global_transaction is not None
+
             await self._global_transaction.__aexit__()
 
+            self._global_transaction = None
+            self._global_connection = None
+
         await self._backend.disconnect()
+        logger.info(
+            "Disconnected from database %s",
+            self.url.obscure_password,
+            extra=DISCONNECT_EXTRA,
+        )
         self.is_connected = False
 
     async def __aenter__(self) -> "Database":
@@ -146,7 +185,16 @@ class Database:
             return connection
 
     def transaction(self, *, force_rollback: bool = False) -> "Transaction":
-        return self.connection().transaction(force_rollback=force_rollback)
+        return Transaction(self.connection, force_rollback=force_rollback)
+
+    @contextlib.contextmanager
+    def force_rollback(self) -> typing.Iterator[None]:
+        initial = self._force_rollback
+        self._force_rollback = True
+        try:
+            yield
+        finally:
+            self._force_rollback = initial
 
 
 class Connection:
@@ -184,14 +232,16 @@ class Connection:
     async def fetch_all(
         self, query: typing.Union[ClauseElement, str], values: dict = None
     ) -> typing.List[typing.Mapping]:
+        built_query = self._build_query(query, values)
         async with self._query_lock:
-            return await self._connection.fetch_all(self._build_query(query, values))
+            return await self._connection.fetch_all(built_query)
 
     async def fetch_one(
         self, query: typing.Union[ClauseElement, str], values: dict = None
     ) -> typing.Optional[typing.Mapping]:
+        built_query = self._build_query(query, values)
         async with self._query_lock:
-            return await self._connection.fetch_one(self._build_query(query, values))
+            return await self._connection.fetch_one(built_query)
 
     async def fetch_val(
         self,
@@ -199,15 +249,17 @@ class Connection:
         values: dict = None,
         column: typing.Any = 0,
     ) -> typing.Any:
+        built_query = self._build_query(query, values)
         async with self._query_lock:
-            row = await self._connection.fetch_one(self._build_query(query, values))
+            row = await self._connection.fetch_one(built_query)
         return None if row is None else row[column]
 
     async def execute(
         self, query: typing.Union[ClauseElement, str], values: dict = None
     ) -> typing.Any:
+        built_query = self._build_query(query, values)
         async with self._query_lock:
-            return await self._connection.execute(self._build_query(query, values))
+            return await self._connection.execute(built_query)
 
     async def execute_many(
         self, query: typing.Union[ClauseElement, str], values: list
@@ -219,15 +271,17 @@ class Connection:
     async def iterate(
         self, query: typing.Union[ClauseElement, str], values: dict = None
     ) -> typing.AsyncGenerator[typing.Any, None]:
+        built_query = self._build_query(query, values)
         async with self.transaction():
             async with self._query_lock:
-                async for record in self._connection.iterate(
-                    self._build_query(query, values)
-                ):
+                async for record in self._connection.iterate(built_query):
                     yield record
 
     def transaction(self, *, force_rollback: bool = False) -> "Transaction":
-        return Transaction(self, force_rollback)
+        def connection_callable() -> Connection:
+            return self
+
+        return Transaction(connection_callable, force_rollback)
 
     @property
     def raw_connection(self) -> typing.Any:
@@ -250,10 +304,13 @@ class Connection:
 
 
 class Transaction:
-    def __init__(self, connection: Connection, force_rollback: bool) -> None:
-        self._connection = connection
+    def __init__(
+        self,
+        connection_callable: typing.Callable[[], Connection],
+        force_rollback: bool,
+    ) -> None:
+        self._connection_callable = connection_callable
         self._force_rollback = force_rollback
-        self._transaction = connection._connection.transaction()
 
     async def __aenter__(self) -> "Transaction":
         """
@@ -295,6 +352,9 @@ class Transaction:
         return wrapper
 
     async def start(self) -> "Transaction":
+        self._connection = self._connection_callable()
+        self._transaction = self._connection._connection.transaction()
+
         async with self._connection._transaction_lock:
             is_root = not self._connection._transaction_stack
             await self._connection.__aenter__()
@@ -331,6 +391,10 @@ class DatabaseURL:
         if not hasattr(self, "_components"):
             self._components = urlsplit(self._url)
         return self._components
+
+    @property
+    def scheme(self) -> str:
+        return self.components.scheme
 
     @property
     def dialect(self) -> str:
@@ -407,21 +471,24 @@ class DatabaseURL:
             kwargs["scheme"] = f"{dialect}+{driver}" if driver else dialect
 
         if not kwargs.get("netloc", self.netloc):
-            # Using an empty string that evaluates as True means we end
-            # up with URLs like `sqlite:///database` instead of `sqlite:/database`
+            # Using an empty string that evaluates as True means we end up
+            # with URLs like `sqlite:///database` instead of `sqlite:/database`
             kwargs["netloc"] = _EmptyNetloc()
 
         components = self.components._replace(**kwargs)
         return self.__class__(components.geturl())
 
+    @property
+    def obscure_password(self) -> str:
+        if self.password:
+            return self.replace(password="********")._url
+        return self._url
+
     def __str__(self) -> str:
         return self._url
 
     def __repr__(self) -> str:
-        url = str(self)
-        if self.password:
-            url = str(self.replace(password="********"))
-        return f"{self.__class__.__name__}({repr(url)})"
+        return f"{self.__class__.__name__}({repr(self.obscure_password)})"
 
     def __eq__(self, other: typing.Any) -> bool:
         return str(self) == str(other)
