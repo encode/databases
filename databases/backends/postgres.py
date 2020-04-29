@@ -9,7 +9,7 @@ from sqlalchemy.sql import ClauseElement
 from sqlalchemy.sql.schema import Column
 from sqlalchemy.types import TypeEngine
 
-from databases.core import DatabaseURL
+from databases.core import LOG_EXTRA, DatabaseURL
 from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend
 
 logger = logging.getLogger("databases")
@@ -93,6 +93,9 @@ class Record(Mapping):
             self._column_map[column_name] = (idx, datatype)
             self._column_map_int[idx] = (idx, datatype)
             self._column_map_full[str(column[0])] = (idx, datatype)
+
+    def values(self) -> typing.ValuesView:
+        return self._row.values()
 
     def __getitem__(self, key: typing.Any) -> typing.Any:
         if len(self._column_map) == 0:  # raw query
@@ -192,7 +195,10 @@ class PostgresConnection(ConnectionBackend):
             for key, val in compiled_params
         ]
 
-        logger.debug("Query: %s\nArgs: %s", compiled_query, args)
+        query_message = compiled_query.replace(" \n", " ").replace("\n", " ")
+        logger.debug(
+            "Query: %s Args: %s", query_message, repr(tuple(args)), extra=LOG_EXTRA
+        )
         return compiled_query, args, compiled._result_columns
 
     @property
