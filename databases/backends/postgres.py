@@ -94,6 +94,9 @@ class Record(Mapping):
             self._column_map_int[idx] = (idx, datatype)
             self._column_map_full[str(column[0])] = (idx, datatype)
 
+    def values(self) -> typing.ValuesView:
+        return self._row.values()
+
     def __getitem__(self, key: typing.Any) -> typing.Any:
         if len(self._column_map) == 0:  # raw query
             return self._row[tuple(self._row.keys()).index(key)]
