@@ -1,11 +1,8 @@
 # Databases
 
 <p>
-<a href="https://travis-ci.org/encode/databases">
-    <img src="https://travis-ci.org/encode/databases.svg?branch=master" alt="Build Status">
-</a>
-<a href="https://codecov.io/gh/encode/databases">
-    <img src="https://codecov.io/gh/encode/databases/branch/master/graph/badge.svg" alt="Coverage">
+<a href="https://github.com/encode/databases/actions">
+    <img src="https://github.com/encode/databases/workflows/Test%20Suite/badge.svg" alt="Test Suite">
 </a>
 <a href="https://pypi.org/project/databases/">
     <img src="https://badge.fury.io/py/databases.svg" alt="Package version">
@@ -18,7 +15,7 @@ It allows you to make queries using the powerful [SQLAlchemy Core][sqlalchemy-co
 expression language, and provides support for PostgreSQL, MySQL, and SQLite.
 
 Databases is suitable for integrating against any async Web framework, such as [Starlette][starlette],
-[Sanic][sanic], [Responder][responder], [Quart][quart], [aiohttp][aiohttp], [Tornado][tornado], [FastAPI][fastapi], or [Bocadillo][bocadillo].
+[Sanic][sanic], [Responder][responder], [Quart][quart], [aiohttp][aiohttp], [Tornado][tornado], or [FastAPI][fastapi].
 
 **Documentation**: [https://www.encode.io/databases/](https://www.encode.io/databases/)
 
@@ -107,4 +104,3 @@ for examples of how to start using databases together with SQLAlchemy core expre
 [aiohttp]: https://github.com/aio-libs/aiohttp
 [tornado]: https://github.com/tornadoweb/tornado
 [fastapi]: https://github.com/tiangolo/fastapi
-[bocadillo]: https://github.com/bocadilloproject/bocadillo

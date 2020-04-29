@@ -9,7 +9,7 @@ from sqlalchemy.engine.result import ResultMetaData, RowProxy
 from sqlalchemy.sql import ClauseElement
 from sqlalchemy.types import TypeEngine
 
-from databases.core import DatabaseURL
+from databases.core import LOG_EXTRA, DatabaseURL
 from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend
 
 logger = logging.getLogger("databases")
@@ -111,9 +111,14 @@ class SQLiteConnection(ConnectionBackend):
     async def execute(self, query: ClauseElement) -> typing.Any:
         assert self._connection is not None, "Connection is not acquired"
         query, args, context = self._compile(query)
-        cursor = await self._connection.execute(query, args)
-        await cursor.close()
-        return cursor.lastrowid
+        cursor = await self._connection.cursor()
+        try:
+            await cursor.execute(query, args)
+            if cursor.lastrowid == 0:
+                return cursor.rowcount
+            return cursor.lastrowid
+        finally:
+            await cursor.close()
 
     async def execute_many(self, queries: typing.List[ClauseElement]) -> None:
         assert self._connection is not None, "Connection is not acquired"
@@ -154,7 +159,10 @@ class SQLiteConnection(ConnectionBackend):
             compiled._textual_ordered_columns,
         )
 
-        logger.debug("Query: %s\nArgs: %s", compiled.string, args)
+        query_message = compiled.string.replace(" \n", " ").replace("\n", " ")
+        logger.debug(
+            "Query: %s Args: %s", query_message, repr(tuple(args)), extra=LOG_EXTRA
+        )
         return compiled.string, args, CompilationContext(execution_context)
 
     @property
