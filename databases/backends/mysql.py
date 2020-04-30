@@ -58,7 +58,7 @@ class MySQLBackend(DatabaseBackend):
             host=self._database_url.hostname,
             port=self._database_url.port or 3306,
             user=self._database_url.username or getpass.getuser(),
-            password=self._database_url.password,
+            password=self._database_url.password or self._options.get("password"),
             db=self._database_url.database,
             autocommit=True,
             **kwargs,
