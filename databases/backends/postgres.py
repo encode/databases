@@ -155,6 +155,13 @@ class PostgresConnection(ConnectionBackend):
             return None
         return Record(row, result_columns, self._dialect)
 
+    async def fetch_val(
+        self, query: ClauseElement, column: typing.Any = 0
+    ) -> typing.Any:
+        assert self._connection is not None, "Connection is not acquired"
+        query, args, _ = self._compile(query)
+        return await self._connection.fetchval(query, *args, column=column)
+
     async def execute(self, query: ClauseElement) -> typing.Any:
         assert self._connection is not None, "Connection is not acquired"
         query, args, result_columns = self._compile(query)

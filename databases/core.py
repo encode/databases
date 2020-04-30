@@ -251,8 +251,7 @@ class Connection:
     ) -> typing.Any:
         built_query = self._build_query(query, values)
         async with self._query_lock:
-            row = await self._connection.fetch_one(built_query)
-        return None if row is None else row[column]
+            return await self._connection.fetch_val(built_query, column)
 
     async def execute(
         self, query: typing.Union[ClauseElement, str], values: dict = None
