@@ -12,7 +12,6 @@ from sqlalchemy.sql import ClauseElement
 from sqlalchemy.sql.dml import ValuesBase
 from sqlalchemy.sql.expression import type_coerce
 
-
 from databases.importer import import_from_string
 from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend
 
