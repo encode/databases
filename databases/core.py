@@ -9,6 +9,9 @@ from urllib.parse import SplitResult, parse_qsl, urlsplit
 
 from sqlalchemy import text
 from sqlalchemy.sql import ClauseElement
+from sqlalchemy.sql.dml import ValuesBase
+from sqlalchemy.sql.expression import type_coerce
+
 
 from databases.importer import import_from_string
 from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend
@@ -294,10 +297,50 @@ class Connection:
             query = text(query)
 
             return query.bindparams(**values) if values is not None else query
-        elif values:
+
+        # 2 paths where we apply column defaults:
+        # - values are supplied (the object must be a ValuesBase)
+        # - values is None but the object is a ValuesBase
+        if values is not None and not isinstance(query, ValuesBase):
+            raise TypeError("values supplied but query doesn't support .values()")
+
+        if values is not None or isinstance(query, ValuesBase):
+            values = Connection._apply_column_defaults(query, values)
             return query.values(**values)
 
         return query
+
+    @staticmethod
+    def _apply_column_defaults(query: ValuesBase, values: dict = None) -> dict:
+        """Add default values from the table of a query."""
+        new_values = {}
+        values = values or {}
+
+        for column in query.table.c:
+            if column.name in values:
+                continue
+
+            if column.default:
+                default = column.default
+
+                if default.is_sequence:  # pragma: no cover
+                    # TODO: support sequences
+                    continue
+                elif default.is_callable:
+                    value = default.arg(FakeExecutionContext())
+                elif default.is_clause_element:  # pragma: no cover
+                    # TODO: implement clause element
+                    # For this, the _build_query method needs to
+                    # become an instance method so that it can access
+                    # self._connection.
+                    continue
+                else:
+                    value = default.arg
+
+                new_values[column.name] = value
+
+        new_values.update(values)
+        return new_values
 
 
 class Transaction:
@@ -489,3 +532,20 @@ class DatabaseURL:
 
     def __eq__(self, other: typing.Any) -> bool:
         return str(self) == str(other)
+
+
+class FakeExecutionContext:
+    """
+    This is an object that raises an error when one of its properties are
+    attempted to be accessed. Because we're not _really_ using SQLAlchemy
+    (besides using its query builder), we can't pass a real ExecutionContext
+    to ColumnDefault objects. This class makes it so that any attempts to
+    access the execution context argument by a column default callable
+    blows up loudly and clearly.
+    """
+
+    def __getattr__(self, _: str) -> typing.NoReturn:  # pragma: no cover
+        raise NotImplementedError(
+            "Databases does not have a real SQLAlchemy ExecutionContext "
+            "implementation."
+        )
