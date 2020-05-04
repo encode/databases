@@ -954,7 +954,8 @@ async def test_column_defaults(database_url):
             await database.execute(timestamps.delete())
 
             # with default value overridden
-            dt = datetime.datetime.now() - datetime.timedelta(seconds=10)
+            dt = datetime.datetime.now()
+            dt -= datetime.timedelta(seconds=10, microseconds=dt.microsecond)
             values = {"timestamp": dt}
             await database.execute(query, values)
             results = await database.fetch_all(timestamps.select())
