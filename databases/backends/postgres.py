@@ -104,7 +104,7 @@ class Record(Mapping):
 
     def __getitem__(self, key: typing.Any) -> typing.Any:
         if len(self._column_map) == 0:  # raw query
-            return self._row[tuple(self._row.keys()).index(key)]
+            return self._row[key]
         elif isinstance(key, Column):
             idx, datatype = self._column_map_full[str(key)]
         elif isinstance(key, int):
