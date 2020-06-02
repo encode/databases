@@ -74,7 +74,7 @@ try:
     ...
 except:
     transaction.rollback()
-else:
+finally:
     transaction.commit()
 ```
 
