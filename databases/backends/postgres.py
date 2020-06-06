@@ -129,7 +129,10 @@ class Record(Mapping):
         return len(self._row)
 
     def __str__(self) -> str:
-        return f"""{{{", ".join(f"'{key}': {value!r}" for key, value in self.items())}}}"""
+        return self._row.__str__()
+
+    def __repr__(self) -> str:
+        return self._row.__repr__()
 
 
 class PostgresConnection(ConnectionBackend):
