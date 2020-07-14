@@ -202,14 +202,14 @@ class PostgresConnection(ConnectionBackend):
 
     def _compile(self, query: ClauseElement) -> typing.Tuple[str, list, tuple]:
         compiled = query.compile(dialect=self._dialect)
-        compiled_params = sorted(compiled.params.items())
+        compiled_params = sorted((compiled.params or {}).items())
 
         mapping = {
             key: "$" + str(i) for i, (key, _) in enumerate(compiled_params, start=1)
         }
         compiled_query = compiled.string % mapping
 
-        processors = compiled._bind_processors
+        processors = getattr(compiled, '_bind_processors', {})
         args = [
             processors[key](val) if key in processors else val
             for key, val in compiled_params
@@ -219,7 +219,7 @@ class PostgresConnection(ConnectionBackend):
         logger.debug(
             "Query: %s Args: %s", query_message, repr(tuple(args)), extra=LOG_EXTRA
         )
-        return compiled_query, args, compiled._result_columns
+        return compiled_query, args, getattr(compiled, '_result_columns', ())
 
     @staticmethod
     def _create_column_maps(

@@ -169,16 +169,16 @@ class MySQLConnection(ConnectionBackend):
     ) -> typing.Tuple[str, dict, CompilationContext]:
         compiled = query.compile(dialect=self._dialect)
         args = compiled.construct_params()
-        for key, val in args.items():
+        for key, val in (args or {}).items():
             if key in compiled._bind_processors:
                 args[key] = compiled._bind_processors[key](val)
 
         execution_context = self._dialect.execution_ctx_cls()
         execution_context.dialect = self._dialect
         execution_context.result_column_struct = (
-            compiled._result_columns,
-            compiled._ordered_columns,
-            compiled._textual_ordered_columns,
+            getattr(compiled, '_result_columns', ()),
+            getattr(compiled, '_ordered_columns', ()),
+            getattr(compiled, '_textual_ordered_columns', ()),
         )
 
         query_message = compiled.string.replace(" \n", " ").replace("\n", " ")
