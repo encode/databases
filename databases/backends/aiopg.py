@@ -189,9 +189,9 @@ class AiopgConnection(ConnectionBackend):
         execution_context = self._dialect.execution_ctx_cls()
         execution_context.dialect = self._dialect
         execution_context.result_column_struct = (
-            getattr(compiled, '_result_columns', ()),
-            getattr(compiled, '_ordered_columns', ()),
-            getattr(compiled, '_textual_ordered_columns', ()),
+            getattr(compiled, "_result_columns", ()),
+            getattr(compiled, "_ordered_columns", ()),
+            getattr(compiled, "_textual_ordered_columns", ()),
         )
 
         logger.debug("Query: %s\nArgs: %s", compiled.string, args)
