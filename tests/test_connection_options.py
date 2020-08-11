@@ -67,6 +67,12 @@ def test_mysql_explicit_ssl():
     assert kwargs == {"ssl": True}
 
 
+def test_mysql_pool_recycle():
+    backend = MySQLBackend("mysql://localhost/database?pool_recycle=20")
+    kwargs = backend._get_connection_kwargs()
+    assert kwargs == {"pool_recycle": 20}
+
+
 def test_aiopg_pool_size():
     backend = AiopgBackend(
         "postgresql+aiopg://localhost/database?min_size=1&max_size=20"
