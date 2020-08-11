@@ -7,6 +7,7 @@ from sqlalchemy.dialects.sqlite import pysqlite
 from sqlalchemy.engine.interfaces import Dialect, ExecutionContext
 from sqlalchemy.engine.result import ResultMetaData, RowProxy
 from sqlalchemy.sql import ClauseElement
+from sqlalchemy.sql.ddl import DDLElement
 from sqlalchemy.types import TypeEngine
 
 from databases.core import LOG_EXTRA, DatabaseURL
@@ -139,21 +140,25 @@ class SQLiteConnection(ConnectionBackend):
         self, query: ClauseElement
     ) -> typing.Tuple[str, list, CompilationContext]:
         compiled = query.compile(dialect=self._dialect)
-        args = []
-        for key, raw_val in compiled.construct_params().items():
-            if key in compiled._bind_processors:
-                val = compiled._bind_processors[key](raw_val)
-            else:
-                val = raw_val
-            args.append(val)
 
         execution_context = self._dialect.execution_ctx_cls()
         execution_context.dialect = self._dialect
-        execution_context.result_column_struct = (
-            compiled._result_columns,
-            compiled._ordered_columns,
-            compiled._textual_ordered_columns,
-        )
+
+        args = []
+
+        if not isinstance(query, DDLElement):
+            for key, raw_val in compiled.construct_params().items():
+                if key in compiled._bind_processors:
+                    val = compiled._bind_processors[key](raw_val)
+                else:
+                    val = raw_val
+                args.append(val)
+
+            execution_context.result_column_struct = (
+                compiled._result_columns,
+                compiled._ordered_columns,
+                compiled._textual_ordered_columns,
+            )
 
         query_message = compiled.string.replace(" \n", " ").replace("\n", " ")
         logger.debug(
