@@ -62,7 +62,14 @@ class PostgresBackend(DatabaseBackend):
     async def connect(self) -> None:
         assert self._pool is None, "DatabaseBackend is already running"
         kwargs = self._get_connection_kwargs()
-        self._pool = await asyncpg.create_pool(str(self._database_url), **kwargs)
+        self._pool = await asyncpg.create_pool(
+            host=self._database_url.hostname,
+            port=self._database_url.port,
+            user=self._database_url.username,
+            password=self._database_url.password,
+            database=self._database_url.database,
+            **kwargs,
+        )
 
     async def disconnect(self) -> None:
         assert self._pool is not None, "DatabaseBackend is not running"
