@@ -40,7 +40,7 @@ class MySQLBackend(DatabaseBackend):
         if max_size is not None:
             kwargs["maxsize"] = int(max_size)
         if pool_recycle is not None:
-            kwargs['pool_recycle'] = int(pool_recycle)
+            kwargs["pool_recycle"] = int(pool_recycle)
         if ssl is not None:
             kwargs["ssl"] = {"true": True, "false": False}[ssl.lower()]
 

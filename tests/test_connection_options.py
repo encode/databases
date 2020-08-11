@@ -54,10 +54,12 @@ def test_mysql_explicit_ssl():
     kwargs = backend._get_connection_kwargs()
     assert kwargs == {"ssl": True}
 
+
 def test_mysql_pool_recycle():
     backend = MySQLBackend("mysql://localhost/database?pool_recycle=20")
     kwargs = backend._get_connection_kwargs()
     assert kwargs == {"pool_recycle": 20}
+
 
 def test_aiopg_pool_size():
     backend = AiopgBackend(
