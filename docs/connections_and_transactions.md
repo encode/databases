@@ -71,11 +71,12 @@ For a lower-level transaction API:
 ```python
 transaction = await database.transaction()
 try:
+    await transaction.start()
     ...
 except:
-    transaction.rollback()
+    await transaction.rollback()
 else:
-    transaction.commit()
+    await transaction.commit()
 ```
 
 You can also use `.transaction()` as a function decorator on any async function:
