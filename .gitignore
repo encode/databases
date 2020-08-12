@@ -1,3 +1,4 @@
+.vscode/
 *.pyc
 test.db
 .coverage

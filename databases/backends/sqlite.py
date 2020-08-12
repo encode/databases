@@ -74,7 +74,7 @@ class SQLiteConnection(ConnectionBackend):
     def __init__(self, pool: SQLitePool, dialect: Dialect):
         self._pool = pool
         self._dialect = dialect
-        self._connection = None
+        self._connection = None  # type: typing.Optional[aiosqlite.Connection]
 
     async def acquire(self) -> None:
         assert self._connection is None, "Connection is already acquired"
@@ -111,14 +111,11 @@ class SQLiteConnection(ConnectionBackend):
     async def execute(self, query: ClauseElement) -> typing.Any:
         assert self._connection is not None, "Connection is not acquired"
         query, args, context = self._compile(query)
-        cursor = await self._connection.cursor()
-        try:
+        async with self._connection.cursor() as cursor:
             await cursor.execute(query, args)
             if cursor.lastrowid == 0:
                 return cursor.rowcount
             return cursor.lastrowid
-        finally:
-            await cursor.close()
 
     async def execute_many(self, queries: typing.List[ClauseElement]) -> None:
         assert self._connection is not None, "Connection is not acquired"
@@ -130,7 +127,6 @@ class SQLiteConnection(ConnectionBackend):
     ) -> typing.AsyncGenerator[typing.Any, None]:
         assert self._connection is not None, "Connection is not acquired"
         query, args, context = self._compile(query)
-        cursor = await self._connection.cursor()
         async with self._connection.execute(query, args) as cursor:
             metadata = ResultMetaData(context, cursor.description)
             async for row in cursor:
@@ -181,34 +177,34 @@ class SQLiteTransaction(TransactionBackend):
         assert self._connection._connection is not None, "Connection is not acquired"
         self._is_root = is_root
         if self._is_root:
-            cursor = await self._connection._connection.execute("BEGIN")
-            await cursor.close()
+            async with self._connection._connection.execute("BEGIN") as cursor:
+                await cursor.close()
         else:
             id = str(uuid.uuid4()).replace("-", "_")
             self._savepoint_name = f"STARLETTE_SAVEPOINT_{id}"
-            cursor = await self._connection._connection.execute(
+            async with self._connection._connection.execute(
                 f"SAVEPOINT {self._savepoint_name}"
-            )
-            await cursor.close()
+            ) as cursor:
+                await cursor.close()
 
     async def commit(self) -> None:
         assert self._connection._connection is not None, "Connection is not acquired"
         if self._is_root:
-            cursor = await self._connection._connection.execute("COMMIT")
-            await cursor.close()
+            async with self._connection._connection.execute("COMMIT") as cursor:
+                await cursor.close()
         else:
-            cursor = await self._connection._connection.execute(
+            async with self._connection._connection.execute(
                 f"RELEASE SAVEPOINT {self._savepoint_name}"
-            )
-            await cursor.close()
+            ) as cursor:
+                await cursor.close()
 
     async def rollback(self) -> None:
         assert self._connection._connection is not None, "Connection is not acquired"
         if self._is_root:
-            cursor = await self._connection._connection.execute("ROLLBACK")
-            await cursor.close()
+            async with self._connection._connection.execute("ROLLBACK") as cursor:
+                await cursor.close()
         else:
-            cursor = await self._connection._connection.execute(
+            async with self._connection._connection.execute(
                 f"ROLLBACK TO SAVEPOINT {self._savepoint_name}"
-            )
-            await cursor.close()
+            ) as cursor:
+                await cursor.close()
