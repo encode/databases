@@ -132,7 +132,7 @@ class Record(Mapping):
         return self._row.__str__()
 
     def __repr__(self) -> str:
-        return self._row.__repr__()
+        return f"Record({repr(self._row)}, {repr(self._result_columns)}, {repr(self._dialect)})"
 
 
 class PostgresConnection(ConnectionBackend):
