@@ -10,6 +10,7 @@ from sqlalchemy.dialects.postgresql.psycopg2 import PGDialect_psycopg2
 from sqlalchemy.engine.interfaces import Dialect, ExecutionContext
 from sqlalchemy.engine.result import ResultMetaData, RowProxy
 from sqlalchemy.sql import ClauseElement
+from sqlalchemy.sql.ddl import DDLElement
 from sqlalchemy.types import TypeEngine
 
 from databases.core import DatabaseURL
@@ -181,18 +182,23 @@ class AiopgConnection(ConnectionBackend):
         self, query: ClauseElement
     ) -> typing.Tuple[str, dict, CompilationContext]:
         compiled = query.compile(dialect=self._dialect)
-        args = compiled.construct_params()
-        for key, val in args.items():
-            if key in compiled._bind_processors:
-                args[key] = compiled._bind_processors[key](val)
 
         execution_context = self._dialect.execution_ctx_cls()
         execution_context.dialect = self._dialect
-        execution_context.result_column_struct = (
-            compiled._result_columns,
-            compiled._ordered_columns,
-            compiled._textual_ordered_columns,
-        )
+
+        if not isinstance(query, DDLElement):
+            args = compiled.construct_params()
+            for key, val in args.items():
+                if key in compiled._bind_processors:
+                    args[key] = compiled._bind_processors[key](val)
+
+            execution_context.result_column_struct = (
+                compiled._result_columns,
+                compiled._ordered_columns,
+                compiled._textual_ordered_columns,
+            )
+        else:
+            args = {}
 
         logger.debug("Query: %s\nArgs: %s", compiled.string, args)
         return compiled.string, args, CompilationContext(execution_context)

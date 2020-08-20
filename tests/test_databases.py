@@ -238,6 +238,24 @@ async def test_queries_raw(database_url):
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
+async def test_ddl_queries(database_url):
+    """
+    Test that the built-in DDL elements such as `DropTable()`,
+    `CreateTable()` are supported (using SQLAlchemy core).
+    """
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            # DropTable()
+            query = sqlalchemy.schema.DropTable(notes)
+            await database.execute(query)
+
+            # CreateTable()
+            query = sqlalchemy.schema.CreateTable(notes)
+            await database.execute(query)
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
 async def test_results_support_mapping_interface(database_url):
     """
     Casting results to a dict should work, since the interface defines them
