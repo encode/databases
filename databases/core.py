@@ -7,6 +7,7 @@ import typing
 from types import TracebackType
 from urllib.parse import SplitResult, parse_qsl, urlsplit
 
+from pymysql.err import IntegrityError
 from sqlalchemy import text
 from sqlalchemy.sql import ClauseElement
 
@@ -363,7 +364,11 @@ class Transaction:
         async with self._connection._transaction_lock:
             assert self._connection._transaction_stack[-1] is self
             self._connection._transaction_stack.pop()
-            await self._transaction.commit()
+            try:
+                await self._transaction.commit()
+            except IntegrityError as err:
+                logger.error(err)
+                await self._transaction.rollback()
             await self._connection.__aexit__()
 
     async def rollback(self) -> None:
