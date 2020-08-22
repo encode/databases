@@ -73,6 +73,12 @@ def test_mysql_pool_recycle():
     assert kwargs == {"pool_recycle": 20}
 
 
+def test_mysql_unix_socket():
+    backend = MySQLBackend("mysql:///database?unix_socket=/tmp/mysqld/mysqld.sock")
+    kwargs = backend._get_connection_kwargs()
+    assert kwargs == {"unix_socket": "/tmp/mysqld/mysqld.sock"}
+
+
 def test_aiopg_pool_size():
     backend = AiopgBackend(
         "postgresql+aiopg://localhost/database?min_size=1&max_size=20"
