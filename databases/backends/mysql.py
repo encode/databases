@@ -61,9 +61,11 @@ class MySQLBackend(DatabaseBackend):
     async def connect(self) -> None:
         assert self._pool is None, "DatabaseBackend is already running"
         kwargs = self._get_connection_kwargs()
+        if self._database_url.port:
+            kwargs['port'] = self._database_url.port
+
         self._pool = await aiomysql.create_pool(
             host=self._database_url.hostname,
-            port=self._database_url.port or 3306,
             user=self._database_url.username or getpass.getuser(),
             password=self._database_url.password,
             db=self._database_url.database,
