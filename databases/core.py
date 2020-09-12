@@ -305,7 +305,7 @@ class Transaction:
         self,
         connection_callable: typing.Callable[[], Connection],
         force_rollback: bool,
-        **kwargs
+        **kwargs: typing.Any
     ) -> None:
         self._connection_callable = connection_callable
         self._force_rollback = force_rollback
