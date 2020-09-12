@@ -184,8 +184,8 @@ class Database:
             self._connection_context.set(connection)
             return connection
 
-    def transaction(self, *, force_rollback: bool = False) -> "Transaction":
-        return Transaction(self.connection, force_rollback=force_rollback)
+    def transaction(self, *, force_rollback: bool = False, **kwargs: typing.Any) -> "Transaction":
+        return Transaction(self.connection, force_rollback=force_rollback, **kwargs)
 
     @contextlib.contextmanager
     def force_rollback(self) -> typing.Iterator[None]:
@@ -276,11 +276,11 @@ class Connection:
                 async for record in self._connection.iterate(built_query):
                     yield record
 
-    def transaction(self, *, force_rollback: bool = False) -> "Transaction":
+    def transaction(self, *, force_rollback: bool = False, **kwargs: typing.Any) -> "Transaction":
         def connection_callable() -> Connection:
             return self
 
-        return Transaction(connection_callable, force_rollback)
+        return Transaction(connection_callable, force_rollback, **kwargs)
 
     @property
     def raw_connection(self) -> typing.Any:
@@ -305,9 +305,11 @@ class Transaction:
         self,
         connection_callable: typing.Callable[[], Connection],
         force_rollback: bool,
+        **kwargs
     ) -> None:
         self._connection_callable = connection_callable
         self._force_rollback = force_rollback
+        self._extra_options = kwargs
 
     async def __aenter__(self) -> "Transaction":
         """
@@ -355,7 +357,7 @@ class Transaction:
         async with self._connection._transaction_lock:
             is_root = not self._connection._transaction_stack
             await self._connection.__aenter__()
-            await self._transaction.start(is_root=is_root)
+            await self._transaction.start(is_root=is_root, extra_options=self._extra_options)
             self._connection._transaction_stack.append(self)
         return self
 
