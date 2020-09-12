@@ -453,7 +453,7 @@ async def test_transaction_commit_serializable(database_url):
             assert len(results) == 0
 
             event = asyncio.Event()
-            asyncio.create_task(insert_concurrently(event))
+            asyncio.ensure_future(insert_concurrently(event))
             await event.wait()
 
             query = notes.select()
