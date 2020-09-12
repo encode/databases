@@ -438,13 +438,19 @@ async def test_transaction_commit_serializable(database_url):
     if database_url.dialect != "postgresql":
         pytest.skip("Test (currently) requires asyncpg")
 
-    async def insert_concurrently(event):
-        async with Database(database_url) as database:
-            async with database.transaction():
-                query = notes.insert().values(text="example1", completed=True)
-                await database.execute(query)
+    def insert_independently():
+        engine = sqlalchemy.create_engine(str(database_url))
+        conn = engine.connect()
 
-        event.set()
+        query = notes.insert().values(text="example1", completed=True)
+        conn.execute(query)
+
+    def delete_independently():
+        engine = sqlalchemy.create_engine(str(database_url))
+        conn = engine.connect()
+
+        query = notes.delete()
+        conn.execute(query)
 
     async with Database(database_url) as database:
         async with database.transaction(force_rollback=True, isolation="serializable"):
@@ -452,15 +458,13 @@ async def test_transaction_commit_serializable(database_url):
             results = await database.fetch_all(query=query)
             assert len(results) == 0
 
-            event = asyncio.Event()
-            asyncio.ensure_future(insert_concurrently(event))
-            await event.wait()
+            insert_independently()
 
             query = notes.select()
             results = await database.fetch_all(query=query)
             assert len(results) == 0
 
-        await database.execute(notes.delete())
+            delete_independently()
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
