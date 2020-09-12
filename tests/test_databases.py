@@ -435,7 +435,7 @@ async def test_transaction_commit_serializable(database_url):
 
     database_url = DatabaseURL(database_url)
 
-    if database_url.dialect != "postgresql":
+    if database_url.scheme != "postgresql":
         pytest.skip("Test (currently) requires asyncpg")
 
     def insert_independently():
