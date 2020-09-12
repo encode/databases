@@ -436,7 +436,7 @@ async def test_transaction_commit_serializable(database_url):
     database_url = DatabaseURL(database_url)
 
     if database_url.scheme != "postgresql":
-        pytest.skip("Test (currently) requires asyncpg")
+        pytest.skip("Test (currently) only supports asyncpg")
 
     def insert_independently():
         engine = sqlalchemy.create_engine(str(database_url))
