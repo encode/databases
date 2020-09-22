@@ -178,9 +178,10 @@ class PostgresConnection(ConnectionBackend):
     async def fetch_val(
         self, query: ClauseElement, column: typing.Any = 0
     ) -> typing.Any:
-        assert self._connection is not None, "Connection is not acquired"
-        query, args, _ = self._compile(query)
-        return await self._connection.fetchval(query, *args, column=column)
+        row = await self.fetch_one(query)
+        if row is None:
+            return None
+        return row[column]
 
     async def execute(self, query: ClauseElement) -> typing.Any:
         assert self._connection is not None, "Connection is not acquired"
