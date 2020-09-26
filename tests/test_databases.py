@@ -155,6 +155,18 @@ async def test_queries(database_url):
             result = await database.fetch_val(query=query)
             assert result == "example1"
 
+            # fetch_val() with no rows
+            query = sqlalchemy.sql.select([notes.c.text]).where(
+                notes.c.text == "impossible"
+            )
+            result = await database.fetch_val(query=query)
+            assert result is None
+
+            # fetch_val() with a different column
+            query = sqlalchemy.sql.select([notes.c.id, notes.c.text])
+            result = await database.fetch_val(query=query, column=1)
+            assert result == "example1"
+
             # row access (needed to maintain test coverage for Record.__getitem__ in postgres backend)
             query = sqlalchemy.sql.select([notes.c.text])
             result = await database.fetch_one(query=query)
