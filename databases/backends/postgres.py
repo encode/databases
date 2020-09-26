@@ -178,6 +178,13 @@ class PostgresConnection(ConnectionBackend):
     async def fetch_val(
         self, query: ClauseElement, column: typing.Any = 0
     ) -> typing.Any:
+        # we are not calling self._connection.fetchval here because
+        # it does not convert all the types, e.g. JSON stays string
+        # instead of an object
+        # see also:
+        # https://github.com/encode/databases/pull/131
+        # https://github.com/encode/databases/pull/132
+        # https://github.com/encode/databases/pull/246
         row = await self.fetch_one(query)
         if row is None:
             return None
