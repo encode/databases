@@ -440,6 +440,47 @@ async def test_transaction_commit(database_url):
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
+async def test_transaction_commit_serializable(database_url):
+    """
+    Ensure that serializable transaction commit via extra parameters is supported.
+    """
+
+    database_url = DatabaseURL(database_url)
+
+    if database_url.scheme != "postgresql":
+        pytest.skip("Test (currently) only supports asyncpg")
+
+    def insert_independently():
+        engine = sqlalchemy.create_engine(str(database_url))
+        conn = engine.connect()
+
+        query = notes.insert().values(text="example1", completed=True)
+        conn.execute(query)
+
+    def delete_independently():
+        engine = sqlalchemy.create_engine(str(database_url))
+        conn = engine.connect()
+
+        query = notes.delete()
+        conn.execute(query)
+
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True, isolation="serializable"):
+            query = notes.select()
+            results = await database.fetch_all(query=query)
+            assert len(results) == 0
+
+            insert_independently()
+
+            query = notes.select()
+            results = await database.fetch_all(query=query)
+            assert len(results) == 0
+
+            delete_independently()
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
 async def test_transaction_rollback(database_url):
     """
     Ensure that transaction rollback is supported.

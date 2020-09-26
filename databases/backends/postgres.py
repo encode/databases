@@ -286,9 +286,11 @@ class PostgresTransaction(TransactionBackend):
             None
         )  # type: typing.Optional[asyncpg.transaction.Transaction]
 
-    async def start(self, is_root: bool) -> None:
+    async def start(
+        self, is_root: bool, extra_options: typing.Dict[typing.Any, typing.Any]
+    ) -> None:
         assert self._connection._connection is not None, "Connection is not acquired"
-        self._transaction = self._connection._connection.transaction()
+        self._transaction = self._connection._connection.transaction(**extra_options)
         await self._transaction.start()
 
     async def commit(self) -> None:
