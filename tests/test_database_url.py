@@ -31,7 +31,7 @@ def test_database_url_escape():
     u = DatabaseURL(f"postgresql://username:{quote('[password')}@localhost/mydatabase")
     assert u.username == "username"
     assert u.password == "[password"
-    assert u.userinfo == f"username:[password".encode("ascii")
+    assert u.userinfo == f"username:{quote('[password')}".encode("ascii")
 
     u2 = DatabaseURL(u)
     assert u2.password == "[password"

@@ -418,10 +418,10 @@ class DatabaseURL:
 
     @property
     def userinfo(self) -> typing.Optional[bytes]:
-        if self.username:
-            info = self.username
-            if self.password:
-                info += ":" + self.password
+        if self.components.username:
+            info = self.components.username
+            if self.components.password:
+                info += ":" + self.components.password
             return info.encode("ascii")
         return None
 
