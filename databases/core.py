@@ -422,7 +422,7 @@ class DatabaseURL:
             info = self.components.username
             if self.components.password:
                 info += ":" + self.components.password
-            return info.encode("ascii")
+            return info.encode("utf-8")
         return None
 
     @property
