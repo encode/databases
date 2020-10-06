@@ -390,7 +390,7 @@ class _EmptyNetloc(str):
 class DatabaseURL:
     def __init__(self, url: typing.Union[str, "DatabaseURL"]):
         if isinstance(url, DatabaseURL):
-            self._url = url._url
+            self._url: str = url._url
         elif isinstance(url, str):
             self._url = url
         else:
