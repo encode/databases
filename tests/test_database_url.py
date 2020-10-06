@@ -1,5 +1,6 @@
 from databases import DatabaseURL
 from urllib.parse import quote
+import pytest
 
 
 def test_database_url_repr():
@@ -40,6 +41,14 @@ def test_database_url_escape():
     assert u3.password == "[password"
 
 
+def test_database_url_constructor():
+    with pytest.raises(TypeError):
+        DatabaseURL(("postgresql", "username", "password", "localhost", "mydatabase"))
+
+    u = DatabaseURL("postgresql+asyncpg://username:password@localhost:123/mydatabase")
+    assert DatabaseURL(u) == u
+
+
 def test_database_url_options():
     u = DatabaseURL("postgresql://localhost/mydatabase?pool_size=20&ssl=true")
     assert u.options == {"pool_size": "20", "ssl": "true"}
@@ -62,6 +71,9 @@ def test_replace_database_url_components():
     new = u.replace(port=123)
     assert new.port == 123
     assert str(new) == "postgresql://localhost:123/mydatabase"
+
+    assert u.username is None
+    assert u.userinfo is None
 
     u = DatabaseURL("sqlite:///mydatabase")
     assert u.database == "mydatabase"
