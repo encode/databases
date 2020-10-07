@@ -215,7 +215,9 @@ class AiopgTransaction(TransactionBackend):
         self._is_root = False
         self._savepoint_name = ""
 
-    async def start(self, is_root: bool) -> None:
+    async def start(
+        self, is_root: bool, extra_options: typing.Dict[typing.Any, typing.Any]
+    ) -> None:
         assert self._connection._connection is not None, "Connection is not acquired"
         self._is_root = is_root
         cursor = await self._connection._connection.cursor()
