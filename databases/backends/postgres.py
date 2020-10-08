@@ -44,7 +44,7 @@ class PostgresBackend(DatabaseBackend):
     def _get_connection_kwargs(self) -> dict:
         url_options = self._database_url.options
 
-        kwargs = {}
+        kwargs = {}  # type: typing.Dict[str, typing.Any]
         min_size = url_options.get("min_size")
         max_size = url_options.get("max_size")
         ssl = url_options.get("ssl")
