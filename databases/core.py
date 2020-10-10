@@ -63,6 +63,7 @@ class Database:
         self.is_connected = False
 
         self._force_rollback = False
+        self._inside_force_rollback_context = False
 
         self._backend = None
 
@@ -86,10 +87,17 @@ class Database:
         force_rollback: bool = False,
         force_database_reconfigure=False,
         **options: typing.Any,
-    ):
+    ) -> "Database":
         # allow reconfiguration for tests
         if self._inited and force_database_reconfigure is False:
             raise ValueError("Databases object already inited")
+
+        if self._inside_force_rollback_context:
+            err = (
+                "cant configure inside force_rollback context manager: "
+                "it depends on state of force_rollback field"
+            )
+            raise ValueError(err)
 
         self._inited = True
         self.url = DatabaseURL(url)
@@ -102,6 +110,8 @@ class Database:
         backend_cls = import_from_string(backend_str)
         assert issubclass(backend_cls, DatabaseBackend)
         self._backend = backend_cls(self.url, **self.options)
+
+        return self
 
     def _should_be_inited(self):
         if not self._inited:
@@ -228,11 +238,14 @@ class Database:
     @contextlib.contextmanager
     def force_rollback(self) -> typing.Iterator[None]:
         initial = self._force_rollback
+        initial_inside = self._inside_force_rollback_context
         self._force_rollback = True
+        self._inside_force_rollback_context = True
         try:
             yield
         finally:
             self._force_rollback = initial
+            self._inside_force_rollback_context = initial_inside
 
 
 class Connection:

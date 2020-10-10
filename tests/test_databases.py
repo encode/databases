@@ -342,16 +342,22 @@ async def test_result_values_allow_duplicate_names(database_url):
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
-async def test_fetch_one_returning_no_results(database_url):
+async def test_fetch_returning_no_results(database_url):
     """
-    fetch_one should return `None` when no results match.
+    fetch_* methods should return empty values when no results match.
     """
     async with Database(database_url) as database:
         async with database.transaction(force_rollback=True):
-            # fetch_all()
             query = notes.select()
-            result = await database.fetch_one(query=query)
-            assert result is None
+
+            result_one = await database.fetch_one(query=query)
+            assert result_one is None
+
+            result_all = await database.fetch_all(query=query)
+            assert result_all == []
+
+            result_val = await database.fetch_val(query=query, column="id")
+            assert result_val is None
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
@@ -400,13 +406,18 @@ async def test_rollback_isolation(database_url):
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
+@pytest.mark.parametrize("configure", [True, False])
 @async_adapter
-async def test_rollback_isolation_with_contextmanager(database_url):
+async def test_rollback_isolation_with_contextmanager(database_url, configure):
     """
     Ensure that `database.force_rollback()` provides strict isolation.
     """
 
-    database = Database(database_url)
+    if configure:
+        database = Database()
+        database.configure(database_url)
+    else:
+        database = Database(database_url)
 
     with database.force_rollback():
         async with database:
@@ -549,12 +560,16 @@ async def test_transaction_rollback_low_level(database_url):
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
+@pytest.mark.parametrize("configure", [True, False])
 @async_adapter
-async def test_transaction_decorator(database_url):
+async def test_transaction_decorator(database_url, configure):
     """
     Ensure that @database.transaction() is supported.
     """
-    database = Database(database_url, force_rollback=True)
+    if configure:
+        database = Database()
+    else:
+        database = Database(database_url, force_rollback=True)
 
     @database.transaction()
     async def insert_data(raise_exception):
@@ -562,6 +577,10 @@ async def test_transaction_decorator(database_url):
         await database.execute(query)
         if raise_exception:
             raise RuntimeError()
+
+    if configure:
+        # configure() can be used after decorator is applied
+        database.configure(database_url, force_rollback=True)
 
     async with database:
         with pytest.raises(RuntimeError):
@@ -883,6 +902,20 @@ async def test_database_url_interface(database_url):
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
+async def test_database_url_interface_configure(database_url):
+    """
+    Test that Database instances expose a `.url` attribute using configure method.
+    """
+    database = Database()
+    assert database.url is None
+
+    async with database.configure(database_url) as database:
+        assert isinstance(database.url, DatabaseURL)
+        assert database.url == database_url
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
 async def test_concurrent_access_on_single_connection(database_url):
     database_url = DatabaseURL(database_url)
     if database_url.dialect != "postgresql":
@@ -897,7 +930,8 @@ async def test_concurrent_access_on_single_connection(database_url):
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
-def test_global_connection_is_initialized_lazily(database_url):
+@pytest.mark.parametrize("configure", [True, False])
+def test_global_connection_is_initialized_lazily(database_url, configure):
     """
     Ensure that global connection is initialized at latest possible time
     so it's _query_lock will belong to same event loop that async_adapter has
@@ -910,10 +944,16 @@ def test_global_connection_is_initialized_lazily(database_url):
     if database_url.dialect != "postgresql":
         pytest.skip("Test requires `pg_sleep()`")
 
-    database = Database(database_url, force_rollback=True)
+    if configure:
+        database = Database()
+    else:
+        database = Database(database_url, force_rollback=True)
 
     @async_adapter
     async def run_database_queries():
+        if configure:
+            database.configure(database_url, force_rollback=True)
+
         async with database:
 
             async def db_lookup():
@@ -996,3 +1036,122 @@ async def test_column_names(database_url, select_query):
             assert sorted(results[0].keys()) == ["completed", "id", "text"]
             assert results[0]["text"] == "example1"
             assert results[0]["completed"] == True
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_postponed_configuration(database_url):
+    """
+    Check that public interface becomes working after configure
+    """
+    from databases import interfaces
+    from databases.core import Transaction
+
+    database = Database()
+
+    assert database._inited is False
+    assert database.url is None
+    assert database._backend is None
+    assert database.options is None
+
+    with pytest.raises(ValueError):
+        database._should_be_inited()
+
+    with pytest.raises(ValueError):
+        async with database:
+            pass
+
+    with pytest.raises(ValueError):
+        await database.connect()
+
+    with pytest.raises(ValueError):
+        await database.disconnect()
+
+    tr = database.transaction()
+    assert isinstance(tr, Transaction)
+
+    with pytest.raises(ValueError):
+        async with tr:
+            pass
+
+    configure_result = database.configure(database_url)
+    assert configure_result is database
+
+    assert database._inited is True
+    assert isinstance(database.url, DatabaseURL)
+    assert isinstance(database._backend, interfaces.DatabaseBackend)
+    assert database.options == {}
+
+    async with database:
+        pass
+
+    await database.connect()
+    # transaction was created before configure() call but its working
+    async with tr:
+        pass
+    await database.disconnect()
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+def test_multiple_configuration(database_url):
+    """
+    Check that configure can be called only once
+    """
+    database = Database()
+    database.configure(database_url)
+    for _ in range(3):
+        with pytest.raises(ValueError, match="Databases object already inited"):
+            database.configure(database_url)
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+def test_multiple_configuration_force_reconfigure(database_url):
+    """
+    Check that configure can be called multiple times using option force_database_reconfigure
+    """
+    database = Database()
+    for _ in range(3):
+        database.configure(database_url, force_database_reconfigure=True)
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+def test_use_nested_force_rollback_contextmanager(database_url):
+    """
+    Check force_rollback() allows nested "with" usage
+    """
+    database = Database(database_url)
+
+    assert database._force_rollback is False
+    assert database._inside_force_rollback_context is False
+
+    with database.force_rollback():
+        assert database._force_rollback is True
+        assert database._inside_force_rollback_context is True
+
+        with database.force_rollback():
+            assert database._force_rollback is True
+            assert database._inside_force_rollback_context is True
+
+        assert database._force_rollback is True
+        assert database._inside_force_rollback_context is True
+
+    assert database._force_rollback is False
+    assert database._inside_force_rollback_context is False
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+def test_cannot_configure_inside_force_rollback_contextmanager(database_url):
+    """
+    Check configure cannot be used inside force_rollback() because it rewrites context
+    """
+    database = Database(database_url)
+
+    match = "cant configure inside force_rollback context manager"
+
+    with database.force_rollback():
+        assert database._force_rollback is True
+
+        with pytest.raises(ValueError, match=match):
+            database.configure(database_url, force_database_reconfigure=True)
+
+        assert database._force_rollback is True

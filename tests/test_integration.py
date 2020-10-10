@@ -49,8 +49,12 @@ def create_test_database():
         metadata.drop_all(engine)
 
 
-def get_app(database_url):
-    database = Database(database_url, force_rollback=True)
+def get_app(database_url, configure=False):
+    if configure:
+        database = Database()
+    else:
+        database = Database(database_url, force_rollback=True)
+
     app = Starlette()
 
     @app.on_event("startup")
@@ -78,12 +82,16 @@ def get_app(database_url):
         await database.execute(query)
         return JSONResponse({"text": data["text"], "completed": data["completed"]})
 
+    if configure:
+        database.configure(database_url, force_rollback=True)
+
     return app
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
-def test_integration(database_url):
-    app = get_app(database_url)
+@pytest.mark.parametrize("configure", [True, False])
+def test_integration(database_url, configure):
+    app = get_app(database_url, configure)
 
     with TestClient(app) as client:
         response = client.post("/notes", json={"text": "example", "completed": True})
