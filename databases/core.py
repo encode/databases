@@ -51,11 +51,47 @@ class Database:
 
     def __init__(
         self,
-        url: typing.Union[str, "DatabaseURL"],
+        url: typing.Optional[typing.Union[str, "DatabaseURL"]] = None,
         *,
         force_rollback: bool = False,
         **options: typing.Any,
     ):
+        self._inited = False
+
+        self.url = None
+        self.options = None
+        self.is_connected = False
+
+        self._force_rollback = False
+
+        self._backend = None
+
+        # When `force_rollback=True` is used, we use a single global
+        # connection, within a transaction that always rolls back.
+        self._global_connection = None  # type: typing.Optional[Connection]
+        self._global_transaction = None  # type: typing.Optional[Transaction]
+
+        # Connections are stored as task-local state.
+        self._connection_context = ContextVar("connection_context")  # type: ContextVar
+
+        if url is None:
+            return
+
+        self.configure(url, force_rollback=force_rollback, **options)
+
+    def configure(
+        self,
+        url: typing.Union[str, "DatabaseURL"],
+        *,
+        force_rollback: bool = False,
+        force_database_reconfigure=False,
+        **options: typing.Any,
+    ):
+        # allow reconfiguration for tests
+        if self._inited and force_database_reconfigure is False:
+            raise ValueError("Databases object already inited")
+
+        self._inited = True
         self.url = DatabaseURL(url)
         self.options = options
         self.is_connected = False
@@ -66,14 +102,6 @@ class Database:
         backend_cls = import_from_string(backend_str)
         assert issubclass(backend_cls, DatabaseBackend)
         self._backend = backend_cls(self.url, **self.options)
-
-        # Connections are stored as task-local state.
-        self._connection_context = ContextVar("connection_context")  # type: ContextVar
-
-        # When `force_rollback=True` is used, we use a single global
-        # connection, within a transaction that always rolls back.
-        self._global_connection = None  # type: typing.Optional[Connection]
-        self._global_transaction = None  # type: typing.Optional[Transaction]
 
     async def connect(self) -> None:
         """
