@@ -90,4 +90,23 @@ async def create_users(request):
 Transaction blocks are managed as task-local state. Nested transactions
 are fully supported, and are implemented using database savepoints.
 
+## Databases initialization
+
+Databases supports postponed configuration to allow factory pattern for applications:
+
+```python
+from databases import Database
+
+database = Database()
+
+def create_app() -> ASGIApp:
+    app = ASGIApp()
+    app.database = database.configure('sqlite:///example.db')
+    return app
+
+@database.transaction()
+async def create_users(request):
+    return await database.execute(query)
+```
+
 [starlette]: https://github.com/encode/starlette
