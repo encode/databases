@@ -103,10 +103,15 @@ class Database:
         assert issubclass(backend_cls, DatabaseBackend)
         self._backend = backend_cls(self.url, **self.options)
 
+    def _should_be_inited(self):
+        if not self._inited:
+            raise ValueError("Databases object is not configured")
+
     async def connect(self) -> None:
         """
         Establish the connection pool.
         """
+        self._should_be_inited()
         assert not self.is_connected, "Already connected."
 
         await self._backend.connect()
@@ -130,6 +135,7 @@ class Database:
         """
         Close all connections in the connection pool.
         """
+        self._should_be_inited()
         assert self.is_connected, "Already disconnected."
 
         if self._force_rollback:
@@ -202,6 +208,8 @@ class Database:
                 yield record
 
     def connection(self) -> "Connection":
+        self._should_be_inited()
+
         if self._global_connection is not None:
             return self._global_connection
 
