@@ -58,14 +58,14 @@ class Database:
     ):
         self._inited = False
 
-        self.url = None
-        self.options = None
-        self.is_connected = False
+        self.url = None  # type: typing.Optional[DatabaseURL]
+        self.options = None  # type: typing.Optional[typing.Dict[str, typing.Any]]
+        self.is_connected = False  # type: bool
 
-        self._force_rollback = False
-        self._inside_force_rollback_context = False
+        self._force_rollback = False  # type: bool
+        self._inside_force_rollback_context = False  # type: bool
 
-        self._backend = None
+        self._backend = None  # type: typing.Optional[DatabaseBackend]
 
         # When `force_rollback=True` is used, we use a single global
         # connection, within a transaction that always rolls back.
@@ -85,7 +85,7 @@ class Database:
         url: typing.Union[str, "DatabaseURL"],
         *,
         force_rollback: bool = False,
-        force_database_reconfigure=False,
+        force_database_reconfigure: bool = False,
         **options: typing.Any,
     ) -> "Database":
         # allow reconfiguration for tests
@@ -113,7 +113,7 @@ class Database:
 
         return self
 
-    def _should_be_inited(self):
+    def _should_be_inited(self) -> None:
         if not self._inited:
             raise ValueError("Databases object is not configured")
 
@@ -123,6 +123,8 @@ class Database:
         """
         self._should_be_inited()
         assert not self.is_connected, "Already connected."
+        assert self._backend is not None, "Not inited"
+        assert self.url is not None, "Not inited"
 
         await self._backend.connect()
         logger.info(
@@ -147,6 +149,8 @@ class Database:
         """
         self._should_be_inited()
         assert self.is_connected, "Already disconnected."
+        assert self._backend is not None, "Not inited"
+        assert self.url is not None, "Not inited"
 
         if self._force_rollback:
             assert self._global_connection is not None
@@ -219,6 +223,7 @@ class Database:
 
     def connection(self) -> "Connection":
         self._should_be_inited()
+        assert self._backend is not None, "Not inited"
 
         if self._global_connection is not None:
             return self._global_connection
