@@ -1059,7 +1059,7 @@ async def test_postponed_configuration(database_url):
 
     with pytest.raises(ValueError):
         async with database:
-            pass
+            "unreachable code"
 
     with pytest.raises(ValueError):
         await database.connect()
@@ -1072,7 +1072,7 @@ async def test_postponed_configuration(database_url):
 
     with pytest.raises(ValueError):
         async with tr:
-            pass
+            "unreachable code"
 
     configure_result = database.configure(database_url)
     assert configure_result is database
