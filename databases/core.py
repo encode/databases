@@ -5,7 +5,7 @@ import logging
 import sys
 import typing
 from types import TracebackType
-from urllib.parse import SplitResult, parse_qsl, urlsplit
+from urllib.parse import SplitResult, parse_qsl, urlsplit, unquote
 
 from sqlalchemy import text
 from sqlalchemy.sql import ClauseElement
@@ -389,7 +389,14 @@ class _EmptyNetloc(str):
 
 class DatabaseURL:
     def __init__(self, url: typing.Union[str, "DatabaseURL"]):
-        self._url = str(url)
+        if isinstance(url, DatabaseURL):
+            self._url: str = url._url
+        elif isinstance(url, str):
+            self._url = url
+        else:
+            raise TypeError(
+                f"Invalid type for DatabaseURL. Expected str or DatabaseURL, got {type(url)}"
+            )
 
     @property
     def components(self) -> SplitResult:
@@ -412,12 +419,25 @@ class DatabaseURL:
         return self.components.scheme.split("+", 1)[1]
 
     @property
+    def userinfo(self) -> typing.Optional[bytes]:
+        if self.components.username:
+            info = self.components.username
+            if self.components.password:
+                info += ":" + self.components.password
+            return info.encode("utf-8")
+        return None
+
+    @property
     def username(self) -> typing.Optional[str]:
-        return self.components.username
+        if self.components.username is None:
+            return None
+        return unquote(self.components.username)
 
     @property
     def password(self) -> typing.Optional[str]:
-        return self.components.password
+        if self.components.password is None:
+            return None
+        return unquote(self.components.password)
 
     @property
     def hostname(self) -> typing.Optional[str]:
@@ -436,7 +456,7 @@ class DatabaseURL:
         path = self.components.path
         if path.startswith("/"):
             path = path[1:]
-        return path
+        return unquote(path)
 
     @property
     def options(self) -> dict:
@@ -453,8 +473,8 @@ class DatabaseURL:
         ):
             hostname = kwargs.pop("hostname", self.hostname)
             port = kwargs.pop("port", self.port)
-            username = kwargs.pop("username", self.username)
-            password = kwargs.pop("password", self.password)
+            username = kwargs.pop("username", self.components.username)
+            password = kwargs.pop("password", self.components.password)
 
             netloc = hostname
             if port is not None:
