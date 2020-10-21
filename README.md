@@ -40,6 +40,7 @@ $ pip install databases[sqlite]
 ```
 
 Driver support is provided using one of [asyncpg][asyncpg], [aiomysql][aiomysql], or [aiosqlite][aiosqlite].
+Note that if you are using any synchronous SQLAlchemy functions such as `engine.create_all()` or [alembic][alembic] migrations then you still have to install a synchronous DB driver: [psycopg2][psycopg2] for PostgreSQL and [pymysql][pymysql] for MySQL.
 
 ---
 
@@ -93,6 +94,8 @@ for examples of how to start using databases together with SQLAlchemy core expre
 [sqlalchemy-core]: https://docs.sqlalchemy.org/en/latest/core/
 [sqlalchemy-core-tutorial]: https://docs.sqlalchemy.org/en/latest/core/tutorial.html
 [alembic]: https://alembic.sqlalchemy.org/en/latest/
+[psycopg2]: https://www.psycopg.org/
+[pymysql]: https://github.com/PyMySQL/PyMySQL
 [asyncpg]: https://github.com/MagicStack/asyncpg
 [aiomysql]: https://github.com/aio-libs/aiomysql
 [aiosqlite]: https://github.com/jreese/aiosqlite
