@@ -60,17 +60,28 @@ class PostgresBackend(DatabaseBackend):
 
         return kwargs
 
+    def _compose_connection_info(self) -> dict:
+        """Return the composed connection information
+
+        Connection information is a composition of the parsed connection
+        string overlayed by any options in the connection string, and
+        any explicit keyword arguments.
+        """
+        kwargs = self._get_connection_kwargs()
+        connection_info = {
+            'host': self._database_url.hostname,
+            'port': self._database_url.port,
+            'user': self._database_url.username,
+            'password': self._database_url.password,
+            'database': self._database_url.database,
+        }
+        connection_info.update(kwargs)
+        return connection_info
+
     async def connect(self) -> None:
         assert self._pool is None, "DatabaseBackend is already running"
-        kwargs = self._get_connection_kwargs()
         self._pool = await asyncpg.create_pool(
-            host=self._database_url.hostname,
-            port=self._database_url.port,
-            user=self._database_url.username,
-            password=self._database_url.password,
-            database=self._database_url.database,
-            **kwargs,
-        )
+            **self._compose_connection_info())
 
     async def disconnect(self) -> None:
         assert self._pool is not None, "DatabaseBackend is not running"

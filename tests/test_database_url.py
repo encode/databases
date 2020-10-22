@@ -54,6 +54,12 @@ def test_database_url_options():
     assert u.options == {"pool_size": "20", "ssl": "true"}
 
 
+def test_database_url_host_passed_as_option():
+    u = DatabaseURL("postgresql:///mydatabase?host=/var/run/postgresql/")
+    assert u.database == "mydatabase"
+    assert u.options == {"host": "/var/run/postgresql/"}
+
+
 def test_replace_database_url_components():
     u = DatabaseURL("postgresql://localhost/mydatabase")
 
