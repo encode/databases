@@ -39,7 +39,7 @@ $ pip install databases[mysql]
 $ pip install databases[sqlite]
 ```
 
-Driver support is providing using one of [asyncpg][asyncpg], [aiomysql][aiomysql], or [aiosqlite][aiosqlite].
+Driver support is provided using one of [asyncpg][asyncpg], [aiomysql][aiomysql], or [aiosqlite][aiosqlite].
 
 ---
 
