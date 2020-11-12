@@ -70,6 +70,15 @@ prices = sqlalchemy.Table(
     sqlalchemy.Column("price", sqlalchemy.Numeric(precision=30, scale=20)),
 )
 
+# Used to test column default values
+default_values = sqlalchemy.Table(
+    "default_values",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("with_default", sqlalchemy.Integer, default=42),
+    sqlalchemy.Column("without_default", sqlalchemy.Integer),
+)
+
 
 @pytest.fixture(autouse=True, scope="module")
 def create_test_database():
@@ -653,6 +662,50 @@ async def test_json_field(database_url):
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
+async def test_insert_with_default_values(database_url):
+    """
+    Test insert with column default values
+    """
+
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            # execute()
+            query = default_values.insert()
+            values = {"without_default": 1}
+            inserted_id = await database.execute(query, values)
+
+            # fetch_one()
+            query = default_values.select().where(default_values.c.id == inserted_id)
+            result = await database.fetch_one(query=query)
+            assert result["with_default"] == 42
+            assert result["without_default"] == values["without_default"]
+
+            # test without passing values and without calling `values()`
+            # execute()
+            query = default_values.insert()
+            inserted_id = await database.execute(query)
+
+            # fetch_one()
+            query = default_values.select().where(default_values.c.id == inserted_id)
+            result = await database.fetch_one(query=query)
+            assert result["with_default"] == 42
+            assert result["without_default"] is None
+
+            # test pass other than default value
+            # execute()
+            query = default_values.insert()
+            values = {"with_default": 5}
+            inserted_id = await database.execute(query, values)
+
+            # fetch_one()
+            query = default_values.select().where(default_values.c.id == inserted_id)
+            result = await database.fetch_one(query=query)
+            assert result["with_default"] == values["with_default"]
+            assert result["without_default"] is None
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
 async def test_custom_field(database_url):
     """
     Test custom column types.
@@ -915,7 +968,6 @@ def test_global_connection_is_initialized_lazily(database_url):
     @async_adapter
     async def run_database_queries():
         async with database:
-
             async def db_lookup():
                 await database.fetch_one("SELECT pg_sleep(1)")
 

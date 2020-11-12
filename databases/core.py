@@ -301,6 +301,11 @@ class Connection:
         elif values:
             return query.values(**values)
 
+        # for case when `table.insert()` called without `.values()` it has to be
+        # called to produce `insert_prefetch` for compiled query
+        if query.__visit_name__ == "insert":
+            return query.values()
+
         return query
 
 
