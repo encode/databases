@@ -76,6 +76,7 @@ default_values = sqlalchemy.Table(
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
     sqlalchemy.Column("with_default", sqlalchemy.Integer, default=42),
+    sqlalchemy.Column("with_callable_default", sqlalchemy.String(length=100), default=lambda: "default_value"),
     sqlalchemy.Column("without_default", sqlalchemy.Integer),
 )
 
@@ -701,7 +702,16 @@ async def test_insert_with_default_values(database_url):
             query = default_values.select().where(default_values.c.id == inserted_id)
             result = await database.fetch_one(query=query)
             assert result["with_default"] == values["with_default"]
-            assert result["without_default"] is None
+
+            # test callable default
+            # execute()
+            query = default_values.insert()
+            inserted_id = await database.execute(query)
+
+            # fetch_one()
+            query = default_values.select().where(default_values.c.id == inserted_id)
+            result = await database.fetch_one(query=query)
+            assert result["with_callable_default"] == "default_value"
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
