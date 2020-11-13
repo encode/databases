@@ -9,12 +9,16 @@ from sqlalchemy.engine.interfaces import Dialect, ExecutionContext
 from sqlalchemy.engine.result import ResultMetaData, RowProxy
 from sqlalchemy.sql import ClauseElement
 from sqlalchemy.sql.ddl import DDLElement
-from sqlalchemy.types import TypeEngine
 
+from databases.backends.common import ConstructDefaultParamsMixin
 from databases.core import LOG_EXTRA, DatabaseURL
 from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend
 
 logger = logging.getLogger("databases")
+
+
+class MySQLCompiler(ConstructDefaultParamsMixin, pymysql.dialect.statement_compiler):
+    pass
 
 
 class MySQLBackend(DatabaseBackend):
@@ -23,9 +27,16 @@ class MySQLBackend(DatabaseBackend):
     ) -> None:
         self._database_url = DatabaseURL(database_url)
         self._options = options
-        self._dialect = pymysql.dialect(paramstyle="pyformat")
-        self._dialect.supports_native_decimal = True
+        self._dialect = self._get_dialect()
         self._pool = None
+
+    def _get_dialect(self) -> Dialect:
+        dialect = pymysql.dialect(paramstyle="pyformat")
+
+        dialect.statement_compiler = MySQLCompiler
+        dialect.supports_native_decimal = True
+
+        return dialect
 
     def _get_connection_kwargs(self) -> dict:
         url_options = self._database_url.options

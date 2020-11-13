@@ -4,13 +4,13 @@ from collections.abc import Mapping
 
 import asyncpg
 from sqlalchemy.dialects.postgresql import pypostgresql
-from sqlalchemy.dialects.postgresql.base import PGCompiler
 from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.sql import ClauseElement
 from sqlalchemy.sql.ddl import DDLElement
 from sqlalchemy.sql.schema import Column
 from sqlalchemy.types import TypeEngine
 
+from databases.backends.common import ConstructDefaultParamsMixin
 from databases.core import LOG_EXTRA, DatabaseURL
 from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend
 
@@ -20,20 +20,8 @@ logger = logging.getLogger("databases")
 _result_processors = {}  # type: dict
 
 
-class APGCompiler_psycopg2(PGCompiler):
-    def construct_params(self, params=None, _group_number=None, _check=True):
-        pd = super().construct_params(params, _group_number, _check)
-
-        for column in self.prefetch:
-            pd[column.key] = self._exec_default(column.default)
-
-        return pd
-
-    def _exec_default(self, default: typing.Any) -> typing.Any:
-        if default.is_callable:
-            return default.arg(self.dialect)
-        else:
-            return default.arg
+class APGCompiler_psycopg2(ConstructDefaultParamsMixin, pypostgresql.dialect.statement_compiler):
+    pass
 
 
 class PostgresBackend(DatabaseBackend):

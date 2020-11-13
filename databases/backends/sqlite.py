@@ -8,12 +8,16 @@ from sqlalchemy.engine.interfaces import Dialect, ExecutionContext
 from sqlalchemy.engine.result import ResultMetaData, RowProxy
 from sqlalchemy.sql import ClauseElement
 from sqlalchemy.sql.ddl import DDLElement
-from sqlalchemy.types import TypeEngine
 
+from databases.backends.common import ConstructDefaultParamsMixin
 from databases.core import LOG_EXTRA, DatabaseURL
 from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend
 
 logger = logging.getLogger("databases")
+
+
+class SQLiteCompiler(ConstructDefaultParamsMixin, pysqlite.dialect.statement_compiler):
+    pass
 
 
 class SQLiteBackend(DatabaseBackend):
@@ -22,10 +26,17 @@ class SQLiteBackend(DatabaseBackend):
     ) -> None:
         self._database_url = DatabaseURL(database_url)
         self._options = options
-        self._dialect = pysqlite.dialect(paramstyle="qmark")
-        # aiosqlite does not support decimals
-        self._dialect.supports_native_decimal = False
+        self._dialect = self._get_dialect()
         self._pool = SQLitePool(self._database_url, **self._options)
+
+    def _get_dialect(self) -> Dialect:
+        dialect = pysqlite.dialect(paramstyle="qmark")
+
+        # aiosqlite does not support decimals
+        dialect.supports_native_decimal = False
+        dialect.statement_compiler = SQLiteCompiler
+
+        return dialect
 
     async def connect(self) -> None:
         pass
