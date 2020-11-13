@@ -20,7 +20,9 @@ logger = logging.getLogger("databases")
 _result_processors = {}  # type: dict
 
 
-class APGCompiler_psycopg2(ConstructDefaultParamsMixin, pypostgresql.dialect.statement_compiler):
+class APGCompiler_psycopg2(
+    ConstructDefaultParamsMixin, pypostgresql.dialect.statement_compiler
+):
     pass
 
 

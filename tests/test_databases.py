@@ -76,7 +76,11 @@ default_values = sqlalchemy.Table(
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
     sqlalchemy.Column("with_default", sqlalchemy.Integer, default=42),
-    sqlalchemy.Column("with_callable_default", sqlalchemy.String(length=100), default=lambda: "default_value"),
+    sqlalchemy.Column(
+        "with_callable_default",
+        sqlalchemy.String(length=100),
+        default=lambda: "default_value",
+    ),
     sqlalchemy.Column("without_default", sqlalchemy.Integer),
 )
 
@@ -1003,7 +1007,9 @@ def test_global_connection_is_initialized_lazily(database_url):
     @async_adapter
     async def run_database_queries():
         async with database:
+
             async def db_lookup():
+
                 await database.fetch_one("SELECT pg_sleep(1)")
 
             await asyncio.gather(db_lookup(), db_lookup())
