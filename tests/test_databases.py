@@ -663,54 +663,79 @@ async def test_json_field(database_url):
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
-async def test_insert_with_default_values(database_url):
+async def test_insert_with_scalar_default(database_url):
     """
-    Test insert with column default values
+    Test insert with scalar column default value
     """
 
     async with Database(database_url) as database:
         async with database.transaction(force_rollback=True):
-            # execute()
             query = default_values.insert()
             values = {"without_default": 1}
             await database.execute(query, values)
 
-            # fetch_one()
-            query = default_values.select().where(default_values.c.id == 1)
+            query = default_values.select().order_by(default_values.c.id.desc())
             result = await database.fetch_one(query=query)
+
             assert result["with_default"] == 42
             assert result["without_default"] == values["without_default"]
 
-            # test without passing values and without calling `values()`
-            # execute()
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_insert_default_values_with_no_values_called(database_url):
+    """
+    Test insert default values without calling ``values()`` on insert and
+    without passing ``values`` to ``execute()``.
+    """
+
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
             query = default_values.insert()
             await database.execute(query)
 
-            # fetch_one()
-            query = default_values.select().where(default_values.c.id == 2)
+            query = default_values.select().order_by(default_values.c.id.desc())
             result = await database.fetch_one(query=query)
+
             assert result["with_default"] == 42
             assert result["without_default"] is None
 
-            # test pass other than default value
-            # execute()
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_insert_default_values_with_overriden_default(database_url):
+    """
+    Test if we provide value for a column having default value, the first one
+    should be set, not default one.
+    """
+
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
             query = default_values.insert()
             values = {"with_default": 5}
             await database.execute(query, values)
 
-            # fetch_one()
-            query = default_values.select().where(default_values.c.id == 3)
+            query = default_values.select().order_by(default_values.c.id.desc())
             result = await database.fetch_one(query=query)
+
             assert result["with_default"] == values["with_default"]
 
-            # test callable default
-            # execute()
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_insert_callable_default(database_url):
+    """
+    Test insert with column having callable default.
+    """
+
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
             query = default_values.insert()
             await database.execute(query)
 
-            # fetch_one()
-            query = default_values.select().where(default_values.c.id == 4)
+            query = default_values.select().order_by(default_values.c.id.desc())
             result = await database.fetch_one(query=query)
+
             assert result["with_callable_default"] == "default_value"
 
 
