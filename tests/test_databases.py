@@ -673,10 +673,10 @@ async def test_insert_with_default_values(database_url):
             # execute()
             query = default_values.insert()
             values = {"without_default": 1}
-            inserted_id = await database.execute(query, values)
+            await database.execute(query, values)
 
             # fetch_one()
-            query = default_values.select().where(default_values.c.id == inserted_id)
+            query = default_values.select().where(default_values.c.id == 1)
             result = await database.fetch_one(query=query)
             assert result["with_default"] == 42
             assert result["without_default"] == values["without_default"]
@@ -684,10 +684,10 @@ async def test_insert_with_default_values(database_url):
             # test without passing values and without calling `values()`
             # execute()
             query = default_values.insert()
-            inserted_id = await database.execute(query)
+            await database.execute(query)
 
             # fetch_one()
-            query = default_values.select().where(default_values.c.id == inserted_id)
+            query = default_values.select().where(default_values.c.id == 2)
             result = await database.fetch_one(query=query)
             assert result["with_default"] == 42
             assert result["without_default"] is None
@@ -696,20 +696,20 @@ async def test_insert_with_default_values(database_url):
             # execute()
             query = default_values.insert()
             values = {"with_default": 5}
-            inserted_id = await database.execute(query, values)
+            await database.execute(query, values)
 
             # fetch_one()
-            query = default_values.select().where(default_values.c.id == inserted_id)
+            query = default_values.select().where(default_values.c.id == 3)
             result = await database.fetch_one(query=query)
             assert result["with_default"] == values["with_default"]
 
             # test callable default
             # execute()
             query = default_values.insert()
-            inserted_id = await database.execute(query)
+            await database.execute(query)
 
             # fetch_one()
-            query = default_values.select().where(default_values.c.id == inserted_id)
+            query = default_values.select().where(default_values.c.id == 4)
             result = await database.fetch_one(query=query)
             assert result["with_callable_default"] == "default_value"
 
