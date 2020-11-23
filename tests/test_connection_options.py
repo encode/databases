@@ -43,6 +43,24 @@ def test_postgres_explicit_ssl():
     assert kwargs == {"ssl": True}
 
 
+def test_postgres_no_extra_options():
+    backend = PostgresBackend("postgres://localhost/database")
+    kwargs = backend._get_connection_kwargs()
+    assert kwargs == {}
+
+
+def test_postgres_password_as_callable():
+    def gen_password():
+        return "Foo"
+
+    backend = PostgresBackend(
+        "postgres://:password@localhost/database", password=gen_password
+    )
+    kwargs = backend._get_connection_kwargs()
+    assert kwargs == {"password": gen_password}
+    assert kwargs["password"]() == "Foo"
+
+
 def test_mysql_pool_size():
     backend = MySQLBackend("mysql://localhost/database?min_size=1&max_size=20")
     kwargs = backend._get_connection_kwargs()
