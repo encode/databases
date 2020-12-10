@@ -16,9 +16,6 @@ from databases.interfaces import ConnectionBackend, DatabaseBackend, Transaction
 logger = logging.getLogger("databases")
 
 
-_result_processors = {}  # type: dict
-
-
 class PostgresBackend(DatabaseBackend):
     def __init__(
         self, database_url: typing.Union[DatabaseURL, str], **options: typing.Any
@@ -120,11 +117,7 @@ class Record(Mapping):
         else:
             idx, datatype = self._column_map[key]
         raw = self._row[idx]
-        try:
-            processor = _result_processors[datatype]
-        except KeyError:
-            processor = datatype.result_processor(self._dialect, None)
-            _result_processors[datatype] = processor
+        processor = datatype._cached_result_processor(self._dialect, None)
 
         if processor is not None:
             return processor(raw)
