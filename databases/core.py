@@ -237,8 +237,12 @@ class Connection:
     async def __aenter__(self) -> "Connection":
         async with self._connection_lock:
             self._connection_counter += 1
-            if self._connection_counter == 1:
-                await self._connection.acquire()
+            try:
+                if self._connection_counter == 1:
+                    await self._connection.acquire()
+            except Exception as e:
+                self._connection_counter -= 1
+                raise e
         return self
 
     async def __aexit__(
