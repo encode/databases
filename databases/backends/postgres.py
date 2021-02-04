@@ -16,7 +16,6 @@ from databases.interfaces import ConnectionBackend, DatabaseBackend, Transaction
 
 logger = logging.getLogger("databases")
 
-
 _result_processors = {}  # type: dict
 
 
@@ -52,7 +51,7 @@ class PostgresBackend(DatabaseBackend):
     def _get_connection_kwargs(self) -> dict:
         url_options = self._database_url.options
 
-        kwargs = {}
+        kwargs = {}  # type: typing.Dict[str, typing.Any]
         min_size = url_options.get("min_size")
         max_size = url_options.get("max_size")
         ssl = url_options.get("ssl")
@@ -70,15 +69,15 @@ class PostgresBackend(DatabaseBackend):
 
     async def connect(self) -> None:
         assert self._pool is None, "DatabaseBackend is already running"
-        kwargs = self._get_connection_kwargs()
-        self._pool = await asyncpg.create_pool(
+        kwargs = dict(
             host=self._database_url.hostname,
             port=self._database_url.port,
             user=self._database_url.username,
             password=self._database_url.password,
             database=self._database_url.database,
-            **kwargs,
         )
+        kwargs.update(self._get_connection_kwargs())
+        self._pool = await asyncpg.create_pool(**kwargs)
 
     async def disconnect(self) -> None:
         assert self._pool is not None, "DatabaseBackend is not running"
@@ -128,11 +127,7 @@ class Record(Mapping):
         else:
             idx, datatype = self._column_map[key]
         raw = self._row[idx]
-        try:
-            processor = _result_processors[datatype]
-        except KeyError:
-            processor = datatype.result_processor(self._dialect, None)
-            _result_processors[datatype] = processor
+        processor = datatype._cached_result_processor(self._dialect, None)
 
         if processor is not None:
             return processor(raw)
