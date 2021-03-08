@@ -17,6 +17,22 @@ def test_database_url_repr():
     assert repr(u) == "DatabaseURL('postgresql://username:********@localhost/name')"
 
 
+def test_database_url_str():
+    Str = type("Str", (str,), {"__repr__": lambda self: ""})
+
+    u = DatabaseURL(Str("postgresql://localhost/name"))
+    assert str(u) == "postgresql://localhost/name"
+
+    u = DatabaseURL(Str("postgresql://username@localhost/name"))
+    assert str(u) == "postgresql://username@localhost/name"
+
+    u = DatabaseURL(Str("postgresql://username:password@localhost/name"))
+    assert str(u) == "postgresql://username:password@localhost/name"
+
+    u = DatabaseURL(Str(f"postgresql://username:{quote('[password')}@localhost/name"))
+    assert str(u) == "postgresql://username:%5Bpassword@localhost/name"
+
+
 def test_database_url_properties():
     u = DatabaseURL("postgresql+asyncpg://username:password@localhost:123/mydatabase")
     assert u.dialect == "postgresql"

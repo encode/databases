@@ -392,7 +392,7 @@ class DatabaseURL:
         if isinstance(url, DatabaseURL):
             self._url: str = url._url
         elif isinstance(url, str):
-            self._url = url
+            self._url = str(url)
         else:
             raise TypeError(
                 f"Invalid type for DatabaseURL. Expected str or DatabaseURL, got {type(url)}"
