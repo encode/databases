@@ -4,11 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## Unreleased
+## 0.4.2 (March 14th, 2021)
 
 ### Fixed
 
-* Fix memory leak with asyncpg, for SQLAlchemy generic functions (#273)
+* Fix memory leak with asyncpg for SQLAlchemy generic functions (#273)
 
 ## 0.4.1 (November 16th, 2020)
 
