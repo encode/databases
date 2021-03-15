@@ -104,8 +104,27 @@ class Record(Mapping):
         self._dialect = dialect
         self._column_map, self._column_map_int, self._column_map_full = column_maps
 
+    @property
+    def _mapping(self) -> asyncpg.Record:
+        return self._row
+
+    def keys(self) -> typing.KeysView:
+        import warnings
+
+        warnings.warn(
+            "The `Row.keys()` method is deprecated to mimic SQLAlchemy behaviour, "
+            "use `Row._mapping.keys()` instead."
+        )
+        return self._mapping.keys()
+
     def values(self) -> typing.ValuesView:
-        return self._row.values()
+        import warnings
+
+        warnings.warn(
+            "The `Row.values()` method is deprecated to mimic SQLAlchemy behaviour, "
+            "use `Row._mapping.values()` instead."
+        )
+        return self._mapping.values()
 
     def __getitem__(self, key: typing.Any) -> typing.Any:
         if len(self._column_map) == 0:  # raw query
