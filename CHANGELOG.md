@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 0.4.3 (March 26th, 2021)
+
+### Fixed
+
+* Pin SQLAlchemy to 1.13.*
+
 ## 0.4.2 (March 14th, 2021)
 
 ### Fixed
@@ -34,4 +40,3 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * Fix SQLAlchemy DDL statements (#226)
 * Make fetch_val call fetch_one for type conversion (#246)
 * Unquote username and password in DatabaseURL (#248)
-
