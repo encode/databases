@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
-* Pin SQLAlchemy to 1.13.* (#314)
+* Pin SQLAlchemy to <1.4 (#314)
 
 ## 0.4.2 (March 14th, 2021)
 
