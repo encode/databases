@@ -15,8 +15,10 @@ from databases.interfaces import ConnectionBackend, DatabaseBackend, Transaction
 
 if sys.version_info >= (3, 7):  # pragma: no cover
     from contextvars import ContextVar
+    import contextvars as contextvars
 else:  # pragma: no cover
     from aiocontextvars import ContextVar
+    import aiocontextvars as contextvars
 
 try:  # pragma: no cover
     import click
@@ -173,6 +175,11 @@ class Database:
             async for record in connection.iterate(query, values):
                 yield record
 
+    def _new_connection(self) -> "Connection":
+        connection = Connection(self._backend)
+        self._connection_context.set(connection)
+        return connection
+
     def connection(self) -> "Connection":
         if self._global_connection is not None:
             return self._global_connection
@@ -180,14 +187,22 @@ class Database:
         try:
             return self._connection_context.get()
         except LookupError:
-            connection = Connection(self._backend)
-            self._connection_context.set(connection)
-            return connection
+            return self._new_connection()
 
     def transaction(
         self, *, force_rollback: bool = False, **kwargs: typing.Any
     ) -> "Transaction":
-        return Transaction(self.connection, force_rollback=force_rollback, **kwargs)
+        try: 
+            connection = self._connection_context.get()
+            if not connection._transaction_stack:
+                newcontext = contextvars.copy_context()
+                get_conn  = lambda: newcontext.run(self._new_connection)
+            else:
+                get_conn = self.connection
+        except LookupError:
+            get_conn = self.connection
+
+        return Transaction(get_conn, force_rollback=force_rollback, **kwargs)
 
     @contextlib.contextmanager
     def force_rollback(self) -> typing.Iterator[None]:
@@ -357,6 +372,7 @@ class Transaction:
     async def start(self) -> "Transaction":
         self._connection = self._connection_callable()
         self._transaction = self._connection._connection.transaction()
+        logger.warning(self._connection)
 
         async with self._connection._transaction_lock:
             is_root = not self._connection._transaction_stack
