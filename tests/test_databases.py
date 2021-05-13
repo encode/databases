@@ -3,6 +3,7 @@ import datetime
 import decimal
 import functools
 import os
+import re
 
 import pytest
 import sqlalchemy
@@ -1014,3 +1015,49 @@ async def test_parallel_transactions(database_url):
 
         tasks = [test_task(database) for i in range(4)]
         await asyncio.gather(*tasks)
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_posgres_interface(database_url):
+    """
+    Since SQLAlchemy 1.4, `Row.values()` is removed and `Row.keys()` is deprecated.
+    Custom postgres interface mimics more or less this behaviour by deprecating those
+    two methods
+    """
+    database_url = DatabaseURL(database_url)
+
+    if database_url.scheme != "postgresql":
+        pytest.skip("Test is only for postgresql")
+
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            query = notes.insert()
+            values = {"text": "example1", "completed": True}
+            await database.execute(query, values)
+
+            query = notes.select()
+            result = await database.fetch_one(query=query)
+
+            with pytest.warns(
+                DeprecationWarning,
+                match=re.escape(
+                    "The `Row.keys()` method is deprecated to mimic SQLAlchemy behaviour, "
+                    "use `Row._mapping.keys()` instead."
+                ),
+            ):
+                assert (
+                    list(result.keys())
+                    == [k for k in result]
+                    == ["id", "text", "completed"]
+                )
+
+            with pytest.warns(
+                DeprecationWarning,
+                match=re.escape(
+                    "The `Row.values()` method is deprecated to mimic SQLAlchemy behaviour, "
+                    "use `Row._mapping.values()` instead."
+                ),
+            ):
+                # avoid checking `id` at index 0 since it may change depending on the launched tests
+                assert list(result.values())[1:] == ["example1", True]

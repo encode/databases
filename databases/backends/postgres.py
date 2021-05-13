@@ -113,7 +113,8 @@ class Record(Mapping):
 
         warnings.warn(
             "The `Row.keys()` method is deprecated to mimic SQLAlchemy behaviour, "
-            "use `Row._mapping.keys()` instead."
+            "use `Row._mapping.keys()` instead.",
+            DeprecationWarning,
         )
         return self._mapping.keys()
 
@@ -122,7 +123,8 @@ class Record(Mapping):
 
         warnings.warn(
             "The `Row.values()` method is deprecated to mimic SQLAlchemy behaviour, "
-            "use `Row._mapping.values()` instead."
+            "use `Row._mapping.values()` instead.",
+            DeprecationWarning,
         )
         return self._mapping.values()
 
