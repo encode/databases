@@ -70,6 +70,17 @@ prices = sqlalchemy.Table(
     sqlalchemy.Column("price", sqlalchemy.Numeric(precision=30, scale=20)),
 )
 
+# Used to test column default values
+timestamps = sqlalchemy.Table(
+    "timestamps",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column(
+        "timestamp", sqlalchemy.DateTime, default=datetime.datetime.now, nullable=False
+    ),
+    sqlalchemy.Column("priority", sqlalchemy.Integer, default=0, nullable=False),
+)
+
 
 @pytest.fixture(autouse=True, scope="module")
 def create_test_database():
@@ -996,3 +1007,33 @@ async def test_column_names(database_url, select_query):
             assert sorted(results[0].keys()) == ["completed", "id", "text"]
             assert results[0]["text"] == "example1"
             assert results[0]["completed"] == True
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_column_defaults(database_url):
+    """
+    Test correct usage of column defaults.
+    """
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            # with just defaults
+            query = timestamps.insert()
+            await database.execute(query)
+            results = await database.fetch_all(query=timestamps.select())
+            assert len(results) == 1
+            await database.execute(timestamps.delete())
+
+            # with default value overridden
+            dt = datetime.datetime.now()
+            dt -= datetime.timedelta(seconds=10, microseconds=dt.microsecond)
+            values = {"timestamp": dt}
+            await database.execute(query, values)
+            results = await database.fetch_all(timestamps.select())
+            assert len(results) == 1
+            assert results[0]["timestamp"] == dt
+
+            # testing invalid passing of values with non-ValuesBase
+            # argument
+            with pytest.raises(TypeError, match=r".*support \.values\(\).*"):
+                await database.execute(timestamps.select(), {})
