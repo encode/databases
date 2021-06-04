@@ -27,6 +27,12 @@ class ConnectionBackend:
     async def fetch_one(self, query: ClauseElement) -> typing.Optional[typing.Mapping]:
         raise NotImplementedError()  # pragma: no cover
 
+    async def fetch_val(
+        self, query: ClauseElement, column: typing.Any = 0
+    ) -> typing.Any:
+        row = await self.fetch_one(query)
+        return None if row is None else row[column]
+
     async def execute(self, query: ClauseElement) -> typing.Any:
         raise NotImplementedError()  # pragma: no cover
 
@@ -50,7 +56,9 @@ class ConnectionBackend:
 
 
 class TransactionBackend:
-    async def start(self, is_root: bool) -> None:
+    async def start(
+        self, is_root: bool, extra_options: typing.Dict[typing.Any, typing.Any]
+    ) -> None:
         raise NotImplementedError()  # pragma: no cover
 
     async def commit(self) -> None:

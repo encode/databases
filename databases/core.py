@@ -5,7 +5,7 @@ import logging
 import sys
 import typing
 from types import TracebackType
-from urllib.parse import SplitResult, parse_qsl, urlsplit
+from urllib.parse import SplitResult, parse_qsl, urlsplit, unquote
 
 from sqlalchemy import text
 from sqlalchemy.sql import ClauseElement
@@ -184,8 +184,10 @@ class Database:
             self._connection_context.set(connection)
             return connection
 
-    def transaction(self, *, force_rollback: bool = False) -> "Transaction":
-        return Transaction(self.connection, force_rollback=force_rollback)
+    def transaction(
+        self, *, force_rollback: bool = False, **kwargs: typing.Any
+    ) -> "Transaction":
+        return Transaction(self.connection, force_rollback=force_rollback, **kwargs)
 
     @contextlib.contextmanager
     def force_rollback(self) -> typing.Iterator[None]:
@@ -251,8 +253,7 @@ class Connection:
     ) -> typing.Any:
         built_query = self._build_query(query, values)
         async with self._query_lock:
-            row = await self._connection.fetch_one(built_query)
-        return None if row is None else row[column]
+            return await self._connection.fetch_val(built_query, column)
 
     async def execute(
         self, query: typing.Union[ClauseElement, str], values: dict = None
@@ -277,11 +278,13 @@ class Connection:
                 async for record in self._connection.iterate(built_query):
                     yield record
 
-    def transaction(self, *, force_rollback: bool = False) -> "Transaction":
+    def transaction(
+        self, *, force_rollback: bool = False, **kwargs: typing.Any
+    ) -> "Transaction":
         def connection_callable() -> Connection:
             return self
 
-        return Transaction(connection_callable, force_rollback)
+        return Transaction(connection_callable, force_rollback, **kwargs)
 
     @property
     def raw_connection(self) -> typing.Any:
@@ -306,9 +309,11 @@ class Transaction:
         self,
         connection_callable: typing.Callable[[], Connection],
         force_rollback: bool,
+        **kwargs: typing.Any,
     ) -> None:
         self._connection_callable = connection_callable
         self._force_rollback = force_rollback
+        self._extra_options = kwargs
 
     async def __aenter__(self) -> "Transaction":
         """
@@ -356,7 +361,9 @@ class Transaction:
         async with self._connection._transaction_lock:
             is_root = not self._connection._transaction_stack
             await self._connection.__aenter__()
-            await self._transaction.start(is_root=is_root)
+            await self._transaction.start(
+                is_root=is_root, extra_options=self._extra_options
+            )
             self._connection._transaction_stack.append(self)
         return self
 
@@ -382,7 +389,14 @@ class _EmptyNetloc(str):
 
 class DatabaseURL:
     def __init__(self, url: typing.Union[str, "DatabaseURL"]):
-        self._url = str(url)
+        if isinstance(url, DatabaseURL):
+            self._url: str = url._url
+        elif isinstance(url, str):
+            self._url = url
+        else:
+            raise TypeError(
+                f"Invalid type for DatabaseURL. Expected str or DatabaseURL, got {type(url)}"
+            )
 
     @property
     def components(self) -> SplitResult:
@@ -405,12 +419,25 @@ class DatabaseURL:
         return self.components.scheme.split("+", 1)[1]
 
     @property
+    def userinfo(self) -> typing.Optional[bytes]:
+        if self.components.username:
+            info = self.components.username
+            if self.components.password:
+                info += ":" + self.components.password
+            return info.encode("utf-8")
+        return None
+
+    @property
     def username(self) -> typing.Optional[str]:
-        return self.components.username
+        if self.components.username is None:
+            return None
+        return unquote(self.components.username)
 
     @property
     def password(self) -> typing.Optional[str]:
-        return self.components.password
+        if self.components.password is None:
+            return None
+        return unquote(self.components.password)
 
     @property
     def hostname(self) -> typing.Optional[str]:
@@ -429,7 +456,7 @@ class DatabaseURL:
         path = self.components.path
         if path.startswith("/"):
             path = path[1:]
-        return path
+        return unquote(path)
 
     @property
     def options(self) -> dict:
@@ -446,8 +473,8 @@ class DatabaseURL:
         ):
             hostname = kwargs.pop("hostname", self.hostname)
             port = kwargs.pop("port", self.port)
-            username = kwargs.pop("username", self.username)
-            password = kwargs.pop("password", self.password)
+            username = kwargs.pop("username", self.components.username)
+            password = kwargs.pop("password", self.components.password)
 
             netloc = hostname
             if port is not None:

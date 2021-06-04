@@ -155,6 +155,24 @@ async def test_queries(database_url):
             result = await database.fetch_val(query=query)
             assert result == "example1"
 
+            # fetch_val() with no rows
+            query = sqlalchemy.sql.select([notes.c.text]).where(
+                notes.c.text == "impossible"
+            )
+            result = await database.fetch_val(query=query)
+            assert result is None
+
+            # fetch_val() with a different column
+            query = sqlalchemy.sql.select([notes.c.id, notes.c.text])
+            result = await database.fetch_val(query=query, column=1)
+            assert result == "example1"
+
+            # row access (needed to maintain test coverage for Record.__getitem__ in postgres backend)
+            query = sqlalchemy.sql.select([notes.c.text])
+            result = await database.fetch_one(query=query)
+            assert result["text"] == "example1"
+            assert result[0] == "example1"
+
             # iterate()
             query = notes.select()
             iterate_results = []
@@ -206,6 +224,16 @@ async def test_queries_raw(database_url):
             assert result["text"] == "example2"
             assert result["completed"] == False
 
+            # fetch_val()
+            query = "SELECT completed FROM notes WHERE text = :text"
+            result = await database.fetch_val(query=query, values={"text": "example1"})
+            assert result == True
+            query = "SELECT * FROM notes WHERE text = :text"
+            result = await database.fetch_val(
+                query=query, values={"text": "example1"}, column="completed"
+            )
+            assert result == True
+
             # iterate()
             query = "SELECT * FROM notes"
             iterate_results = []
@@ -218,6 +246,24 @@ async def test_queries_raw(database_url):
             assert iterate_results[1]["completed"] == False
             assert iterate_results[2]["text"] == "example3"
             assert iterate_results[2]["completed"] == True
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_ddl_queries(database_url):
+    """
+    Test that the built-in DDL elements such as `DropTable()`,
+    `CreateTable()` are supported (using SQLAlchemy core).
+    """
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            # DropTable()
+            query = sqlalchemy.schema.DropTable(notes)
+            await database.execute(query)
+
+            # CreateTable()
+            query = sqlalchemy.schema.CreateTable(notes)
+            await database.execute(query)
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
@@ -390,6 +436,47 @@ async def test_transaction_commit(database_url):
             query = notes.select()
             results = await database.fetch_all(query=query)
             assert len(results) == 1
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_transaction_commit_serializable(database_url):
+    """
+    Ensure that serializable transaction commit via extra parameters is supported.
+    """
+
+    database_url = DatabaseURL(database_url)
+
+    if database_url.scheme != "postgresql":
+        pytest.skip("Test (currently) only supports asyncpg")
+
+    def insert_independently():
+        engine = sqlalchemy.create_engine(str(database_url))
+        conn = engine.connect()
+
+        query = notes.insert().values(text="example1", completed=True)
+        conn.execute(query)
+
+    def delete_independently():
+        engine = sqlalchemy.create_engine(str(database_url))
+        conn = engine.connect()
+
+        query = notes.delete()
+        conn.execute(query)
+
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True, isolation="serializable"):
+            query = notes.select()
+            results = await database.fetch_all(query=query)
+            assert len(results) == 0
+
+            insert_independently()
+
+            query = notes.select()
+            results = await database.fetch_all(query=query)
+            assert len(results) == 0
+
+            delete_independently()
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)

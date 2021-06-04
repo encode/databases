@@ -8,6 +8,7 @@ from sqlalchemy.dialects.mysql import pymysql
 from sqlalchemy.engine.interfaces import Dialect, ExecutionContext
 from sqlalchemy.engine.result import ResultMetaData, RowProxy
 from sqlalchemy.sql import ClauseElement
+from sqlalchemy.sql.ddl import DDLElement
 from sqlalchemy.types import TypeEngine
 
 from databases.core import LOG_EXTRA, DatabaseURL
@@ -32,12 +33,15 @@ class MySQLBackend(DatabaseBackend):
         kwargs = {}
         min_size = url_options.get("min_size")
         max_size = url_options.get("max_size")
+        pool_recycle = url_options.get("pool_recycle")
         ssl = url_options.get("ssl")
 
         if min_size is not None:
             kwargs["minsize"] = int(min_size)
         if max_size is not None:
             kwargs["maxsize"] = int(max_size)
+        if pool_recycle is not None:
+            kwargs["pool_recycle"] = int(pool_recycle)
         if ssl is not None:
             kwargs["ssl"] = {"true": True, "false": False}[ssl.lower()]
 
@@ -168,18 +172,23 @@ class MySQLConnection(ConnectionBackend):
         self, query: ClauseElement
     ) -> typing.Tuple[str, dict, CompilationContext]:
         compiled = query.compile(dialect=self._dialect)
-        args = compiled.construct_params()
-        for key, val in args.items():
-            if key in compiled._bind_processors:
-                args[key] = compiled._bind_processors[key](val)
 
         execution_context = self._dialect.execution_ctx_cls()
         execution_context.dialect = self._dialect
-        execution_context.result_column_struct = (
-            compiled._result_columns,
-            compiled._ordered_columns,
-            compiled._textual_ordered_columns,
-        )
+
+        if not isinstance(query, DDLElement):
+            args = compiled.construct_params()
+            for key, val in args.items():
+                if key in compiled._bind_processors:
+                    args[key] = compiled._bind_processors[key](val)
+
+            execution_context.result_column_struct = (
+                compiled._result_columns,
+                compiled._ordered_columns,
+                compiled._textual_ordered_columns,
+            )
+        else:
+            args = {}
 
         query_message = compiled.string.replace(" \n", " ").replace("\n", " ")
         logger.debug("Query: %s Args: %s", query_message, repr(args), extra=LOG_EXTRA)
@@ -197,7 +206,9 @@ class MySQLTransaction(TransactionBackend):
         self._is_root = False
         self._savepoint_name = ""
 
-    async def start(self, is_root: bool) -> None:
+    async def start(
+        self, is_root: bool, extra_options: typing.Dict[typing.Any, typing.Any]
+    ) -> None:
         assert self._connection._connection is not None, "Connection is not acquired"
         self._is_root = is_root
         if self._is_root:

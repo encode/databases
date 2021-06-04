@@ -1,8 +1,7 @@
 # Notes...
 # The JSONField tests require sqlalchemy 1.3+. Other cases work at lower versions.
 # The aiocontextvars package is only required as a backport for Python 3.6.
-sqlalchemy>=1.3.0
-aiocontextvars;python_version<"3.7"
+-e .
 
 # Async database drivers
 aiomysql
