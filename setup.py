@@ -55,7 +55,8 @@ setup(
         "postgresql": ["asyncpg"],
         "mysql": ["aiomysql"],
         "sqlite": ["aiosqlite"],
-        "postgresql+aiopg": ["aiopg"]
+        "postgresql+aiopg": ["aiopg"],
+        "postgresql-aiopg": ["aiopg"]
     },
     classifiers=[
         "Development Status :: 3 - Alpha",
