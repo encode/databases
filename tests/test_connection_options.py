@@ -1,12 +1,13 @@
 """
 Unit tests for the backend connection arguments.
 """
+import pytest
 
 from databases.backends.aiopg import AiopgBackend
 from databases.backends.mysql import MySQLBackend
 from databases.backends.postgres import PostgresBackend
 from databases.core import DatabaseURL
-from tests.test_databases import DATABASE_URLS, async_adapter
+from tests.test_databases import DATABASE_URLS
 
 
 def test_postgres_pool_size():
@@ -15,7 +16,7 @@ def test_postgres_pool_size():
     assert kwargs == {"min_size": 1, "max_size": 20}
 
 
-@async_adapter
+@pytest.mark.anyio
 async def test_postgres_pool_size_connect():
     for url in DATABASE_URLS:
         if DatabaseURL(url).dialect != "postgresql":
