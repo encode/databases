@@ -192,7 +192,7 @@ class Database:
     def transaction(
         self, *, force_rollback: bool = False, **kwargs: typing.Any
     ) -> "Transaction":
-        try: 
+        try:
             connection = self._connection_context.get()
             is_root = not connection._transaction_stack
             if is_root:

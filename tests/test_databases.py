@@ -997,13 +997,15 @@ async def test_column_names(database_url, select_query):
             assert results[0]["text"] == "example1"
             assert results[0]["completed"] == True
 
+
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
 async def test_parallel_transactions(database_url):
     """
-    Test parallel transaction execution. 
+    Test parallel transaction execution.
     """
-    async def test_task(db): 
+
+    async def test_task(db):
         async with db.transaction():
             await db.fetch_one("SELECT 1")
 
@@ -1012,4 +1014,3 @@ async def test_parallel_transactions(database_url):
 
         tasks = [test_task(database) for i in range(4)]
         await asyncio.gather(*tasks)
-
