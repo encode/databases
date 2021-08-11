@@ -5,7 +5,7 @@ import logging
 import sys
 import typing
 from types import TracebackType
-from urllib.parse import SplitResult, parse_qsl, urlsplit, unquote
+from urllib.parse import SplitResult, parse_qsl, unquote, urlsplit
 
 from sqlalchemy import text
 from sqlalchemy.sql import ClauseElement
@@ -14,11 +14,11 @@ from databases.importer import import_from_string
 from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend
 
 if sys.version_info >= (3, 7):  # pragma: no cover
-    from contextvars import ContextVar
     import contextvars as contextvars
+    from contextvars import ContextVar
 else:  # pragma: no cover
-    from aiocontextvars import ContextVar
     import aiocontextvars as contextvars
+    from aiocontextvars import ContextVar
 
 try:  # pragma: no cover
     import click
