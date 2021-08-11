@@ -194,9 +194,10 @@ class Database:
     ) -> "Transaction":
         try: 
             connection = self._connection_context.get()
-            if not connection._transaction_stack:
+            is_root = not connection._transaction_stack
+            if is_root:
                 newcontext = contextvars.copy_context()
-                get_conn  = lambda: newcontext.run(self._new_connection)
+                get_conn = lambda: newcontext.run(self._new_connection)
             else:
                 get_conn = self.connection
         except LookupError:
