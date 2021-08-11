@@ -373,7 +373,6 @@ class Transaction:
     async def start(self) -> "Transaction":
         self._connection = self._connection_callable()
         self._transaction = self._connection._connection.transaction()
-        logger.warning(self._connection)
 
         async with self._connection._transaction_lock:
             is_root = not self._connection._transaction_stack
