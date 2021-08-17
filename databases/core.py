@@ -68,7 +68,9 @@ class Database:
         self._backend = backend_cls(self.url, **self.options)
 
         # Connections are stored as task-local state.
-        self._connection_context = contextvars.ContextVar("connection_context")  # type: contextvars.ContextVar
+        self._connection_context = contextvars.ContextVar(
+            "connection_context"
+        )  # type: contextvars.ContextVar
 
         # When `force_rollback=True` is used, we use a single global
         # connection, within a transaction that always rolls back.
