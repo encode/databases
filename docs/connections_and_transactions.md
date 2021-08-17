@@ -62,14 +62,15 @@ database = Database('postgresql://localhost/example', ssl=True, min_size=5, max_
 Transactions are managed by async context blocks:
 
 ```python
-async with database.transaction():
+async with database.connection() as connection:
+    async with connection.transaction():
     ...
 ```
 
 For a lower-level transaction API:
 
 ```python
-transaction = await database.transaction()
+transaction = await connection.transaction()
 try:
     await transaction.start()
     ...
