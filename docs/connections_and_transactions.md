@@ -78,7 +78,7 @@ async with database.connection() as connection:
 For a lower-level transaction API:
 
 ```python
-transaction = await connection.transaction()
+transaction = await database.transaction()
 try:
     await transaction.start()
     ...
