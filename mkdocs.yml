@@ -15,6 +15,7 @@ nav:
     - Tests & Migrations: 'tests_and_migrations.md'
 
 markdown_extensions:
+  - mkautodoc
   - admonition
   - pymdownx.highlight
   - pymdownx.superfences
