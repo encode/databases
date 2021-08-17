@@ -23,3 +23,12 @@ pytest
 pytest-cov
 starlette
 requests
+
+# Documentation
+mkdocs
+mkdocs-material
+mkautodoc
+
+# Packaging
+twine
+wheel
