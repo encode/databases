@@ -15,10 +15,8 @@ from databases.interfaces import ConnectionBackend, DatabaseBackend, Transaction
 
 if sys.version_info >= (3, 7):  # pragma: no cover
     import contextvars as contextvars
-    from contextvars import ContextVar
 else:  # pragma: no cover
     import aiocontextvars as contextvars
-    from aiocontextvars import ContextVar
 
 try:  # pragma: no cover
     import click
@@ -70,7 +68,7 @@ class Database:
         self._backend = backend_cls(self.url, **self.options)
 
         # Connections are stored as task-local state.
-        self._connection_context = ContextVar("connection_context")  # type: ContextVar
+        self._connection_context = contextvars.ContextVar("connection_context")  # type: contextvars.ContextVar
 
         # When `force_rollback=True` is used, we use a single global
         # connection, within a transaction that always rolls back.
