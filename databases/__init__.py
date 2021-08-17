@@ -1,4 +1,4 @@
 from databases.core import Database, DatabaseURL
 
-__version__ = "0.4.3"
+__version__ = "0.4.4"
 __all__ = ["Database", "DatabaseURL"]
