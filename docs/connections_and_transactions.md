@@ -64,7 +64,7 @@ Transactions are managed by async context blocks:
 ```python
 async with database.connection() as connection:
     async with connection.transaction():
-    ...
+        ...
 ```
 
 For a lower-level transaction API:
