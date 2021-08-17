@@ -59,11 +59,20 @@ database = Database('postgresql://localhost/example', ssl=True, min_size=5, max_
 
 ## Transactions
 
-Transactions are managed by async context blocks:
+Transactions are managed by async context blocks.
+
+A transaction can be acquired from the database connection pool:
 
 ```python
 async with database.transaction():
     ...
+```
+It can also be acquired from a specific database connection:
+
+```python
+async with database.connection() as connection:
+    async with connection.transaction():
+        ...
 ```
 
 For a lower-level transaction API:
