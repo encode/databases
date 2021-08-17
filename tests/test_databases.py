@@ -800,7 +800,7 @@ async def test_queries_with_expose_backend_connection(database_url):
     """
     async with Database(database_url) as database:
         async with database.connection() as connection:
-            async with database.transaction(force_rollback=True):
+            async with connection.transaction(force_rollback=True):
                 # Get the raw connection
                 raw_connection = connection.raw_connection
 
@@ -996,3 +996,21 @@ async def test_column_names(database_url, select_query):
             assert sorted(results[0].keys()) == ["completed", "id", "text"]
             assert results[0]["text"] == "example1"
             assert results[0]["completed"] == True
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_parallel_transactions(database_url):
+    """
+    Test parallel transaction execution.
+    """
+
+    async def test_task(db):
+        async with db.transaction():
+            await db.fetch_one("SELECT 1")
+
+    async with Database(database_url) as database:
+        await database.fetch_one("SELECT 1")
+
+        tasks = [test_task(database) for i in range(4)]
+        await asyncio.gather(*tasks)
