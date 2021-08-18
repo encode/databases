@@ -144,10 +144,9 @@ class MySQLConnection(ConnectionBackend):
     async def execute_many(self, queries: typing.List[ClauseElement]) -> None:
         assert self._connection is not None, "Connection is not acquired"
         cursor = await self._connection.cursor()
+        query, values = self._compile_many(queries)
         try:
-            for single_query in queries:
-                single_query, args, context = self._compile(single_query)
-                await cursor.execute(single_query, args)
+            await cursor.executemany(query, values)
         finally:
             await cursor.close()
 
@@ -193,6 +192,16 @@ class MySQLConnection(ConnectionBackend):
         query_message = compiled.string.replace(" \n", " ").replace("\n", " ")
         logger.debug("Query: %s Args: %s", query_message, repr(args), extra=LOG_EXTRA)
         return compiled.string, args, CompilationContext(execution_context)
+
+    def _compile_many(
+        self, queries: typing.List[ClauseElement]
+    ) -> typing.Tuple[str, typing.Sequence[dict]]:
+        """
+        Compile single query and list of values for executemany method.
+        """
+        compiled_queries = [self._compile(query) for query in queries]
+        compiled_values = [compiled_query[1] for compiled_query in compiled_queries]
+        return compiled_queries[0][0], compiled_values
 
     @property
     def raw_connection(self) -> aiomysql.connection.Connection:
