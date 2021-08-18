@@ -190,12 +190,14 @@ class PostgresConnection(ConnectionBackend):
 
     async def execute_many(self, queries: typing.List[ClauseElement]) -> None:
         assert self._connection is not None, "Connection is not acquired"
-        # asyncpg uses prepared statements under the hood, so we just
-        # loop through multiple executes here, which should all end up
-        # using the same prepared statement.
+        query = ""
+        values = []
+
         for single_query in queries:
-            single_query, args, result_columns = self._compile(single_query)
-            await self._connection.execute(single_query, *args)
+            query, args, _ = self._compile(single_query)
+            values.append(args)
+
+        await self._connection.executemany(query, values)
 
     async def iterate(
         self, query: ClauseElement
