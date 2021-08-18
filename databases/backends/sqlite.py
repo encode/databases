@@ -120,8 +120,9 @@ class SQLiteConnection(ConnectionBackend):
 
     async def execute_many(self, queries: typing.List[ClauseElement]) -> None:
         assert self._connection is not None, "Connection is not acquired"
-        for single_query in queries:
-            await self.execute(single_query)
+        query, values = self._compile_many(queries)
+        async with self._connection.cursor() as cursor:
+            await cursor.executemany(query, values)
 
     async def iterate(
         self, query: ClauseElement
@@ -165,6 +166,16 @@ class SQLiteConnection(ConnectionBackend):
             "Query: %s Args: %s", query_message, repr(tuple(args)), extra=LOG_EXTRA
         )
         return compiled.string, args, CompilationContext(execution_context)
+
+    def _compile_many(
+        self, queries: typing.List[ClauseElement]
+    ) -> typing.Tuple[str, list]:
+        """
+        Compile single query and list of values for executemany method.
+        """
+        compiled_queries = [self._compile(query) for query in queries]
+        compiled_values = [compiled_query[1] for compiled_query in compiled_queries]
+        return compiled_queries[0][0], compiled_values
 
     @property
     def raw_connection(self) -> aiosqlite.core.Connection:

@@ -190,13 +190,7 @@ class PostgresConnection(ConnectionBackend):
 
     async def execute_many(self, queries: typing.List[ClauseElement]) -> None:
         assert self._connection is not None, "Connection is not acquired"
-        query = ""
-        values = []
-
-        for single_query in queries:
-            query, args, _ = self._compile(single_query)
-            values.append(args)
-
+        query, values = self._compile_many(queries)
         await self._connection.executemany(query, values)
 
     async def iterate(
@@ -239,6 +233,16 @@ class PostgresConnection(ConnectionBackend):
             "Query: %s Args: %s", query_message, repr(tuple(args)), extra=LOG_EXTRA
         )
         return compiled_query, args, result_map
+
+    def _compile_many(
+        self, queries: typing.List[ClauseElement]
+    ) -> typing.Tuple[str, list]:
+        """
+        Compile single query and list of values for executemany method.
+        """
+        compiled_queries = [self._compile(query) for query in queries]
+        compiled_values = [compiled_query[1] for compiled_query in compiled_queries]
+        return compiled_queries[0][0], compiled_values
 
     @staticmethod
     def _create_column_maps(
