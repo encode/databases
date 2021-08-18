@@ -48,12 +48,15 @@ setup(
     packages=get_packages("databases"),
     package_data={"databases": ["py.typed"]},
     data_files=[("", ["LICENSE.md"])],
-    install_requires=['sqlalchemy<1.4', 'aiocontextvars;python_version<"3.7"'],
+    install_requires=['sqlalchemy<1.4', 'aiocontextvars;python_version<"3.7"', 'anyio~=3.2'],
     extras_require={
+        "trio-postgresql": ["anyio[trio]", "triopg"],
+        "trio-mysql": ["anyio[trio]", "trio-mysql"],
         "postgresql": ["asyncpg"],
         "mysql": ["aiomysql"],
         "sqlite": ["aiosqlite"],
-        "postgresql+aiopg": ["aiopg"]
+        "postgresql+aiopg": ["aiopg"],
+        "postgresql-aiopg": ["aiopg"]
     },
     classifiers=[
         "Development Status :: 3 - Alpha",

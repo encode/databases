@@ -1,4 +1,4 @@
-import asyncio
+import anyio
 import contextlib
 import functools
 import logging
@@ -219,14 +219,14 @@ class Connection:
     def __init__(self, backend: DatabaseBackend) -> None:
         self._backend = backend
 
-        self._connection_lock = asyncio.Lock()
+        self._connection_lock = anyio.Lock()
         self._connection = self._backend.connection()
         self._connection_counter = 0
 
-        self._transaction_lock = asyncio.Lock()
+        self._transaction_lock = anyio.Lock()
         self._transaction_stack = []  # type: typing.List[Transaction]
 
-        self._query_lock = asyncio.Lock()
+        self._query_lock = anyio.Lock()
 
     async def __aenter__(self) -> "Connection":
         async with self._connection_lock:
