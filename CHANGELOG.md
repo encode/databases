@@ -6,9 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## 0.4.4 (August 26th, 2021)
 
+### Added
+* Support SQLAlchemy 1.4 (#299)
+
 ### Fixed
 
-* Pin SQLAlchemy >=1.4,<1.5 (#299)
 * Fix concurrent transactions (#328)
 
 ## 0.4.3 (March 26th, 2021)
