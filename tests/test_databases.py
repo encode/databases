@@ -3,6 +3,7 @@ import datetime
 import decimal
 import functools
 import os
+import re
 
 import pytest
 import sqlalchemy
@@ -336,8 +337,8 @@ async def test_result_values_allow_duplicate_names(database_url):
             query = "SELECT 1 AS id, 2 AS id"
             row = await database.fetch_one(query=query)
 
-            assert list(row.keys()) == ["id", "id"]
-            assert list(row.values()) == [1, 2]
+            assert list(row._mapping.keys()) == ["id", "id"]
+            assert list(row._mapping.values()) == [1, 2]
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
@@ -981,7 +982,7 @@ async def test_iterate_outside_transaction_with_temp_table(database_url):
 @async_adapter
 async def test_column_names(database_url, select_query):
     """
-    Test that column names are exposed correctly through `.keys()` on each row.
+    Test that column names are exposed correctly through `._mapping.keys()` on each row.
     """
     async with Database(database_url) as database:
         async with database.transaction(force_rollback=True):
@@ -993,7 +994,7 @@ async def test_column_names(database_url, select_query):
             results = await database.fetch_all(query=select_query)
             assert len(results) == 1
 
-            assert sorted(results[0].keys()) == ["completed", "id", "text"]
+            assert sorted(results[0]._mapping.keys()) == ["completed", "id", "text"]
             assert results[0]["text"] == "example1"
             assert results[0]["completed"] == True
 
@@ -1014,3 +1015,49 @@ async def test_parallel_transactions(database_url):
 
         tasks = [test_task(database) for i in range(4)]
         await asyncio.gather(*tasks)
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_posgres_interface(database_url):
+    """
+    Since SQLAlchemy 1.4, `Row.values()` is removed and `Row.keys()` is deprecated.
+    Custom postgres interface mimics more or less this behaviour by deprecating those
+    two methods
+    """
+    database_url = DatabaseURL(database_url)
+
+    if database_url.scheme != "postgresql":
+        pytest.skip("Test is only for postgresql")
+
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            query = notes.insert()
+            values = {"text": "example1", "completed": True}
+            await database.execute(query, values)
+
+            query = notes.select()
+            result = await database.fetch_one(query=query)
+
+            with pytest.warns(
+                DeprecationWarning,
+                match=re.escape(
+                    "The `Row.keys()` method is deprecated to mimic SQLAlchemy behaviour, "
+                    "use `Row._mapping.keys()` instead."
+                ),
+            ):
+                assert (
+                    list(result.keys())
+                    == [k for k in result]
+                    == ["id", "text", "completed"]
+                )
+
+            with pytest.warns(
+                DeprecationWarning,
+                match=re.escape(
+                    "The `Row.values()` method is deprecated to mimic SQLAlchemy behaviour, "
+                    "use `Row._mapping.values()` instead."
+                ),
+            ):
+                # avoid checking `id` at index 0 since it may change depending on the launched tests
+                assert list(result.values())[1:] == ["example1", True]

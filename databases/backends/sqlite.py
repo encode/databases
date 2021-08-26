@@ -4,11 +4,11 @@ import uuid
 
 import aiosqlite
 from sqlalchemy.dialects.sqlite import pysqlite
+from sqlalchemy.engine.cursor import CursorResultMetaData
 from sqlalchemy.engine.interfaces import Dialect, ExecutionContext
-from sqlalchemy.engine.result import ResultMetaData, RowProxy
+from sqlalchemy.engine.result import Row
 from sqlalchemy.sql import ClauseElement
 from sqlalchemy.sql.ddl import DDLElement
-from sqlalchemy.types import TypeEngine
 
 from databases.core import LOG_EXTRA, DatabaseURL
 from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend
@@ -92,9 +92,15 @@ class SQLiteConnection(ConnectionBackend):
 
         async with self._connection.execute(query, args) as cursor:
             rows = await cursor.fetchall()
-            metadata = ResultMetaData(context, cursor.description)
+            metadata = CursorResultMetaData(context, cursor.description)
             return [
-                RowProxy(metadata, row, metadata._processors, metadata._keymap)
+                Row(
+                    metadata,
+                    metadata._processors,
+                    metadata._keymap,
+                    Row._default_key_style,
+                    row,
+                )
                 for row in rows
             ]
 
@@ -106,8 +112,14 @@ class SQLiteConnection(ConnectionBackend):
             row = await cursor.fetchone()
             if row is None:
                 return None
-            metadata = ResultMetaData(context, cursor.description)
-            return RowProxy(metadata, row, metadata._processors, metadata._keymap)
+            metadata = CursorResultMetaData(context, cursor.description)
+            return Row(
+                metadata,
+                metadata._processors,
+                metadata._keymap,
+                Row._default_key_style,
+                row,
+            )
 
     async def execute(self, query: ClauseElement) -> typing.Any:
         assert self._connection is not None, "Connection is not acquired"
@@ -129,9 +141,15 @@ class SQLiteConnection(ConnectionBackend):
         assert self._connection is not None, "Connection is not acquired"
         query, args, context = self._compile(query)
         async with self._connection.execute(query, args) as cursor:
-            metadata = ResultMetaData(context, cursor.description)
+            metadata = CursorResultMetaData(context, cursor.description)
             async for row in cursor:
-                yield RowProxy(metadata, row, metadata._processors, metadata._keymap)
+                yield Row(
+                    metadata,
+                    metadata._processors,
+                    metadata._keymap,
+                    Row._default_key_style,
+                    row,
+                )
 
     def transaction(self) -> TransactionBackend:
         return SQLiteTransaction(self)
@@ -158,6 +176,7 @@ class SQLiteConnection(ConnectionBackend):
                 compiled._result_columns,
                 compiled._ordered_columns,
                 compiled._textual_ordered_columns,
+                compiled._loose_column_name_matching,
             )
 
         query_message = compiled.string.replace(" \n", " ").replace("\n", " ")
