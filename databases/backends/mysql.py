@@ -7,7 +7,7 @@ import aiomysql
 from sqlalchemy.dialects.mysql import pymysql
 from sqlalchemy.engine.cursor import CursorResultMetaData
 from sqlalchemy.engine.interfaces import Dialect, ExecutionContext
-from sqlalchemy.engine.result import Row
+from sqlalchemy.engine.row import Row
 from sqlalchemy.sql import ClauseElement
 from sqlalchemy.sql.ddl import DDLElement
 
@@ -102,10 +102,10 @@ class MySQLConnection(ConnectionBackend):
 
     async def fetch_all(self, query: ClauseElement) -> typing.List[typing.Mapping]:
         assert self._connection is not None, "Connection is not acquired"
-        query, args, context = self._compile(query)
+        query_str, args, context = self._compile(query)
         cursor = await self._connection.cursor()
         try:
-            await cursor.execute(query, args)
+            await cursor.execute(query_str, args)
             rows = await cursor.fetchall()
             metadata = CursorResultMetaData(context, cursor.description)
             return [
@@ -123,10 +123,10 @@ class MySQLConnection(ConnectionBackend):
 
     async def fetch_one(self, query: ClauseElement) -> typing.Optional[typing.Mapping]:
         assert self._connection is not None, "Connection is not acquired"
-        query, args, context = self._compile(query)
+        query_str, args, context = self._compile(query)
         cursor = await self._connection.cursor()
         try:
-            await cursor.execute(query, args)
+            await cursor.execute(query_str, args)
             row = await cursor.fetchone()
             if row is None:
                 return None
@@ -143,10 +143,10 @@ class MySQLConnection(ConnectionBackend):
 
     async def execute(self, query: ClauseElement) -> typing.Any:
         assert self._connection is not None, "Connection is not acquired"
-        query, args, context = self._compile(query)
+        query_str, args, context = self._compile(query)
         cursor = await self._connection.cursor()
         try:
-            await cursor.execute(query, args)
+            await cursor.execute(query_str, args)
             if cursor.lastrowid == 0:
                 return cursor.rowcount
             return cursor.lastrowid
@@ -167,10 +167,10 @@ class MySQLConnection(ConnectionBackend):
         self, query: ClauseElement
     ) -> typing.AsyncGenerator[typing.Any, None]:
         assert self._connection is not None, "Connection is not acquired"
-        query, args, context = self._compile(query)
+        query_str, args, context = self._compile(query)
         cursor = await self._connection.cursor()
         try:
-            await cursor.execute(query, args)
+            await cursor.execute(query_str, args)
             metadata = CursorResultMetaData(context, cursor.description)
             async for row in cursor:
                 yield Row(
