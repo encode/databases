@@ -170,16 +170,16 @@ class PostgresConnection(ConnectionBackend):
 
     async def fetch_all(self, query: ClauseElement) -> typing.List[typing.Mapping]:
         assert self._connection is not None, "Connection is not acquired"
-        query, args, result_columns = self._compile(query)
-        rows = await self._connection.fetch(query, *args)
+        query_str, args, result_columns = self._compile(query)
+        rows = await self._connection.fetch(query_str, *args)
         dialect = self._dialect
         column_maps = self._create_column_maps(result_columns)
         return [Record(row, result_columns, dialect, column_maps) for row in rows]
 
     async def fetch_one(self, query: ClauseElement) -> typing.Optional[typing.Mapping]:
         assert self._connection is not None, "Connection is not acquired"
-        query, args, result_columns = self._compile(query)
-        row = await self._connection.fetchrow(query, *args)
+        query_str, args, result_columns = self._compile(query)
+        row = await self._connection.fetchrow(query_str, *args)
         if row is None:
             return None
         return Record(
@@ -206,8 +206,8 @@ class PostgresConnection(ConnectionBackend):
 
     async def execute(self, query: ClauseElement) -> typing.Any:
         assert self._connection is not None, "Connection is not acquired"
-        query, args, result_columns = self._compile(query)
-        return await self._connection.fetchval(query, *args)
+        query_str, args, result_columns = self._compile(query)
+        return await self._connection.fetchval(query_str, *args)
 
     async def execute_many(self, queries: typing.List[ClauseElement]) -> None:
         assert self._connection is not None, "Connection is not acquired"
@@ -222,9 +222,9 @@ class PostgresConnection(ConnectionBackend):
         self, query: ClauseElement
     ) -> typing.AsyncGenerator[typing.Any, None]:
         assert self._connection is not None, "Connection is not acquired"
-        query, args, result_columns = self._compile(query)
+        query_str, args, result_columns = self._compile(query)
         column_maps = self._create_column_maps(result_columns)
-        async for row in self._connection.cursor(query, *args):
+        async for row in self._connection.cursor(query_str, *args):
             yield Record(row, result_columns, self._dialect, column_maps)
 
     def transaction(self) -> TransactionBackend:
