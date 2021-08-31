@@ -1069,15 +1069,12 @@ async def test_postcompile_queries(database_url):
     """
     Since SQLAlchemy 1.4, IN operators needs to do render_postcompile
     """
-
     async with Database(database_url) as database:
         query = notes.insert()
         values = {"text": "example1", "completed": True}
         await database.execute(query, values)
 
-        query = notes.select().where(notes.c.id.notin_([2, 3]))
+        query = notes.select().where(notes.c.id.in_([2, 3]))
         results = await database.fetch_all(query=query)
 
-        assert len(results) == 1
-        assert results[0]["text"] == "example1"
-        assert results[0]["completed"] == True
+        assert len(results) == 0
