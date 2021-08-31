@@ -231,7 +231,9 @@ class PostgresConnection(ConnectionBackend):
         return PostgresTransaction(connection=self)
 
     def _compile(self, query: ClauseElement) -> typing.Tuple[str, list, tuple]:
-        compiled = query.compile(dialect=self._dialect)
+        compiled = query.compile(
+            dialect=self._dialect, compile_kwargs={"render_postcompile": True}
+        )
 
         if not isinstance(query, DDLElement):
             compiled_params = sorted(compiled.params.items())
