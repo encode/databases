@@ -737,6 +737,14 @@ async def test_connect_and_disconnect(database_url):
     await database.disconnect()
     assert not database.is_connected
 
+    # connect and disconnect idempotence
+    await database.connect()
+    await database.connect()
+    assert database.is_connected
+    await database.disconnect()
+    await database.disconnect()
+    assert not database.is_connected
+
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter

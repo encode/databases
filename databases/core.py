@@ -81,7 +81,9 @@ class Database:
         """
         Establish the connection pool.
         """
-        assert not self.is_connected, "Already connected."
+        if self.is_connected:
+            logger.debug("Already connected, skipping connection")
+            return None
 
         await self._backend.connect()
         logger.info(
@@ -104,7 +106,9 @@ class Database:
         """
         Close all connections in the connection pool.
         """
-        assert self.is_connected, "Already disconnected."
+        if not self.is_connected:
+            logger.debug("Already disconnected, skipping disconnection")
+            return None
 
         if self._force_rollback:
             assert self._global_connection is not None
