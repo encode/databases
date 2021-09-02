@@ -214,7 +214,7 @@ class MySQLConnection(ConnectionBackend):
 
     def _compile_many(
         self, queries: typing.List[ClauseElement]
-    ) -> typing.Tuple[str, typing.Sequence[dict]]:
+    ) -> typing.Tuple[str, typing.List[dict]]:
         """
         Compile single query and list of values for executemany method.
         """
