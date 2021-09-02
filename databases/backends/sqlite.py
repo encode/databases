@@ -157,7 +157,9 @@ class SQLiteConnection(ConnectionBackend):
     def _compile(
         self, query: ClauseElement
     ) -> typing.Tuple[str, list, CompilationContext]:
-        compiled = query.compile(dialect=self._dialect)
+        compiled = query.compile(
+            dialect=self._dialect, compile_kwargs={"render_postcompile": True}
+        )
 
         execution_context = self._dialect.execution_ctx_cls()
         execution_context.dialect = self._dialect
