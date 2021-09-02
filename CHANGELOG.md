@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 0.5.1 (September 2nd, 2021)
+
+### Added
+
+* Make database `connect` and `disconnect` calls idempotent (#379)
+
+### Fixed
+
+* Fix `in_` and `notin_` queries in SQLAlchemy 1.4 (#378)
+
 ## 0.5.0 (August 26th, 2021)
 
 ### Added
