@@ -5,6 +5,7 @@
 
 # Async database drivers
 aiomysql
+asyncmy
 aiopg
 aiosqlite
 asyncpg

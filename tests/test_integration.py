@@ -28,7 +28,7 @@ def create_test_database():
     # Create test databases
     for url in DATABASE_URLS:
         database_url = DatabaseURL(url)
-        if database_url.scheme == "mysql":
+        if database_url.scheme in ["mysql", "mysql+asyncmy"]:
             url = str(database_url.replace(driver="pymysql"))
         elif database_url.scheme == "postgresql+aiopg":
             url = str(database_url.replace(driver=None))
@@ -41,7 +41,7 @@ def create_test_database():
     # Drop test databases
     for url in DATABASE_URLS:
         database_url = DatabaseURL(url)
-        if database_url.scheme == "mysql":
+        if database_url.scheme in ["mysql", "mysql+asyncmy"]:
             url = str(database_url.replace(driver="pymysql"))
         elif database_url.scheme == "postgresql+aiopg":
             url = str(database_url.replace(driver=None))

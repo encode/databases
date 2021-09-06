@@ -52,6 +52,7 @@ setup(
     extras_require={
         "postgresql": ["asyncpg"],
         "mysql": ["aiomysql"],
+        "mysql+asyncmy": ["asyncmy"],
         "sqlite": ["aiosqlite"],
         "postgresql+aiopg": ["aiopg"]
     },
