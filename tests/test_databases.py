@@ -283,16 +283,12 @@ async def test_queries_after_error(database_url):
         ):
             with pytest.raises(Exception, match="boo!"):
                 async with database.transaction(force_rollback=True):
-                    query = notes.insert()
-                    values = {"text": "example1", "completed": True}
-                    await database.execute(query, values)
+                    query = notes.select()
+                    await database.fetch_all(query)
 
         async with database.transaction(force_rollback=True):
-            # execute()
-            query = notes.insert()
-            values = {"text": "example1", "completed": True}
-
-            await database.execute(query, values)
+            query = notes.select()
+            await database.fetch_all(query)
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
