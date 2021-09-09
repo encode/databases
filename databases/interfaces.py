@@ -56,7 +56,9 @@ class ConnectionBackend:
 
 
 class TransactionBackend:
-    async def start(self, is_root: bool) -> None:
+    async def start(
+        self, is_root: bool, extra_options: typing.Dict[typing.Any, typing.Any]
+    ) -> None:
         raise NotImplementedError()  # pragma: no cover
 
     async def commit(self) -> None:

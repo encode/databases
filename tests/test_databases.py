@@ -3,6 +3,7 @@ import datetime
 import decimal
 import functools
 import os
+import re
 
 import pytest
 import sqlalchemy
@@ -155,6 +156,18 @@ async def test_queries(database_url):
             result = await database.fetch_val(query=query)
             assert result == "example1"
 
+            # fetch_val() with no rows
+            query = sqlalchemy.sql.select([notes.c.text]).where(
+                notes.c.text == "impossible"
+            )
+            result = await database.fetch_val(query=query)
+            assert result is None
+
+            # fetch_val() with a different column
+            query = sqlalchemy.sql.select([notes.c.id, notes.c.text])
+            result = await database.fetch_val(query=query, column=1)
+            assert result == "example1"
+
             # row access (needed to maintain test coverage for Record.__getitem__ in postgres backend)
             query = sqlalchemy.sql.select([notes.c.text])
             result = await database.fetch_one(query=query)
@@ -238,6 +251,24 @@ async def test_queries_raw(database_url):
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
+async def test_ddl_queries(database_url):
+    """
+    Test that the built-in DDL elements such as `DropTable()`,
+    `CreateTable()` are supported (using SQLAlchemy core).
+    """
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            # DropTable()
+            query = sqlalchemy.schema.DropTable(notes)
+            await database.execute(query)
+
+            # CreateTable()
+            query = sqlalchemy.schema.CreateTable(notes)
+            await database.execute(query)
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
 async def test_results_support_mapping_interface(database_url):
     """
     Casting results to a dict should work, since the interface defines them
@@ -306,8 +337,8 @@ async def test_result_values_allow_duplicate_names(database_url):
             query = "SELECT 1 AS id, 2 AS id"
             row = await database.fetch_one(query=query)
 
-            assert list(row.keys()) == ["id", "id"]
-            assert list(row.values()) == [1, 2]
+            assert list(row._mapping.keys()) == ["id", "id"]
+            assert list(row._mapping.values()) == [1, 2]
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
@@ -406,6 +437,47 @@ async def test_transaction_commit(database_url):
             query = notes.select()
             results = await database.fetch_all(query=query)
             assert len(results) == 1
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_transaction_commit_serializable(database_url):
+    """
+    Ensure that serializable transaction commit via extra parameters is supported.
+    """
+
+    database_url = DatabaseURL(database_url)
+
+    if database_url.scheme != "postgresql":
+        pytest.skip("Test (currently) only supports asyncpg")
+
+    def insert_independently():
+        engine = sqlalchemy.create_engine(str(database_url))
+        conn = engine.connect()
+
+        query = notes.insert().values(text="example1", completed=True)
+        conn.execute(query)
+
+    def delete_independently():
+        engine = sqlalchemy.create_engine(str(database_url))
+        conn = engine.connect()
+
+        query = notes.delete()
+        conn.execute(query)
+
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True, isolation="serializable"):
+            query = notes.select()
+            results = await database.fetch_all(query=query)
+            assert len(results) == 0
+
+            insert_independently()
+
+            query = notes.select()
+            results = await database.fetch_all(query=query)
+            assert len(results) == 0
+
+            delete_independently()
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
@@ -665,6 +737,14 @@ async def test_connect_and_disconnect(database_url):
     await database.disconnect()
     assert not database.is_connected
 
+    # connect and disconnect idempotence
+    await database.connect()
+    await database.connect()
+    assert database.is_connected
+    await database.disconnect()
+    await database.disconnect()
+    assert not database.is_connected
+
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
@@ -729,7 +809,7 @@ async def test_queries_with_expose_backend_connection(database_url):
     """
     async with Database(database_url) as database:
         async with database.connection() as connection:
-            async with database.transaction(force_rollback=True):
+            async with connection.transaction(force_rollback=True):
                 # Get the raw connection
                 raw_connection = connection.raw_connection
 
@@ -910,7 +990,7 @@ async def test_iterate_outside_transaction_with_temp_table(database_url):
 @async_adapter
 async def test_column_names(database_url, select_query):
     """
-    Test that column names are exposed correctly through `.keys()` on each row.
+    Test that column names are exposed correctly through `._mapping.keys()` on each row.
     """
     async with Database(database_url) as database:
         async with database.transaction(force_rollback=True):
@@ -922,6 +1002,87 @@ async def test_column_names(database_url, select_query):
             results = await database.fetch_all(query=select_query)
             assert len(results) == 1
 
-            assert sorted(results[0].keys()) == ["completed", "id", "text"]
+            assert sorted(results[0]._mapping.keys()) == ["completed", "id", "text"]
             assert results[0]["text"] == "example1"
             assert results[0]["completed"] == True
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_parallel_transactions(database_url):
+    """
+    Test parallel transaction execution.
+    """
+
+    async def test_task(db):
+        async with db.transaction():
+            await db.fetch_one("SELECT 1")
+
+    async with Database(database_url) as database:
+        await database.fetch_one("SELECT 1")
+
+        tasks = [test_task(database) for i in range(4)]
+        await asyncio.gather(*tasks)
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_posgres_interface(database_url):
+    """
+    Since SQLAlchemy 1.4, `Row.values()` is removed and `Row.keys()` is deprecated.
+    Custom postgres interface mimics more or less this behaviour by deprecating those
+    two methods
+    """
+    database_url = DatabaseURL(database_url)
+
+    if database_url.scheme != "postgresql":
+        pytest.skip("Test is only for postgresql")
+
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            query = notes.insert()
+            values = {"text": "example1", "completed": True}
+            await database.execute(query, values)
+
+            query = notes.select()
+            result = await database.fetch_one(query=query)
+
+            with pytest.warns(
+                DeprecationWarning,
+                match=re.escape(
+                    "The `Row.keys()` method is deprecated to mimic SQLAlchemy behaviour, "
+                    "use `Row._mapping.keys()` instead."
+                ),
+            ):
+                assert (
+                    list(result.keys())
+                    == [k for k in result]
+                    == ["id", "text", "completed"]
+                )
+
+            with pytest.warns(
+                DeprecationWarning,
+                match=re.escape(
+                    "The `Row.values()` method is deprecated to mimic SQLAlchemy behaviour, "
+                    "use `Row._mapping.values()` instead."
+                ),
+            ):
+                # avoid checking `id` at index 0 since it may change depending on the launched tests
+                assert list(result.values())[1:] == ["example1", True]
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_postcompile_queries(database_url):
+    """
+    Since SQLAlchemy 1.4, IN operators needs to do render_postcompile
+    """
+    async with Database(database_url) as database:
+        query = notes.insert()
+        values = {"text": "example1", "completed": True}
+        await database.execute(query, values)
+
+        query = notes.select().where(notes.c.id.in_([2, 3]))
+        results = await database.fetch_all(query=query)
+
+        assert len(results) == 0

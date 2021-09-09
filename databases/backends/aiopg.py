@@ -7,10 +7,11 @@ import uuid
 import aiopg
 from aiopg.sa.engine import APGCompiler_psycopg2
 from sqlalchemy.dialects.postgresql.psycopg2 import PGDialect_psycopg2
+from sqlalchemy.engine.cursor import CursorResultMetaData
 from sqlalchemy.engine.interfaces import Dialect, ExecutionContext
-from sqlalchemy.engine.result import ResultMetaData, RowProxy
+from sqlalchemy.engine.row import Row
 from sqlalchemy.sql import ClauseElement
-from sqlalchemy.types import TypeEngine
+from sqlalchemy.sql.ddl import DDLElement
 
 from databases.core import DatabaseURL
 from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend
@@ -113,14 +114,20 @@ class AiopgConnection(ConnectionBackend):
 
     async def fetch_all(self, query: ClauseElement) -> typing.List[typing.Mapping]:
         assert self._connection is not None, "Connection is not acquired"
-        query, args, context = self._compile(query)
+        query_str, args, context = self._compile(query)
         cursor = await self._connection.cursor()
         try:
-            await cursor.execute(query, args)
+            await cursor.execute(query_str, args)
             rows = await cursor.fetchall()
-            metadata = ResultMetaData(context, cursor.description)
+            metadata = CursorResultMetaData(context, cursor.description)
             return [
-                RowProxy(metadata, row, metadata._processors, metadata._keymap)
+                Row(
+                    metadata,
+                    metadata._processors,
+                    metadata._keymap,
+                    Row._default_key_style,
+                    row,
+                )
                 for row in rows
             ]
         finally:
@@ -128,24 +135,30 @@ class AiopgConnection(ConnectionBackend):
 
     async def fetch_one(self, query: ClauseElement) -> typing.Optional[typing.Mapping]:
         assert self._connection is not None, "Connection is not acquired"
-        query, args, context = self._compile(query)
+        query_str, args, context = self._compile(query)
         cursor = await self._connection.cursor()
         try:
-            await cursor.execute(query, args)
+            await cursor.execute(query_str, args)
             row = await cursor.fetchone()
             if row is None:
                 return None
-            metadata = ResultMetaData(context, cursor.description)
-            return RowProxy(metadata, row, metadata._processors, metadata._keymap)
+            metadata = CursorResultMetaData(context, cursor.description)
+            return Row(
+                metadata,
+                metadata._processors,
+                metadata._keymap,
+                Row._default_key_style,
+                row,
+            )
         finally:
             cursor.close()
 
     async def execute(self, query: ClauseElement) -> typing.Any:
         assert self._connection is not None, "Connection is not acquired"
-        query, args, context = self._compile(query)
+        query_str, args, context = self._compile(query)
         cursor = await self._connection.cursor()
         try:
-            await cursor.execute(query, args)
+            await cursor.execute(query_str, args)
             return cursor.lastrowid
         finally:
             cursor.close()
@@ -164,13 +177,19 @@ class AiopgConnection(ConnectionBackend):
         self, query: ClauseElement
     ) -> typing.AsyncGenerator[typing.Any, None]:
         assert self._connection is not None, "Connection is not acquired"
-        query, args, context = self._compile(query)
+        query_str, args, context = self._compile(query)
         cursor = await self._connection.cursor()
         try:
-            await cursor.execute(query, args)
-            metadata = ResultMetaData(context, cursor.description)
+            await cursor.execute(query_str, args)
+            metadata = CursorResultMetaData(context, cursor.description)
             async for row in cursor:
-                yield RowProxy(metadata, row, metadata._processors, metadata._keymap)
+                yield Row(
+                    metadata,
+                    metadata._processors,
+                    metadata._keymap,
+                    Row._default_key_style,
+                    row,
+                )
         finally:
             cursor.close()
 
@@ -180,19 +199,27 @@ class AiopgConnection(ConnectionBackend):
     def _compile(
         self, query: ClauseElement
     ) -> typing.Tuple[str, dict, CompilationContext]:
-        compiled = query.compile(dialect=self._dialect)
-        args = compiled.construct_params()
-        for key, val in args.items():
-            if key in compiled._bind_processors:
-                args[key] = compiled._bind_processors[key](val)
+        compiled = query.compile(
+            dialect=self._dialect, compile_kwargs={"render_postcompile": True}
+        )
 
         execution_context = self._dialect.execution_ctx_cls()
         execution_context.dialect = self._dialect
-        execution_context.result_column_struct = (
-            compiled._result_columns,
-            compiled._ordered_columns,
-            compiled._textual_ordered_columns,
-        )
+
+        if not isinstance(query, DDLElement):
+            args = compiled.construct_params()
+            for key, val in args.items():
+                if key in compiled._bind_processors:
+                    args[key] = compiled._bind_processors[key](val)
+
+            execution_context.result_column_struct = (
+                compiled._result_columns,
+                compiled._ordered_columns,
+                compiled._textual_ordered_columns,
+                compiled._loose_column_name_matching,
+            )
+        else:
+            args = {}
 
         logger.debug("Query: %s\nArgs: %s", compiled.string, args)
         return compiled.string, args, CompilationContext(execution_context)
@@ -209,7 +236,9 @@ class AiopgTransaction(TransactionBackend):
         self._is_root = False
         self._savepoint_name = ""
 
-    async def start(self, is_root: bool) -> None:
+    async def start(
+        self, is_root: bool, extra_options: typing.Dict[typing.Any, typing.Any]
+    ) -> None:
         assert self._connection._connection is not None, "Connection is not acquired"
         self._is_root = is_root
         cursor = await self._connection._connection.cursor()
