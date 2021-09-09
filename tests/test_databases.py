@@ -5,6 +5,7 @@ import functools
 import os
 import re
 
+from asyncmock import AsyncMock
 import pytest
 import sqlalchemy
 
@@ -265,6 +266,31 @@ async def test_ddl_queries(database_url):
             # CreateTable()
             query = sqlalchemy.schema.CreateTable(notes)
             await database.execute(query)
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_queries_after_error(database_url):
+    """
+    Test that the basic `execute()` works after a previous error.
+    """
+    async with Database(database_url) as database:
+        old_acquire = database.connection()._connection.acquire
+        database.connection()._connection.acquire = AsyncMock(side_effect=Exception("boo!"))
+        with pytest.raises(Exception, match="boo!"):
+            async with database.transaction(force_rollback=True):
+                query = notes.insert()
+                values = {"text": "example1", "completed": True}
+                await database.execute(query, values)
+
+        database.connection()._connection.acquire = old_acquire
+
+        async with database.transaction(force_rollback=True):
+            # execute()
+            query = notes.insert()
+            values = {"text": "example1", "completed": True}
+
+            await database.execute(query, values)
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
