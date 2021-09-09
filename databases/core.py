@@ -119,7 +119,7 @@ class Database:
             self._global_transaction = None
             self._global_connection = None
         else:
-            self._connection_context = ContextVar("connection_context")
+            self._connection_context = contextvars.ContextVar("connection_context")
 
         await self._backend.disconnect()
         logger.info(
