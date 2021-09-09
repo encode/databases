@@ -4,6 +4,7 @@ import decimal
 import functools
 import os
 import re
+from unittest.mock import patch
 
 from asyncmock import AsyncMock
 import pytest
@@ -275,15 +276,16 @@ async def test_queries_after_error(database_url):
     Test that the basic `execute()` works after a previous error.
     """
     async with Database(database_url) as database:
-        old_acquire = database.connection()._connection.acquire
-        database.connection()._connection.acquire = AsyncMock(side_effect=Exception("boo!"))
-        with pytest.raises(Exception, match="boo!"):
-            async with database.transaction(force_rollback=True):
-                query = notes.insert()
-                values = {"text": "example1", "completed": True}
-                await database.execute(query, values)
-
-        database.connection()._connection.acquire = old_acquire
+        with patch.object(
+            database.connection()._connection,
+            "acquire",
+            new=AsyncMock(side_effect=Exception("boo!")),
+        ):
+            with pytest.raises(Exception, match="boo!"):
+                async with database.transaction(force_rollback=True):
+                    query = notes.insert()
+                    values = {"text": "example1", "completed": True}
+                    await database.execute(query, values)
 
         async with database.transaction(force_rollback=True):
             # execute()
