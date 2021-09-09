@@ -19,8 +19,6 @@ Databases is suitable for integrating against any async Web framework, such as [
 
 **Documentation**: [https://www.encode.io/databases/](https://www.encode.io/databases/)
 
-**Community**: [https://discuss.encode.io/c/databases](https://discuss.encode.io/c/databases)
-
 **Requirements**: Python 3.6+
 
 ---
