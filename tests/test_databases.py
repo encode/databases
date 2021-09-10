@@ -4,6 +4,7 @@ import decimal
 import functools
 import os
 import re
+from unittest.mock import patch, MagicMock
 
 import pytest
 import sqlalchemy
@@ -13,6 +14,11 @@ from databases import Database, DatabaseURL
 assert "TEST_DATABASE_URLS" in os.environ, "TEST_DATABASE_URLS is not set."
 
 DATABASE_URLS = [url.strip() for url in os.environ["TEST_DATABASE_URLS"].split(",")]
+
+
+class AsyncMock(MagicMock):
+    async def __call__(self, *args, **kwargs):
+        return super(AsyncMock, self).__call__(*args, **kwargs)
 
 
 class MyEpochType(sqlalchemy.types.TypeDecorator):
@@ -265,6 +271,30 @@ async def test_ddl_queries(database_url):
             # CreateTable()
             query = sqlalchemy.schema.CreateTable(notes)
             await database.execute(query)
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_queries_after_error(database_url):
+    """
+    Test that the basic `execute()` works after a previous error.
+    """
+
+    class DBException(Exception):
+        pass
+
+    async with Database(database_url) as database:
+        with patch.object(
+            database.connection()._connection,
+            "acquire",
+            new=AsyncMock(side_effect=DBException),
+        ):
+            with pytest.raises(DBException):
+                query = notes.select()
+                await database.fetch_all(query)
+
+        query = notes.select()
+        await database.fetch_all(query)
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
