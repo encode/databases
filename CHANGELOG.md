@@ -8,8 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
-* Reset counter for failed connections (#211)
-* Avoid dangling task-local connections after Database.disconnect() (#385)
+* Reset counter for failed connections (#385)
+* Avoid dangling task-local connections after Database.disconnect() (#211)
 
 ## 0.5.1 (September 2nd, 2021)
 
