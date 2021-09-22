@@ -43,6 +43,7 @@ logger = logging.getLogger("databases")
 class Database:
     SUPPORTED_BACKENDS = {
         "postgresql": "databases.backends.postgres:PostgresBackend",
+        "postgresql+asyncpg": "databases.backends.postgres:PostgresBackend",
         "postgresql+aiopg": "databases.backends.aiopg:AiopgBackend",
         "postgres": "databases.backends.postgres:PostgresBackend",
         "mysql": "databases.backends.mysql:MySQLBackend",
