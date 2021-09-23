@@ -220,6 +220,12 @@ class Database:
         finally:
             self._force_rollback = initial
 
+    def _get_backend(self) -> typing.Optional[str]:
+        try:
+            return self.SUPPORTED_BACKENDS[self.url.scheme]
+        except KeyError:
+            return self.SUPPORTED_BACKENDS[self.url.dialect]
+
 
 class Connection:
     def __init__(self, backend: DatabaseBackend) -> None:
@@ -328,13 +334,6 @@ class Connection:
             return query.values(**values)
 
         return query
-
-    def _get_backend(self) -> Optional[str]:
-        try:
-            return self.SUPPORTED_BACKENDS[self.url.scheme]
-        except KeyError:
-            return self.SUPPORTED_BACKENDS[self.url.dialect]
-
 
 
 class Transaction:
