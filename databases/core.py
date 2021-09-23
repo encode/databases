@@ -62,7 +62,7 @@ class Database:
 
         self._force_rollback = force_rollback
 
-        backend_str = self.SUPPORTED_BACKENDS[self.url.scheme]
+        backend_str = self._get_backend()
         backend_cls = import_from_string(backend_str)
         assert issubclass(backend_cls, DatabaseBackend)
         self._backend = backend_cls(self.url, **self.options)
@@ -328,6 +328,13 @@ class Connection:
             return query.values(**values)
 
         return query
+
+    def _get_backend(self) -> Optional[str]:
+        try:
+            return self.SUPPORTED_BACKENDS[self.url.scheme]
+        except KeyError:
+            return self.SUPPORTED_BACKENDS[self.url.dialect]
+
 
 
 class Transaction:
