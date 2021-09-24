@@ -859,7 +859,7 @@ async def test_queries_with_expose_backend_connection(database_url):
                 if database.url.scheme in ["mysql", "postgresql+aiopg"]:
                     cursor = await raw_connection.cursor()
                     await cursor.execute(insert_query, values)
-                elif database.url.scheme == "postgresql":
+                elif database.url.scheme in ["postgresql", "postgresql+asyncpg"]:
                     await raw_connection.execute(insert_query, *values)
                 elif database.url.scheme == "sqlite":
                     await raw_connection.execute(insert_query, values)
@@ -886,7 +886,7 @@ async def test_queries_with_expose_backend_connection(database_url):
                     cursor = await raw_connection.cursor()
                     await cursor.execute(select_query)
                     results = await cursor.fetchall()
-                elif database.url.scheme == "postgresql":
+                elif database.url.scheme in ["postgresql", "postgresql+asyncpg"]:
                     results = await raw_connection.fetch(select_query)
                 elif database.url.scheme == "sqlite":
                     results = await raw_connection.execute_fetchall(select_query)
@@ -901,7 +901,7 @@ async def test_queries_with_expose_backend_connection(database_url):
                 assert results[2][2] == True
 
                 # fetch_one()
-                if database.url.scheme == "postgresql":
+                if database.url.scheme in ["postgresql", "postgresql+asyncpg"]:
                     result = await raw_connection.fetchrow(select_query)
                 else:
                     cursor = await raw_connection.cursor()
@@ -1069,7 +1069,7 @@ async def test_posgres_interface(database_url):
     """
     database_url = DatabaseURL(database_url)
 
-    if database_url.scheme != "postgresql":
+    if database_url.scheme not in ["postgresql", "postgresql+asyncpg"]:
         pytest.skip("Test is only for postgresql")
 
     async with Database(database_url) as database:
