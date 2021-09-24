@@ -1116,3 +1116,11 @@ async def test_postcompile_queries(database_url):
         results = await database.fetch_all(query=query)
 
         assert len(results) == 0
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_supported_backends_schemes(database_url):
+    async with Database(database_url) as database:
+        backend_str = database._get_backend()
+        assert backend_str in database.SUPPORTED_BACKENDS.values()
