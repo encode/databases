@@ -220,7 +220,7 @@ class Database:
         finally:
             self._force_rollback = initial
 
-    def _get_backend(self) -> typing.Optional[str]:
+    def _get_backend(self) -> str:
         try:
             return self.SUPPORTED_BACKENDS[self.url.scheme]
         except KeyError:
