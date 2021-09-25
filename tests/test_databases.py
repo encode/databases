@@ -861,7 +861,7 @@ async def test_queries_with_expose_backend_connection(database_url):
                     await cursor.execute(insert_query, values)
                 elif database.url.scheme in ["postgresql", "postgresql+asyncpg"]:
                     await raw_connection.execute(insert_query, *values)
-                elif database.url.scheme == "sqlite":
+                elif database.url.scheme in ["sqlite", "sqlite+aiosqlite"]:
                     await raw_connection.execute(insert_query, values)
 
                 # execute_many()
