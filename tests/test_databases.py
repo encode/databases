@@ -78,7 +78,7 @@ prices = sqlalchemy.Table(
 )
 
 
-@pytest.fixture(autouse=True, scope="module")
+@pytest.fixture(autouse=True, scope="function")
 def create_test_database():
     # Create test databases with tables creation
     for url in DATABASE_URLS:
