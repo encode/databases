@@ -1069,7 +1069,7 @@ async def test_posgres_interface(database_url):
     """
     database_url = DatabaseURL(database_url)
 
-    if database_url.scheme not in ["postgresql", "postgresql+asyncpg"]:
+    if database_url.dialect != "postgresql":
         pytest.skip("Test is only for postgresql")
 
     async with Database(database_url) as database:
