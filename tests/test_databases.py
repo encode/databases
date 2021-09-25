@@ -888,7 +888,7 @@ async def test_queries_with_expose_backend_connection(database_url):
                     results = await cursor.fetchall()
                 elif database.url.scheme in ["postgresql", "postgresql+asyncpg"]:
                     results = await raw_connection.fetch(select_query)
-                elif database.url.scheme == "sqlite":
+                elif database.url.scheme in ["sqlite", "sqlite+aiosqlite"]:
                     results = await raw_connection.execute_fetchall(select_query)
 
                 assert len(results) == 3
