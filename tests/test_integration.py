@@ -30,7 +30,9 @@ def create_test_database():
         database_url = DatabaseURL(url)
         if database_url.scheme in ["mysql", "mysql+aiomysql"]:
             url = str(database_url.replace(driver="pymysql"))
-        elif database_url.scheme in ["postgresql+aiopg", "postgresql+asyncpg"]:
+        elif database_url.scheme == "postgresql+asyncpg":
+            url = str(database_url.replace(driver=None))
+        engine = sqlalchemy.create_engine(url)
             url = str(database_url.replace(driver=None))
         elif database_url.scheme in ["sqlite", "sqlite+aiosqlite"]:
             url = str(database_url.replace(driver=None))
