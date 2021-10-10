@@ -221,10 +221,9 @@ class Database:
             self._force_rollback = initial
 
     def _get_backend(self) -> str:
-        try:
-            return self.SUPPORTED_BACKENDS[self.url.scheme]
-        except KeyError:
-            return self.SUPPORTED_BACKENDS[self.url.dialect]
+        return self.SUPPORTED_BACKENDS.get(
+            self.url.scheme, self.SUPPORTED_BACKENDS[self.url.dialect]
+        )
 
 
 class Connection:
