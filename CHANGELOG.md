@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 0.5.3 (October 10th, 2021)
+
+### Added
+
+* Support `dialect+driver` for default database drivers like `postgresql+asyncpg` (#396)
+
+### Fixed
+
+* Documentation of low-level transaction (#390)
+
 ## 0.5.2 (September 10th, 2021)
 
 ### Fixed
