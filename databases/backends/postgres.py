@@ -1,6 +1,5 @@
 import logging
 import typing
-from collections.abc import Mapping
 
 import asyncpg
 from sqlalchemy.dialects.postgresql import pypostgresql
@@ -78,7 +77,7 @@ class PostgresBackend(DatabaseBackend):
         return PostgresConnection(self, self._dialect)
 
 
-class Record(Mapping):
+class Record:
     __slots__ = (
         "_row",
         "_result_columns",
