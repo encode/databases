@@ -335,6 +335,30 @@ async def test_queries_after_error(database_url):
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @mysql_versions
 @async_adapter
+async def test_queries_after_error(database_url):
+    """
+    Test that the basic `execute()` works after a previous error.
+    """
+
+    class DBException(Exception):
+        pass
+
+    async with Database(database_url) as database:
+        with patch.object(
+            database.connection()._connection,
+            "acquire",
+            new=AsyncMock(side_effect=DBException),
+        ):
+            with pytest.raises(DBException):
+                query = notes.select()
+                await database.fetch_all(query)
+
+        query = notes.select()
+        await database.fetch_all(query)
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
 async def test_results_support_mapping_interface(database_url):
     """
     Casting results to a dict should work, since the interface defines them
