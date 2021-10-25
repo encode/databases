@@ -1,5 +1,3 @@
-import os
-
 import pytest
 import sqlalchemy
 from starlette.applications import Starlette
@@ -7,10 +5,7 @@ from starlette.responses import JSONResponse
 from starlette.testclient import TestClient
 
 from databases import Database, DatabaseURL
-
-assert "TEST_DATABASE_URLS" in os.environ, "TEST_DATABASE_URLS is not set."
-
-DATABASE_URLS = [url.strip() for url in os.environ["TEST_DATABASE_URLS"].split(",")]
+from tests.test_databases import DATABASE_URLS, mysql_versions
 
 metadata = sqlalchemy.MetaData()
 
@@ -25,26 +20,37 @@ notes = sqlalchemy.Table(
 
 @pytest.fixture(autouse=True, scope="module")
 def create_test_database():
-    # Create test databases
+    # Create test database
     for url in DATABASE_URLS:
         database_url = DatabaseURL(url)
-        if database_url.scheme in ["mysql", "mysql+asyncmy"]:
+        if database_url.scheme in ["mysql", "mysql+aiomysql", "mysql+asyncmy"]:
             url = str(database_url.replace(driver="pymysql"))
-        elif database_url.scheme == "postgresql+aiopg":
+        elif database_url.scheme in [
+            "postgresql+aiopg",
+            "sqlite+aiosqlite",
+            "postgresql+asyncpg",
+        ]:
             url = str(database_url.replace(driver=None))
+        else:
+            url = str(database_url)
         engine = sqlalchemy.create_engine(url)
         metadata.create_all(engine)
 
     # Run the test suite
     yield
 
-    # Drop test databases
     for url in DATABASE_URLS:
         database_url = DatabaseURL(url)
-        if database_url.scheme in ["mysql", "mysql+asyncmy"]:
+        if database_url.scheme in ["mysql", "mysql+aiomysql", "mysql+asyncmy"]:
             url = str(database_url.replace(driver="pymysql"))
-        elif database_url.scheme == "postgresql+aiopg":
+        elif database_url.scheme in [
+            "postgresql+aiopg",
+            "sqlite+aiosqlite",
+            "postgresql+asyncpg",
+        ]:
             url = str(database_url.replace(driver=None))
+        else:
+            url = str(database_url)
         engine = sqlalchemy.create_engine(url)
         metadata.drop_all(engine)
 
@@ -82,6 +88,7 @@ def get_app(database_url):
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
+@mysql_versions
 def test_integration(database_url):
     app = get_app(database_url)
 

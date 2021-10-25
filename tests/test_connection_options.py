@@ -1,12 +1,21 @@
 """
 Unit tests for the backend connection arguments.
 """
+import sys
+
+import pytest
 
 from databases.backends.aiopg import AiopgBackend
-from databases.backends.mysql import MySQLBackend
 from databases.backends.postgres import PostgresBackend
 from databases.core import DatabaseURL
 from tests.test_databases import DATABASE_URLS, async_adapter
+
+if sys.version_info >= (3, 7):  # pragma: no cover
+    from databases.backends.asyncmy import AsyncMyBackend
+
+
+if sys.version_info < (3, 10):  # pragma: no cover
+    from databases.backends.mysql import MySQLBackend
 
 
 def test_postgres_pool_size():
@@ -61,32 +70,74 @@ def test_postgres_password_as_callable():
     assert kwargs["password"]() == "Foo"
 
 
+@pytest.mark.skipif(sys.version_info >= (3, 10), reason="requires python3.9 or lower")
 def test_mysql_pool_size():
     backend = MySQLBackend("mysql://localhost/database?min_size=1&max_size=20")
     kwargs = backend._get_connection_kwargs()
     assert kwargs == {"minsize": 1, "maxsize": 20}
 
 
+@pytest.mark.skipif(sys.version_info >= (3, 10), reason="requires python3.9 or lower")
 def test_mysql_explicit_pool_size():
     backend = MySQLBackend("mysql://localhost/database", min_size=1, max_size=20)
     kwargs = backend._get_connection_kwargs()
     assert kwargs == {"minsize": 1, "maxsize": 20}
 
 
+@pytest.mark.skipif(sys.version_info >= (3, 10), reason="requires python3.9 or lower")
 def test_mysql_ssl():
     backend = MySQLBackend("mysql://localhost/database?ssl=true")
     kwargs = backend._get_connection_kwargs()
     assert kwargs == {"ssl": True}
 
 
+@pytest.mark.skipif(sys.version_info >= (3, 10), reason="requires python3.9 or lower")
 def test_mysql_explicit_ssl():
     backend = MySQLBackend("mysql://localhost/database", ssl=True)
     kwargs = backend._get_connection_kwargs()
     assert kwargs == {"ssl": True}
 
 
+@pytest.mark.skipif(sys.version_info >= (3, 10), reason="requires python3.9 or lower")
 def test_mysql_pool_recycle():
     backend = MySQLBackend("mysql://localhost/database?pool_recycle=20")
+    kwargs = backend._get_connection_kwargs()
+    assert kwargs == {"pool_recycle": 20}
+
+
+@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7 or higher")
+def test_asyncmy_pool_size():
+    backend = AsyncMyBackend(
+        "mysql+asyncmy://localhost/database?min_size=1&max_size=20"
+    )
+    kwargs = backend._get_connection_kwargs()
+    assert kwargs == {"minsize": 1, "maxsize": 20}
+
+
+@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7 or higher")
+def test_asyncmy_explicit_pool_size():
+    backend = AsyncMyBackend("mysql://localhost/database", min_size=1, max_size=20)
+    kwargs = backend._get_connection_kwargs()
+    assert kwargs == {"minsize": 1, "maxsize": 20}
+
+
+@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7 or higher")
+def test_asyncmy_ssl():
+    backend = AsyncMyBackend("mysql+asyncmy://localhost/database?ssl=true")
+    kwargs = backend._get_connection_kwargs()
+    assert kwargs == {"ssl": True}
+
+
+@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7 or higher")
+def test_asyncmy_explicit_ssl():
+    backend = AsyncMyBackend("mysql+asyncmy://localhost/database", ssl=True)
+    kwargs = backend._get_connection_kwargs()
+    assert kwargs == {"ssl": True}
+
+
+@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7 or higher")
+def test_asyncmy_pool_recycle():
+    backend = AsyncMyBackend("mysql+asyncmy://localhost/database?pool_recycle=20")
     kwargs = backend._get_connection_kwargs()
     assert kwargs == {"pool_recycle": 20}
 

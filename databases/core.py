@@ -63,7 +63,7 @@ class Database:
 
         self._force_rollback = force_rollback
 
-        backend_str = self.SUPPORTED_BACKENDS[self.url.scheme]
+        backend_str = self._get_backend()
         backend_cls = import_from_string(backend_str)
         assert issubclass(backend_cls, DatabaseBackend)
         self._backend = backend_cls(self.url, **self.options)
@@ -119,6 +119,8 @@ class Database:
 
             self._global_transaction = None
             self._global_connection = None
+        else:
+            self._connection_context = contextvars.ContextVar("connection_context")
 
         await self._backend.disconnect()
         logger.info(
@@ -142,13 +144,13 @@ class Database:
 
     async def fetch_all(
         self, query: typing.Union[ClauseElement, str], values: dict = None
-    ) -> typing.List[typing.Mapping]:
+    ) -> typing.List[typing.Sequence]:
         async with self.connection() as connection:
             return await connection.fetch_all(query, values)
 
     async def fetch_one(
         self, query: typing.Union[ClauseElement, str], values: dict = None
-    ) -> typing.Optional[typing.Mapping]:
+    ) -> typing.Optional[typing.Sequence]:
         async with self.connection() as connection:
             return await connection.fetch_one(query, values)
 
@@ -219,6 +221,12 @@ class Database:
         finally:
             self._force_rollback = initial
 
+    def _get_backend(self) -> str:
+        try:
+            return self.SUPPORTED_BACKENDS[self.url.scheme]
+        except KeyError:
+            return self.SUPPORTED_BACKENDS[self.url.dialect]
+
 
 class Connection:
     def __init__(self, backend: DatabaseBackend) -> None:
@@ -236,8 +244,12 @@ class Connection:
     async def __aenter__(self) -> "Connection":
         async with self._connection_lock:
             self._connection_counter += 1
-            if self._connection_counter == 1:
-                await self._connection.acquire()
+            try:
+                if self._connection_counter == 1:
+                    await self._connection.acquire()
+            except Exception as e:
+                self._connection_counter -= 1
+                raise e
         return self
 
     async def __aexit__(
@@ -254,14 +266,14 @@ class Connection:
 
     async def fetch_all(
         self, query: typing.Union[ClauseElement, str], values: dict = None
-    ) -> typing.List[typing.Mapping]:
+    ) -> typing.List[typing.Sequence]:
         built_query = self._build_query(query, values)
         async with self._query_lock:
             return await self._connection.fetch_all(built_query)
 
     async def fetch_one(
         self, query: typing.Union[ClauseElement, str], values: dict = None
-    ) -> typing.Optional[typing.Mapping]:
+    ) -> typing.Optional[typing.Sequence]:
         built_query = self._build_query(query, values)
         async with self._query_lock:
             return await self._connection.fetch_one(built_query)
