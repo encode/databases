@@ -98,7 +98,7 @@ prices = sqlalchemy.Table(
 
 @pytest.fixture(autouse=True, scope="function")
 def create_test_database():
-    # Create test database with tables creation
+    # Create test databases with tables creation
     for url in DATABASE_URLS:
         database_url = DatabaseURL(url)
         if database_url.scheme in ["mysql", "mysql+aiomysql", "mysql+asyncmy"]:
@@ -109,8 +109,6 @@ def create_test_database():
             "postgresql+asyncpg",
         ]:
             url = str(database_url.replace(driver=None))
-        else:
-            url = url = str(database_url)
         engine = sqlalchemy.create_engine(url)
         metadata.create_all(engine)
 
@@ -128,8 +126,6 @@ def create_test_database():
             "postgresql+asyncpg",
         ]:
             url = str(database_url.replace(driver=None))
-        else:
-            url = url = str(database_url)
         engine = sqlalchemy.create_engine(url)
         metadata.drop_all(engine)
 
@@ -358,6 +354,7 @@ async def test_queries_after_error(database_url):
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
+@mysql_versions
 @async_adapter
 async def test_results_support_mapping_interface(database_url):
     """

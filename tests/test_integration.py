@@ -20,7 +20,7 @@ notes = sqlalchemy.Table(
 
 @pytest.fixture(autouse=True, scope="module")
 def create_test_database():
-    # Create test database
+    # Create test databases
     for url in DATABASE_URLS:
         database_url = DatabaseURL(url)
         if database_url.scheme in ["mysql", "mysql+aiomysql", "mysql+asyncmy"]:
@@ -31,8 +31,6 @@ def create_test_database():
             "postgresql+asyncpg",
         ]:
             url = str(database_url.replace(driver=None))
-        else:
-            url = str(database_url)
         engine = sqlalchemy.create_engine(url)
         metadata.create_all(engine)
 
@@ -49,8 +47,6 @@ def create_test_database():
             "postgresql+asyncpg",
         ]:
             url = str(database_url.replace(driver=None))
-        else:
-            url = str(database_url)
         engine = sqlalchemy.create_engine(url)
         metadata.drop_all(engine)
 
