@@ -143,13 +143,13 @@ class Database:
 
     async def fetch_all(
         self, query: typing.Union[ClauseElement, str], values: dict = None
-    ) -> typing.List[typing.Mapping]:
+    ) -> typing.List[typing.Sequence]:
         async with self.connection() as connection:
             return await connection.fetch_all(query, values)
 
     async def fetch_one(
         self, query: typing.Union[ClauseElement, str], values: dict = None
-    ) -> typing.Optional[typing.Mapping]:
+    ) -> typing.Optional[typing.Sequence]:
         async with self.connection() as connection:
             return await connection.fetch_one(query, values)
 
@@ -264,14 +264,14 @@ class Connection:
 
     async def fetch_all(
         self, query: typing.Union[ClauseElement, str], values: dict = None
-    ) -> typing.List[typing.Mapping]:
+    ) -> typing.List[typing.Sequence]:
         built_query = self._build_query(query, values)
         async with self._query_lock:
             return await self._connection.fetch_all(built_query)
 
     async def fetch_one(
         self, query: typing.Union[ClauseElement, str], values: dict = None
-    ) -> typing.Optional[typing.Mapping]:
+    ) -> typing.Optional[typing.Sequence]:
         built_query = self._build_query(query, values)
         async with self._query_lock:
             return await self._connection.fetch_one(built_query)

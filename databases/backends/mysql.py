@@ -100,7 +100,7 @@ class MySQLConnection(ConnectionBackend):
         await self._database._pool.release(self._connection)
         self._connection = None
 
-    async def fetch_all(self, query: ClauseElement) -> typing.List[typing.Mapping]:
+    async def fetch_all(self, query: ClauseElement) -> typing.List[typing.Sequence]:
         assert self._connection is not None, "Connection is not acquired"
         query_str, args, context = self._compile(query)
         cursor = await self._connection.cursor()
@@ -121,7 +121,7 @@ class MySQLConnection(ConnectionBackend):
         finally:
             await cursor.close()
 
-    async def fetch_one(self, query: ClauseElement) -> typing.Optional[typing.Mapping]:
+    async def fetch_one(self, query: ClauseElement) -> typing.Optional[typing.Sequence]:
         assert self._connection is not None, "Connection is not acquired"
         query_str, args, context = self._compile(query)
         cursor = await self._connection.cursor()
