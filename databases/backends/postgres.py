@@ -220,25 +220,21 @@ class PostgresConnection(ConnectionBackend):
             await self._connection.execute(single_query, *args)
 
     async def iterate(
-        self, query: ClauseElement, *, n: int = None
+        self, query: ClauseElement, *, n: int = 1
     ) -> typing.AsyncGenerator[typing.Any, None]:
         assert self._connection is not None, "Connection is not acquired"
         query_str, args, result_columns = self._compile(query)
         column_maps = self._create_column_maps(result_columns)
-        cursor_coro = self._connection.cursor(query_str, *args)
         record_func = partial(
             Record,
             result_columns=result_columns,
             dialect=self._dialect,
             column_maps=column_maps
         )
-        if not n:
-            async for row in cursor_coro:
-                yield record_func(row)
-        else:
-            cursor = await cursor_coro
-            while rows := await cursor.fetch(n):
-                yield list(map(record_func, rows))
+        cursor = await self._create_column_maps(result_columns)
+        while rows := await cursor.fetch(n):
+            results = list(map(record_func, rows))
+            return results[0] if n == 1 else results
 
     def transaction(self) -> TransactionBackend:
         return PostgresTransaction(connection=self)
