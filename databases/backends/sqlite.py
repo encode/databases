@@ -1,6 +1,7 @@
 import logging
 import typing
 import uuid
+from functools import partial
 
 import aiosqlite
 from sqlalchemy.dialects.sqlite import pysqlite
@@ -136,20 +137,22 @@ class SQLiteConnection(ConnectionBackend):
             await self.execute(single_query)
 
     async def iterate(
-        self, query: ClauseElement
+        self, query: ClauseElement, n: int = 1
     ) -> typing.AsyncGenerator[typing.Any, None]:
         assert self._connection is not None, "Connection is not acquired"
         query_str, args, context = self._compile(query)
         async with self._connection.execute(query_str, args) as cursor:
             metadata = CursorResultMetaData(context, cursor.description)
-            async for row in cursor:
-                yield Row(
-                    metadata,
-                    metadata._processors,
-                    metadata._keymap,
-                    Row._default_key_style,
-                    row,
-                )
+            row_func = partial(
+                Row,
+                metadata,
+                metadata._processors,
+                metadata._keymap,
+                Row._default_key_style
+            )
+            while rows := await cursor.fetchmany(n):
+                records = list(map(row_func, rows))
+                yield records[0] if n == 1 else records
 
     def transaction(self) -> TransactionBackend:
         return SQLiteTransaction(self)

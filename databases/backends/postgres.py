@@ -233,8 +233,8 @@ class PostgresConnection(ConnectionBackend):
         )
         cursor = await self._connection.cursor(query_str, *args)
         while rows := await cursor.fetch(n):
-            results = list(map(record_func, rows))
-            yield results[0] if n == 1 else results
+            records = list(map(record_func, rows))
+            yield records[0] if n == 1 else records
 
     def transaction(self) -> TransactionBackend:
         return PostgresTransaction(connection=self)

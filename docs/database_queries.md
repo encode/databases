@@ -65,9 +65,15 @@ row = await database.fetch_one(query=query)
 query = notes.select()
 value = await database.fetch_val(query=query)
 
-# Fetch multiple rows without loading them all into memory at once
+# Fetch multiple rows without loading them all into memory at once (1 at a time)
 query = notes.select()
 async for row in database.iterate(query=query):
+    ...
+
+# Fetch multiple rows loading n of them into memory at a time
+query = notes.select()
+async for rows in database.iterate(query=query, n=10):
+    assert 1 <= len(rows) <= 10
     ...
 
 # Close all connection in the connection pool

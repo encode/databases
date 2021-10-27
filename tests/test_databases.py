@@ -1139,3 +1139,27 @@ async def test_postcompile_queries(database_url):
         results = await database.fetch_all(query=query)
 
         assert len(results) == 0
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_iterate_n(database_url):
+    """
+    Test fetching multiple records per iteration.
+    """
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            query = "INSERT INTO notes(text, completed) VALUES (:text, :completed)"
+            values = [
+                {"text": "example1", "completed": True},
+                {"text": "example2", "completed": False},
+                {"text": "example3", "completed": True},
+            ]
+            await database.execute_many(query, values)
+
+            async for records in database.iterate(notes.select(), n=2):
+                assert len(records) == 2
+                assert records[0] == values[0]
+                assert records[1] == values[1]
+            assert len(records) == 1
+            assert records[0] == values[2]
