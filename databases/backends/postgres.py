@@ -165,8 +165,9 @@ class PostgresConnection(ConnectionBackend):
     async def release(self) -> None:
         assert self._connection is not None, "Connection is not acquired"
         assert self._database._pool is not None, "DatabaseBackend is not running"
-        self._connection = await self._database._pool.release(self._connection)
+        tmp = self._connection
         self._connection = None
+        await self._database._pool.release(tmp)
 
     async def fetch_all(self, query: ClauseElement) -> typing.List[typing.Sequence]:
         assert self._connection is not None, "Connection is not acquired"
