@@ -225,13 +225,20 @@ class PostgresConnection(ConnectionBackend):
         assert self._connection is not None, "Connection is not acquired"
         query_str, args, result_columns = self._compile(query)
         column_maps = self._create_column_maps(result_columns)
+        cursor_coro = self._connection.cursor(query_str, *args)
+        record_func = partial(
+            Record,
+            result_columns=result_columns,
+            dialect=self._dialect,
+            column_maps=column_maps
+        )
         if not n:
-            async for row in self._connection.cursor(query_str, *args):
-                yield Record(row, result_columns, self._dialect, column_maps)
+            async for row in cursor_coro:
+                yield record_func(row)
         else:
-            cursor = await self._connection.cursor(query_str, *args)
+            cursor = await cursor_coro
             while rows := await cursor.fetch(n):
-                yield list(map(partial(Record, result_columns=result_columns, dialect=self._dialect, column_maps=column_maps), rows))
+                yield list(map(record_func, rows))
 
     def transaction(self) -> TransactionBackend:
         return PostgresTransaction(connection=self)
