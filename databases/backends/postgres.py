@@ -232,7 +232,9 @@ class PostgresConnection(ConnectionBackend):
             column_maps=column_maps
         )
         cursor = await self._connection.cursor(query_str, *args)
-        while rows := await cursor.fetch(n):
+        while True:
+            rows = await cursor.fetch(n)
+            if not rows: break
             records = list(map(record_func, rows))
             yield records[0] if n == 1 else records
 

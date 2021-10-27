@@ -190,7 +190,9 @@ class AiopgConnection(ConnectionBackend):
                 metadata._keymap,
                 Row._default_key_style
             )
-            while rows := await cursor.fetchmany(n):
+            while True:
+                rows = await cursor.fetchmany(n)
+                if not rows: break
                 records = list(map(row_func, rows))
                 yield records[0] if n == 1 else records
         finally:
