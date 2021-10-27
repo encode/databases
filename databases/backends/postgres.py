@@ -231,7 +231,7 @@ class PostgresConnection(ConnectionBackend):
             dialect=self._dialect,
             column_maps=column_maps
         )
-        cursor = await self._create_column_maps(result_columns)
+        cursor = await self._connection.cursor(query_str, *args)
         while rows := await cursor.fetch(n):
             results = list(map(record_func, rows))
             return results[0] if n == 1 else results
