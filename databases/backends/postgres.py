@@ -1,6 +1,7 @@
 import logging
 import typing
 from collections.abc import Sequence
+from functools import partial
 
 import asyncpg
 from sqlalchemy.dialects.postgresql import pypostgresql
@@ -219,13 +220,18 @@ class PostgresConnection(ConnectionBackend):
             await self._connection.execute(single_query, *args)
 
     async def iterate(
-        self, query: ClauseElement
+        self, query: ClauseElement, *, n: int = None
     ) -> typing.AsyncGenerator[typing.Any, None]:
         assert self._connection is not None, "Connection is not acquired"
         query_str, args, result_columns = self._compile(query)
         column_maps = self._create_column_maps(result_columns)
-        async for row in self._connection.cursor(query_str, *args):
-            yield Record(row, result_columns, self._dialect, column_maps)
+        if not n:
+            async for row in self._connection.cursor(query_str, *args):
+                yield Record(row, result_columns, self._dialect, column_maps)
+        else:
+            cursor = await self._connection.cursor(query_str, *args)
+            while rows := await cursor.fetch(n):
+                yield list(map(partial(Record, result_columns=result_columns, dialect=self._dialect, column_maps=column_maps), rows))
 
     def transaction(self) -> TransactionBackend:
         return PostgresTransaction(connection=self)

@@ -175,10 +175,10 @@ class Database:
             return await connection.execute_many(query, values)
 
     async def iterate(
-        self, query: typing.Union[ClauseElement, str], values: dict = None
+        self, query: typing.Union[ClauseElement, str], values: dict = None, *, n: int = None
     ) -> typing.AsyncGenerator[typing.Mapping, None]:
         async with self.connection() as connection:
-            async for record in connection.iterate(query, values):
+            async for record in connection.iterate(query, values, n=n):
                 yield record
 
     def _new_connection(self) -> "Connection":
