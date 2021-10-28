@@ -293,7 +293,8 @@ async def test_queries_after_error(database_url):
 
     async with Database(database_url) as database:
         with patch.object(
-                database.connection()._database._pool,
+                database.connection()._database._pool if hasattr(database.connection(),
+                                                                 '_database') else database.connection(),
                 "acquire",
                 new=AsyncMock(side_effect=IOError),
         ):
@@ -317,7 +318,8 @@ async def test_queries_after_release_error(database_url):
 
     async with Database(database_url) as database:
         with patch.object(
-                database.connection()._database._pool,
+                database.connection()._database._pool if hasattr(database.connection(),
+                                                                 '_database') else database.connection(),
                 "release",
                 new=AsyncMock(side_effect=IOError),
         ):
