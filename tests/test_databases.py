@@ -293,11 +293,35 @@ async def test_queries_after_error(database_url):
 
     async with Database(database_url) as database:
         with patch.object(
-            database.connection()._connection,
-            "acquire",
-            new=AsyncMock(side_effect=DBException),
+                database.connection()._database._pool,
+                "acquire",
+                new=AsyncMock(side_effect=IOError),
         ):
-            with pytest.raises(DBException):
+            with pytest.raises(IOError):
+                query = notes.select()
+                await database.fetch_all(query)
+
+        query = notes.select()
+        await database.fetch_all(query)
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_queries_after_release_error(database_url):
+    """
+    Test that the basic `execute()` works after a previous error.
+    """
+
+    class DBException(Exception):
+        pass
+
+    async with Database(database_url) as database:
+        with patch.object(
+                database.connection()._database._pool,
+                "release",
+                new=AsyncMock(side_effect=IOError),
+        ):
+            with pytest.raises(IOError):
                 query = notes.select()
                 await database.fetch_all(query)
 
@@ -951,7 +975,6 @@ async def test_concurrent_access_on_single_connection(database_url):
         pytest.skip("Test requires `pg_sleep()`")
 
     async with Database(database_url, force_rollback=True) as database:
-
         async def db_lookup():
             await database.fetch_one("SELECT pg_sleep(1)")
 
@@ -977,7 +1000,6 @@ def test_global_connection_is_initialized_lazily(database_url):
     @async_adapter
     async def run_database_queries():
         async with database:
-
             async def db_lookup():
                 await database.fetch_one("SELECT pg_sleep(1)")
 
@@ -1101,24 +1123,24 @@ async def test_posgres_interface(database_url):
             result = await database.fetch_one(query=query)
 
             with pytest.warns(
-                DeprecationWarning,
-                match=re.escape(
-                    "The `Row.keys()` method is deprecated to mimic SQLAlchemy behaviour, "
-                    "use `Row._mapping.keys()` instead."
-                ),
+                    DeprecationWarning,
+                    match=re.escape(
+                        "The `Row.keys()` method is deprecated to mimic SQLAlchemy behaviour, "
+                        "use `Row._mapping.keys()` instead."
+                    ),
             ):
                 assert (
-                    list(result.keys())
-                    == [k for k in result]
-                    == ["id", "text", "completed"]
+                        list(result.keys())
+                        == [k for k in result]
+                        == ["id", "text", "completed"]
                 )
 
             with pytest.warns(
-                DeprecationWarning,
-                match=re.escape(
-                    "The `Row.values()` method is deprecated to mimic SQLAlchemy behaviour, "
-                    "use `Row._mapping.values()` instead."
-                ),
+                    DeprecationWarning,
+                    match=re.escape(
+                        "The `Row.values()` method is deprecated to mimic SQLAlchemy behaviour, "
+                        "use `Row._mapping.values()` instead."
+                    ),
             ):
                 # avoid checking `id` at index 0 since it may change depending on the launched tests
                 assert list(result.values())[1:] == ["example1", True]
