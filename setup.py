@@ -37,7 +37,7 @@ def get_packages(package):
 setup(
     name="databases",
     version=get_version("databases"),
-    python_requires='>=3.6',
+    python_requires=">=3.6",
     url="https://github.com/encode/databases",
     license="BSD",
     description="Async database support for Python.",
@@ -47,13 +47,13 @@ setup(
     author_email="tom@tomchristie.com",
     packages=get_packages("databases"),
     package_data={"databases": ["py.typed"]},
-    install_requires=['sqlalchemy>=1.4,<1.5', 'aiocontextvars;python_version<"3.7"'],
+    install_requires=["sqlalchemy>=1.4,<1.5", 'aiocontextvars;python_version<"3.7"'],
     extras_require={
         "postgresql": ["asyncpg"],
         "mysql": ["aiomysql"],
         "mysql+asyncmy": ["asyncmy"],
         "sqlite": ["aiosqlite"],
-        "postgresql+aiopg": ["aiopg"]
+        "postgresql+aiopg": ["aiopg"],
     },
     classifiers=[
         "Development Status :: 3 - Alpha",
@@ -65,6 +65,10 @@ setup(
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3 :: Only",
     ],
     zip_safe=False,
 )
