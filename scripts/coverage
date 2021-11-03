@@ -7,11 +7,4 @@ fi
 
 set -x
 
-if [ -z $GITHUB_ACTIONS ]; then
-    ${PREFIX}coverage report --show-missing --skip-covered --fail-under=100
-else
-    ${PREFIX}coverage combine
-    ${PREFIX}coverage report --show-missing --skip-covered --fail-under=100
-fi
-
-
+${PREFIX}coverage report --show-missing --skip-covered --fail-under=100

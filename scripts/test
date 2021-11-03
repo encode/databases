@@ -14,8 +14,10 @@ set -ex
 
 if [ -z $GITHUB_ACTIONS ]; then
     scripts/check
-    ${PREFIX}coverage run -m pytest $@
+fi
+
+${PREFIX}coverage run -m pytest $@
+
+if [ -z $GITHUB_ACTIONS ]; then
     scripts/coverage
-else
-    ${PREFIX}coverage run --parallel-mode -m pytest $@
 fi
