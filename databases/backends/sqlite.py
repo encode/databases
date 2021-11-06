@@ -18,7 +18,7 @@ logger = logging.getLogger("databases")
 
 class SQLiteBackend(DatabaseBackend):
     def __init__(
-        self, database_url: typing.Union[DatabaseURL, str], **options: typing.Any
+            self, database_url: typing.Union[DatabaseURL, str], **options: typing.Any
     ) -> None:
         self._database_url = DatabaseURL(database_url)
         self._options = options
@@ -83,8 +83,12 @@ class SQLiteConnection(ConnectionBackend):
 
     async def release(self) -> None:
         assert self._connection is not None, "Connection is not acquired"
-        await self._pool.release(self._connection)
+        tmp = self._connection
         self._connection = None
+        await self._internal_release(tmp)
+
+    async def _internal_release(self, connection):
+        await self._pool.release(connection)
 
     async def fetch_all(self, query: ClauseElement) -> typing.List[typing.Sequence]:
         assert self._connection is not None, "Connection is not acquired"
@@ -136,7 +140,7 @@ class SQLiteConnection(ConnectionBackend):
             await self.execute(single_query)
 
     async def iterate(
-        self, query: ClauseElement
+            self, query: ClauseElement
     ) -> typing.AsyncGenerator[typing.Any, None]:
         assert self._connection is not None, "Connection is not acquired"
         query_str, args, context = self._compile(query)
@@ -155,7 +159,7 @@ class SQLiteConnection(ConnectionBackend):
         return SQLiteTransaction(self)
 
     def _compile(
-        self, query: ClauseElement
+            self, query: ClauseElement
     ) -> typing.Tuple[str, list, CompilationContext]:
         compiled = query.compile(
             dialect=self._dialect, compile_kwargs={"render_postcompile": True}
@@ -200,7 +204,7 @@ class SQLiteTransaction(TransactionBackend):
         self._savepoint_name = ""
 
     async def start(
-        self, is_root: bool, extra_options: typing.Dict[typing.Any, typing.Any]
+            self, is_root: bool, extra_options: typing.Dict[typing.Any, typing.Any]
     ) -> None:
         assert self._connection._connection is not None, "Connection is not acquired"
         self._is_root = is_root
@@ -211,7 +215,7 @@ class SQLiteTransaction(TransactionBackend):
             id = str(uuid.uuid4()).replace("-", "_")
             self._savepoint_name = f"STARLETTE_SAVEPOINT_{id}"
             async with self._connection._connection.execute(
-                f"SAVEPOINT {self._savepoint_name}"
+                    f"SAVEPOINT {self._savepoint_name}"
             ) as cursor:
                 await cursor.close()
 
@@ -222,7 +226,7 @@ class SQLiteTransaction(TransactionBackend):
                 await cursor.close()
         else:
             async with self._connection._connection.execute(
-                f"RELEASE SAVEPOINT {self._savepoint_name}"
+                    f"RELEASE SAVEPOINT {self._savepoint_name}"
             ) as cursor:
                 await cursor.close()
 
@@ -233,6 +237,6 @@ class SQLiteTransaction(TransactionBackend):
                 await cursor.close()
         else:
             async with self._connection._connection.execute(
-                f"ROLLBACK TO SAVEPOINT {self._savepoint_name}"
+                    f"ROLLBACK TO SAVEPOINT {self._savepoint_name}"
             ) as cursor:
                 await cursor.close()

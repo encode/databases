@@ -293,10 +293,9 @@ async def test_queries_after_error(database_url):
 
     async with Database(database_url) as database:
         with patch.object(
-                database.connection()._database._pool if hasattr(database.connection(),
-                                                                 '_database') else database.connection(),
+                database.connection()._connection,
                 "acquire",
-                new=AsyncMock(side_effect=IOError),
+                new=AsyncMock(side_effect=DBException),
         ):
             with pytest.raises(IOError):
                 query = notes.select()
@@ -313,14 +312,10 @@ async def test_queries_after_release_error(database_url):
     Test that the basic `execute()` works after a previous error.
     """
 
-    class DBException(Exception):
-        pass
-
     async with Database(database_url) as database:
         with patch.object(
-                database.connection()._database._pool if hasattr(database.connection(),
-                                                                 '_database') else database.connection(),
-                "release",
+                database.connection()._connection,
+                "_internal_release",
                 new=AsyncMock(side_effect=IOError),
         ):
             with pytest.raises(IOError):
@@ -329,6 +324,7 @@ async def test_queries_after_release_error(database_url):
 
         query = notes.select()
         await database.fetch_all(query)
+        print("it's all folks!")
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)

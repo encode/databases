@@ -97,8 +97,11 @@ class MySQLConnection(ConnectionBackend):
     async def release(self) -> None:
         assert self._connection is not None, "Connection is not acquired"
         assert self._database._pool is not None, "DatabaseBackend is not running"
-        await self._database._pool.release(self._connection)
+        await self._internal_release(self._connection)
         self._connection = None
+
+    async def _internal_release(self, connection):
+        await self._database._pool.release(connection)
 
     async def fetch_all(self, query: ClauseElement) -> typing.List[typing.Sequence]:
         assert self._connection is not None, "Connection is not acquired"

@@ -18,7 +18,7 @@ logger = logging.getLogger("databases")
 
 class PostgresBackend(DatabaseBackend):
     def __init__(
-        self, database_url: typing.Union[DatabaseURL, str], **options: typing.Any
+            self, database_url: typing.Union[DatabaseURL, str], **options: typing.Any
     ) -> None:
         self._database_url = DatabaseURL(database_url)
         self._options = options
@@ -89,15 +89,15 @@ class Record(Sequence):
     )
 
     def __init__(
-        self,
-        row: asyncpg.Record,
-        result_columns: tuple,
-        dialect: Dialect,
-        column_maps: typing.Tuple[
-            typing.Mapping[typing.Any, typing.Tuple[int, TypeEngine]],
-            typing.Mapping[int, typing.Tuple[int, TypeEngine]],
-            typing.Mapping[str, typing.Tuple[int, TypeEngine]],
-        ],
+            self,
+            row: asyncpg.Record,
+            result_columns: tuple,
+            dialect: Dialect,
+            column_maps: typing.Tuple[
+                typing.Mapping[typing.Any, typing.Tuple[int, TypeEngine]],
+                typing.Mapping[int, typing.Tuple[int, TypeEngine]],
+                typing.Mapping[str, typing.Tuple[int, TypeEngine]],
+            ],
     ) -> None:
         self._row = row
         self._result_columns = result_columns
@@ -167,7 +167,10 @@ class PostgresConnection(ConnectionBackend):
         assert self._database._pool is not None, "DatabaseBackend is not running"
         tmp = self._connection
         self._connection = None
-        await self._database._pool.release(tmp)
+        await self._internal_release(tmp)
+
+    async def _internal_release(self, connection):
+        await self._database._pool.release(connection)
 
     async def fetch_all(self, query: ClauseElement) -> typing.List[typing.Sequence]:
         assert self._connection is not None, "Connection is not acquired"
@@ -191,7 +194,7 @@ class PostgresConnection(ConnectionBackend):
         )
 
     async def fetch_val(
-        self, query: ClauseElement, column: typing.Any = 0
+            self, query: ClauseElement, column: typing.Any = 0
     ) -> typing.Any:
         # we are not calling self._connection.fetchval here because
         # it does not convert all the types, e.g. JSON stays string
@@ -220,7 +223,7 @@ class PostgresConnection(ConnectionBackend):
             await self._connection.execute(single_query, *args)
 
     async def iterate(
-        self, query: ClauseElement
+            self, query: ClauseElement
     ) -> typing.AsyncGenerator[typing.Any, None]:
         assert self._connection is not None, "Connection is not acquired"
         query_str, args, result_columns = self._compile(query)
@@ -264,7 +267,7 @@ class PostgresConnection(ConnectionBackend):
 
     @staticmethod
     def _create_column_maps(
-        result_columns: tuple,
+            result_columns: tuple,
     ) -> typing.Tuple[
         typing.Mapping[typing.Any, typing.Tuple[int, TypeEngine]],
         typing.Mapping[int, typing.Tuple[int, TypeEngine]],
@@ -304,7 +307,7 @@ class PostgresTransaction(TransactionBackend):
         )  # type: typing.Optional[asyncpg.transaction.Transaction]
 
     async def start(
-        self, is_root: bool, extra_options: typing.Dict[typing.Any, typing.Any]
+            self, is_root: bool, extra_options: typing.Dict[typing.Any, typing.Any]
     ) -> None:
         assert self._connection._connection is not None, "Connection is not acquired"
         self._transaction = self._connection._connection.transaction(**extra_options)
