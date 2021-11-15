@@ -14,7 +14,7 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ["3.6", "3.7", "3.8"]
+        python-version: ["3.6", "3.7", "3.8", "3.9", "3.10"]
 
     services:
       mysql:
@@ -29,7 +29,7 @@ jobs:
         options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
 
       postgres:
-        image: postgres:10.8
+        image: postgres:14
         env:
           POSTGRES_USER: username
           POSTGRES_PASSWORD: password
@@ -45,7 +45,19 @@ jobs:
           python-version: "${{ matrix.python-version }}"
       - name: "Install dependencies"
         run: "scripts/install"
+      - name: "Run linting checks"
+        run: "scripts/check"
+      - name: "Build package & docs"
+        run: "scripts/build"
       - name: "Run tests"
         env:
-          TEST_DATABASE_URLS: "sqlite:///testsuite, sqlite+aiosqlite:///testsuite, mysql://username:password@localhost:3306/testsuite, mysql+aiomysql://username:password@localhost:3306/testsuite, postgresql://username:password@localhost:5432/testsuite, postgresql+aiopg://username:password@127.0.0.1:5432/testsuite, postgresql+asyncpg://username:password@localhost:5432/testsuite"
+          TEST_DATABASE_URLS: |
+            sqlite:///testsuite,
+            sqlite+aiosqlite:///testsuite,
+            mysql://username:password@localhost:3306/testsuite,
+            mysql+aiomysql://username:password@localhost:3306/testsuite,
+            mysql+asyncmy://username:password@localhost:3306/testsuite,
+            postgresql://username:password@localhost:5432/testsuite,
+            postgresql+aiopg://username:password@127.0.0.1:5432/testsuite,
+            postgresql+asyncpg://username:password@localhost:5432/testsuite
         run: "scripts/test"

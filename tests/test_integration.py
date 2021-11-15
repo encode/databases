@@ -1,5 +1,3 @@
-import os
-
 import pytest
 import sqlalchemy
 from starlette.applications import Starlette
@@ -7,10 +5,7 @@ from starlette.responses import JSONResponse
 from starlette.testclient import TestClient
 
 from databases import Database, DatabaseURL
-
-assert "TEST_DATABASE_URLS" in os.environ, "TEST_DATABASE_URLS is not set."
-
-DATABASE_URLS = [url.strip() for url in os.environ["TEST_DATABASE_URLS"].split(",")]
+from tests.test_databases import DATABASE_URLS, mysql_versions
 
 metadata = sqlalchemy.MetaData()
 
@@ -28,7 +23,7 @@ def create_test_database():
     # Create test databases
     for url in DATABASE_URLS:
         database_url = DatabaseURL(url)
-        if database_url.scheme in ["mysql", "mysql+aiomysql"]:
+        if database_url.scheme in ["mysql", "mysql+aiomysql", "mysql+asyncmy"]:
             url = str(database_url.replace(driver="pymysql"))
         elif database_url.scheme in [
             "postgresql+aiopg",
@@ -42,10 +37,9 @@ def create_test_database():
     # Run the test suite
     yield
 
-    # Drop test databases
     for url in DATABASE_URLS:
         database_url = DatabaseURL(url)
-        if database_url.scheme in ["mysql", "mysql+aiomysql"]:
+        if database_url.scheme in ["mysql", "mysql+aiomysql", "mysql+asyncmy"]:
             url = str(database_url.replace(driver="pymysql"))
         elif database_url.scheme in [
             "postgresql+aiopg",
@@ -90,6 +84,7 @@ def get_app(database_url):
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
+@mysql_versions
 def test_integration(database_url):
     app = get_app(database_url)
 

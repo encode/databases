@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/sh
 
 export PREFIX=""
 if [ -d 'venv' ] ; then
@@ -10,9 +10,14 @@ if [ -z "$TEST_DATABASE_URLS" ] ; then
     exit 1
 fi
 
-set -x
+set -ex
 
-PYTHONPATH=. ${PREFIX}pytest --ignore venv -W ignore::DeprecationWarning --cov=databases --cov=tests --cov-fail-under=100 --cov-report=term-missing ${@}
-${PREFIX}mypy databases --ignore-missing-imports --disallow-untyped-defs
-${PREFIX}autoflake --recursive databases tests
-${PREFIX}black databases tests --check
+if [ -z $GITHUB_ACTIONS ]; then
+    scripts/check
+fi
+
+${PREFIX}coverage run -m pytest $@
+
+if [ -z $GITHUB_ACTIONS ]; then
+    scripts/coverage
+fi
