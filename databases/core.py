@@ -473,7 +473,11 @@ class DatabaseURL:
 
     @property
     def hostname(self) -> typing.Optional[str]:
-        return self.components.hostname
+        return (
+            self.components.hostname
+            or self.options.get("host")
+            or self.options.get("unix_sock")
+        )
 
     @property
     def port(self) -> typing.Optional[int]:
