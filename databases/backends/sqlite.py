@@ -167,7 +167,9 @@ class SQLiteConnection(ConnectionBackend):
         args = []
 
         if not isinstance(query, DDLElement):
-            for key, raw_val in compiled.construct_params().items():
+            params = compiled.construct_params()
+            for key in compiled.positiontup:
+                raw_val = params[key]
                 if key in compiled._bind_processors:
                     val = compiled._bind_processors[key](raw_val)
                 else:
