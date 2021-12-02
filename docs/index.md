@@ -17,8 +17,6 @@ expression language, and provides support for PostgreSQL, MySQL, and SQLite.
 Databases is suitable for integrating against any async Web framework, such as [Starlette][starlette],
 [Sanic][sanic], [Responder][responder], [Quart][quart], [aiohttp][aiohttp], [Tornado][tornado], or [FastAPI][fastapi].
 
-**Community**: [https://discuss.encode.io/c/databases](https://discuss.encode.io/c/databases)
-
 **Requirements**: Python 3.6+
 
 ---
