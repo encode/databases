@@ -98,4 +98,11 @@ async def create_users(request):
 Transaction blocks are managed as task-local state. Nested transactions
 are fully supported, and are implemented using database savepoints.
 
+Transaction isolation-level can be specified if the driver backend supports that:
+
+```python
+async with database.transaction(isolation="serializable"):
+    ...
+```
+
 [starlette]: https://github.com/encode/starlette
