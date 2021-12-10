@@ -32,18 +32,11 @@ $ pip install databases
 You can install the required database drivers with:
 
 ```shell
-$ pip install databases[postgresql]
-$ pip install databases[mysql]
-$ pip install databases[sqlite]
-```
-
-Default driver support is provided using one of [asyncpg][asyncpg], [aiomysql][aiomysql], or [aiosqlite][aiosqlite].
-
-You can also use other database drivers supported by `databases`:
-
-```shel
-$ pip install databases[postgresql+aiopg]
-$ pip install databases[mysql+asyncmy]
+$ pip install databases[asyncpg]
+$ pip install databases[aiopg]
+$ pip install databases[aiomysql]
+$ pip install databases[asyncmy]
+$ pip install databases[aiosqlite]
 ```
 
 Note that if you are using any synchronous SQLAlchemy functions such as `engine.create_all()` or [alembic][alembic] migrations then you still have to install a synchronous DB driver: [psycopg2][psycopg2] for PostgreSQL and [pymysql][pymysql] for MySQL.
@@ -56,7 +49,7 @@ For this example we'll create a very simple SQLite database to run some
 queries against.
 
 ```shell
-$ pip install databases[sqlite]
+$ pip install databases[aiosqlite]
 $ pip install ipython
 ```
 
