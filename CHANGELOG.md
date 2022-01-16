@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 0.5.4 (January 14th, 2022)
+
+### Added
+
+* Support for Unix domain in connections (#423)
+* Added `asyncmy` MySQL driver (#382)
+
+### Fixed
+
+* Fix SQLite fetch queries with multiple parameters (#435)
+* Changed `Record` type to `Sequence` (#408)
+
 ## 0.5.3 (October 10th, 2021)
 
 ### Added
