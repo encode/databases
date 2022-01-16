@@ -29,6 +29,14 @@ Databases is suitable for integrating against any async Web framework, such as [
 $ pip install databases
 ```
 
+Database drivers supported are:
+
+* [asyncpg][asyncpg]
+* [aiopg][aiopg]
+* [aiomysql][aiomysql]
+* [asyncmy][asyncmy]
+* [aiosqlite][aiosqlite]
+
 You can install the required database drivers with:
 
 ```shell
@@ -61,7 +69,7 @@ expressions directly from the console.
 ```python
 # Create a database instance, and connect to it.
 from databases import Database
-database = Database('sqlite:///example.db')
+database = Database('sqlite+aiosqlite:///example.db')
 await database.connect()
 
 # Create a table.
@@ -95,6 +103,11 @@ for examples of how to start using databases together with SQLAlchemy core expre
 [alembic]: https://alembic.sqlalchemy.org/en/latest/
 [psycopg2]: https://www.psycopg.org/
 [pymysql]: https://github.com/PyMySQL/PyMySQL
+[asyncpg]: https://github.com/MagicStack/asyncpg
+[aiopg]: https://github.com/aio-libs/aiopg
+[aiomysql]: https://github.com/aio-libs/aiomysql
+[asyncmy]: https://github.com/long2ice/asyncmy
+[aiosqlite]: https://github.com/omnilib/aiosqlite
 
 [starlette]: https://github.com/encode/starlette
 [sanic]: https://github.com/huge-success/sanic

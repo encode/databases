@@ -44,17 +44,17 @@ and for configuring the connection pool.
 
 ```python
 # Use an SSL connection.
-database = Database('postgresql://localhost/example?ssl=true')
+database = Database('postgresql+asyncpg://localhost/example?ssl=true')
 
 # Use a connection pool of between 5-20 connections.
-database = Database('mysql://localhost/example?min_size=5&max_size=20')
+database = Database('mysql+aiomysql://localhost/example?min_size=5&max_size=20')
 ```
 
 You can also use keyword arguments to pass in any connection options.
 Available keyword arguments may differ between database backends.
 
 ```python
-database = Database('postgresql://localhost/example', ssl=True, min_size=5, max_size=20)
+database = Database('postgresql+asyncpg://localhost/example', ssl=True, min_size=5, max_size=20)
 ```
 
 ## Transactions

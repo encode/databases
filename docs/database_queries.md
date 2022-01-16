@@ -34,7 +34,7 @@ You can now use any [SQLAlchemy core][sqlalchemy-core] queries ([official tutori
 ```python
 from databases import Database
 
-database = Database('postgresql://localhost/example')
+database = Database('postgresql+asyncpg://localhost/example')
 
 
 # Establish the connection pool
