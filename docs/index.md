@@ -17,8 +17,6 @@ expression language, and provides support for PostgreSQL, MySQL, and SQLite.
 Databases is suitable for integrating against any async Web framework, such as [Starlette][starlette],
 [Sanic][sanic], [Responder][responder], [Quart][quart], [aiohttp][aiohttp], [Tornado][tornado], or [FastAPI][fastapi].
 
-**Community**: [https://discuss.encode.io/c/databases](https://discuss.encode.io/c/databases)
-
 **Requirements**: Python 3.6+
 
 ---
@@ -37,7 +35,16 @@ $ pip install databases[mysql]
 $ pip install databases[sqlite]
 ```
 
-Driver support is providing using one of [asyncpg][asyncpg], [aiomysql][aiomysql], or [aiosqlite][aiosqlite].
+Default driver support is provided using one of [asyncpg][asyncpg], [aiomysql][aiomysql], or [aiosqlite][aiosqlite].
+
+You can also use other database drivers supported by `databases`:
+
+```shel
+$ pip install databases[postgresql+aiopg]
+$ pip install databases[mysql+asyncmy]
+```
+
+Note that if you are using any synchronous SQLAlchemy functions such as `engine.create_all()` or [alembic][alembic] migrations then you still have to install a synchronous DB driver: [psycopg2][psycopg2] for PostgreSQL and [pymysql][pymysql] for MySQL.
 
 ---
 
@@ -91,6 +98,8 @@ for examples of how to start using databases together with SQLAlchemy core expre
 [sqlalchemy-core]: https://docs.sqlalchemy.org/en/latest/core/
 [sqlalchemy-core-tutorial]: https://docs.sqlalchemy.org/en/latest/core/tutorial.html
 [alembic]: https://alembic.sqlalchemy.org/en/latest/
+[psycopg2]: https://www.psycopg.org/
+[pymysql]: https://github.com/PyMySQL/PyMySQL
 [asyncpg]: https://github.com/MagicStack/asyncpg
 [aiomysql]: https://github.com/aio-libs/aiomysql
 [aiosqlite]: https://github.com/jreese/aiosqlite
