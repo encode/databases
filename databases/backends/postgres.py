@@ -83,7 +83,7 @@ class PostgresBackend(DatabaseBackend):
         return PostgresConnection(self, self._dialect)
 
 
-class Record(Sequence):
+class Record(RecordInterface):
     __slots__ = (
         "_row",
         "_result_columns",
@@ -110,7 +110,7 @@ class Record(Sequence):
         self._column_map, self._column_map_int, self._column_map_full = column_maps
 
     @property
-    def _mapping(self) -> asyncpg.Record:
+    def _mapping(self) -> typing.Mapping:
         return self._row
 
     def keys(self) -> typing.KeysView:
