@@ -11,7 +11,7 @@ from sqlalchemy import text
 from sqlalchemy.sql import ClauseElement
 
 from databases.importer import import_from_string
-from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend
+from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend, Record
 
 if sys.version_info >= (3, 7):  # pragma: no cover
     import contextvars as contextvars
@@ -144,13 +144,13 @@ class Database:
 
     async def fetch_all(
         self, query: typing.Union[ClauseElement, str], values: dict = None
-    ) -> typing.List[typing.Sequence]:
+    ) -> typing.List[Record]:
         async with self.connection() as connection:
             return await connection.fetch_all(query, values)
 
     async def fetch_one(
         self, query: typing.Union[ClauseElement, str], values: dict = None
-    ) -> typing.Optional[typing.Sequence]:
+    ) -> typing.Optional[Record]:
         async with self.connection() as connection:
             return await connection.fetch_one(query, values)
 
@@ -265,14 +265,14 @@ class Connection:
 
     async def fetch_all(
         self, query: typing.Union[ClauseElement, str], values: dict = None
-    ) -> typing.List[typing.Sequence]:
+    ) -> typing.List[Record]:
         built_query = self._build_query(query, values)
         async with self._query_lock:
             return await self._connection.fetch_all(built_query)
 
     async def fetch_one(
         self, query: typing.Union[ClauseElement, str], values: dict = None
-    ) -> typing.Optional[typing.Sequence]:
+    ) -> typing.Optional[Record]:
         built_query = self._build_query(query, values)
         async with self._query_lock:
             return await self._connection.fetch_one(built_query)

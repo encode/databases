@@ -11,7 +11,7 @@ from sqlalchemy.sql.schema import Column
 from sqlalchemy.types import TypeEngine
 
 from databases.core import LOG_EXTRA, DatabaseURL
-from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend
+from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend, Record as RecordInterface
 
 logger = logging.getLogger("databases")
 
@@ -168,7 +168,7 @@ class PostgresConnection(ConnectionBackend):
         self._connection = await self._database._pool.release(self._connection)
         self._connection = None
 
-    async def fetch_all(self, query: ClauseElement) -> typing.List[typing.Sequence]:
+    async def fetch_all(self, query: ClauseElement) -> typing.List[RecordInterface]:
         assert self._connection is not None, "Connection is not acquired"
         query_str, args, result_columns = self._compile(query)
         rows = await self._connection.fetch(query_str, *args)
@@ -176,7 +176,7 @@ class PostgresConnection(ConnectionBackend):
         column_maps = self._create_column_maps(result_columns)
         return [Record(row, result_columns, dialect, column_maps) for row in rows]
 
-    async def fetch_one(self, query: ClauseElement) -> typing.Optional[typing.Sequence]:
+    async def fetch_one(self, query: ClauseElement) -> typing.Optional[RecordInterface]:
         assert self._connection is not None, "Connection is not acquired"
         query_str, args, result_columns = self._compile(query)
         row = await self._connection.fetchrow(query_str, *args)
