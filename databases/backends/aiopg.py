@@ -14,7 +14,12 @@ from sqlalchemy.sql import ClauseElement
 from sqlalchemy.sql.ddl import DDLElement
 
 from databases.core import DatabaseURL
-from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend, Record
+from databases.interfaces import (
+    ConnectionBackend,
+    DatabaseBackend,
+    Record,
+    TransactionBackend,
+)
 
 logger = logging.getLogger("databases")
 

@@ -11,7 +11,12 @@ from sqlalchemy.sql.schema import Column
 from sqlalchemy.types import TypeEngine
 
 from databases.core import LOG_EXTRA, DatabaseURL
-from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend, Record as RecordInterface
+from databases.interfaces import (
+    ConnectionBackend,
+    DatabaseBackend,
+    Record as RecordInterface,
+    TransactionBackend,
+)
 
 logger = logging.getLogger("databases")
 

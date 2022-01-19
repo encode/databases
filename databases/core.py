@@ -11,7 +11,12 @@ from sqlalchemy import text
 from sqlalchemy.sql import ClauseElement
 
 from databases.importer import import_from_string
-from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend, Record
+from databases.interfaces import (
+    ConnectionBackend,
+    DatabaseBackend,
+    Record,
+    TransactionBackend,
+)
 
 if sys.version_info >= (3, 7):  # pragma: no cover
     import contextvars as contextvars

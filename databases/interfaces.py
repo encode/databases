@@ -22,10 +22,10 @@ class ConnectionBackend:
     async def release(self) -> None:
         raise NotImplementedError()  # pragma: no cover
 
-    async def fetch_all(self, query: ClauseElement) -> typing.List['Record']:
+    async def fetch_all(self, query: ClauseElement) -> typing.List["Record"]:
         raise NotImplementedError()  # pragma: no cover
 
-    async def fetch_one(self, query: ClauseElement) -> typing.Optional['Record']:
+    async def fetch_one(self, query: ClauseElement) -> typing.Optional["Record"]:
         raise NotImplementedError()  # pragma: no cover
 
     async def fetch_val(
