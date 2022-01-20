@@ -1219,7 +1219,7 @@ async def test_mapping_property_interface(database_url):
         query = notes.insert()
         values = {"text": "example1", "completed": True}
         await database.execute(query, values)
-
+        
         query = notes.select()
         single_result = await database.fetch_one(query=query)
         assert single_result._mapping["text"] == "example1"
@@ -1228,3 +1228,23 @@ async def test_mapping_property_interface(database_url):
         list_result = await database.fetch_all(query=query)
         assert list_result[0]._mapping["text"] == "example1"
         assert list_result[0]._mapping["completed"] is True
+
+        
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@mysql_versions
+@async_adapter
+async def test_result_named_access(database_url):
+    """
+    Test attribute access of result columns
+    """
+    async with Database(database_url) as database:
+        query = notes.insert()
+        values = {"text": "example1", "completed": True}
+        await database.execute(query, values)      
+        
+        query = notes.select().where(notes.c.text == "example1")
+        result = await database.fetch_one(query=query)
+
+        assert result.text == "example1"
+        assert result.completed is True
+
