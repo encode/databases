@@ -50,13 +50,10 @@ setup(
     install_requires=["sqlalchemy>=1.4,<1.5", 'aiocontextvars;python_version<"3.7"'],
     extras_require={
         "postgresql": ["asyncpg"],
-        "asyncpg": ["asyncpg"],
-        "aiopg": ["aiopg"],
         "mysql": ["aiomysql"],
-        "aiomysql": ["aiomysql"],
-        "asyncmy": ["asyncmy"],
+        "mysql+asyncmy": ["asyncmy"],
         "sqlite": ["aiosqlite"],
-        "aiosqlite": ["aiosqlite"],
+        "postgresql+aiopg": ["aiopg"],
     },
     classifiers=[
         "Development Status :: 3 - Alpha",
