@@ -150,6 +150,9 @@ class Record(Sequence):
     def __len__(self) -> int:
         return len(self._row)
 
+    def __getattr__(self, name: str) -> typing.Any:
+        return self._mapping.get(name)
+
 
 class PostgresConnection(ConnectionBackend):
     def __init__(self, database: PostgresBackend, dialect: Dialect):
