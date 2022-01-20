@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 0.5.5 (January 20th, 2022)
+
+### Fixed
+
+* Revert the change of `Record` type to `Sequence` from `Mapping`(#408) to maintain backward compatibility
+
 ## 0.5.4 (January 14th, 2022)
 
 ### Added
