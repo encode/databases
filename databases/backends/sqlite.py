@@ -58,6 +58,7 @@ class SQLitePool:
     def __init__(self, url: DatabaseURL, **options: typing.Any) -> None:
         self._database = url.database
         self._memref = None
+        # add query params to database connection string
         if url.options:
             self._database += "?" + urlencode(url.options)
         self._options = options
