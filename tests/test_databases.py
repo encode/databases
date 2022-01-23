@@ -4,6 +4,7 @@ import decimal
 import functools
 import os
 import re
+import sqlite3
 import sys
 from unittest.mock import MagicMock, patch
 
@@ -1222,3 +1223,47 @@ async def test_result_named_access(database_url):
 
         assert result.text == "example1"
         assert result.completed is True
+
+
+@async_adapter
+async def test_should_not_maintain_ref_when_no_cache_param():
+    async with Database("sqlite:///file::memory:", uri=True) as database:
+        query = sqlalchemy.schema.CreateTable(notes)
+        await database.execute(query)
+
+        query = notes.insert()
+        values = {"text": "example1", "completed": True}
+        with pytest.raises(sqlite3.OperationalError):
+            await database.execute(query, values)
+
+
+@async_adapter
+async def test_should_maintain_ref_when_cache_param():
+    async with Database("sqlite:///file::memory:?cache=shared", uri=True) as database:
+        query = sqlalchemy.schema.CreateTable(notes)
+        await database.execute(query)
+
+        query = notes.insert()
+        values = {"text": "example1", "completed": True}
+        await database.execute(query, values)
+
+        query = notes.select().where(notes.c.text == "example1")
+        result = await database.fetch_one(query=query)
+        assert result.text == "example1"
+        assert result.completed is True
+
+
+@async_adapter
+async def test_should_remove_ref_on_disconnect():
+    async with Database("sqlite:///file::memory:?cache=shared", uri=True) as database:
+        query = sqlalchemy.schema.CreateTable(notes)
+        await database.execute(query)
+
+        query = notes.insert()
+        values = {"text": "example1", "completed": True}
+        await database.execute(query, values)
+
+    async with Database("sqlite:///file::memory:?cache=shared", uri=True) as database:
+        query = notes.select()
+        with pytest.raises(sqlite3.OperationalError):
+            await database.fetch_all(query=query)
