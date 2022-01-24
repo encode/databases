@@ -47,7 +47,7 @@ class SQLiteBackend(DatabaseBackend):
         # )
 
     async def disconnect(self) -> None:
-        # remove reference to cached database connection on disconnect
+        # if it extsis, remove reference to connection to cached in-memory database on disconnect
         if self._pool._memref:
             self._pool._memref = None
         # assert self._pool is not None, "DatabaseBackend is not running"
@@ -69,7 +69,7 @@ class SQLitePool:
         self._options = options
 
         if url.options and "cache" in url.options:
-            # reference to cached memory database must be held to keep it from being deleted
+            # reference to a connection to the cached in-memory database must be held to keep it from being deleted
             self._memref = sqlite3.connect(self._database, **self._options)
 
     async def acquire(self) -> aiosqlite.Connection:
