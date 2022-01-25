@@ -108,3 +108,20 @@ Note that query arguments should follow the `:query_arg` style.
 
 [sqlalchemy-core]: https://docs.sqlalchemy.org/en/latest/core/
 [sqlalchemy-core-tutorial]: https://docs.sqlalchemy.org/en/latest/core/tutorial.html
+
+## Query result
+
+To keep in line with [SQLAlchemy 1.4 changes][sqlalchemy-mapping-changes] 
+query result object no longer implements a mapping interface. 
+To access query result as a mapping you should use the `_mapping` property. 
+That way you can process both SQLAlchemy Rows and databases Records from raw queries 
+with the same function without any instance checks.
+
+```python
+query = "SELECT * FROM notes WHERE id = :id"
+result = await database.fetch_one(query=query, values={"id": 1})
+result.id  # access field via attribute
+result._mapping['id']  # access field via mapping
+```
+
+[sqlalchemy-mapping-changes]: https://docs.sqlalchemy.org/en/14/changelog/migration_14.html#rowproxy-is-no-longer-a-proxy-is-now-called-row-and-behaves-like-an-enhanced-named-tuple
