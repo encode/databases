@@ -1229,7 +1229,7 @@ async def test_result_named_access(database_url):
 @async_adapter
 async def test_mapping_property_interface(database_url):
     """
-    Test that all connections implements interface with `_mapping` property
+    Test that all connections implement interface with `_mapping` property
     """
     async with Database(database_url) as database:
         query = notes.insert()
