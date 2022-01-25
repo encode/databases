@@ -1,21 +1,8 @@
 #!/bin/sh -e
 
 export PREFIX=""
-UNAME=$(uname)
-case "$UNAME" in
-"Linux") export SYSTEM="Linux" ;;
-"Darwin") export SYSTEM="Linux" ;;
-CYGWIN*) export SYSTEM="Windows" ;;
-MINGW*) export SYSTEM="Windows" ;;
-*) export SYSTEM="Linux" ;;
-esac
-
-if [ -d 'venv' ]; then
-  if [ $SYSTEM = "Linux" ] ; then
+if [ -d 'venv' ] ; then
     export PREFIX="venv/bin/"
-  else
-    export PREFIX="venv/Scripts/"
-  fi
 fi
 
 set -x
