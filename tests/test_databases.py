@@ -12,7 +12,9 @@ import sqlalchemy
 
 from databases import Database, DatabaseURL
 
-if sys.version_info >= (3, 8) and sys.platform.lower().startswith("win"):
+if sys.version_info >= (3, 8) and sys.platform.lower().startswith(
+    "win"
+):  # pragma: no cover
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 assert "TEST_DATABASE_URLS" in os.environ, "TEST_DATABASE_URLS is not set."

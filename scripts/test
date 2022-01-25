@@ -18,8 +18,8 @@ if [ -d 'venv' ]; then
   fi
 fi
 
-if [ -z "$TEST_DATABASE_URLS" ]; then
-  echo "Variable TEST_DATABASE_URLS must be set."
+if [ -z "$TEST_DATABASE_URLS" ] && [ -z "${TEST_IN_DOCKER+x}" ]; then
+  echo "Variable TEST_DATABASE_URLS or TEST_IN_DOCKER must be set."
   exit 1
 fi
 
