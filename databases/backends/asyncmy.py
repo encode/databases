@@ -12,7 +12,12 @@ from sqlalchemy.sql import ClauseElement
 from sqlalchemy.sql.ddl import DDLElement
 
 from databases.core import LOG_EXTRA, DatabaseURL
-from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend
+from databases.interfaces import (
+    ConnectionBackend,
+    DatabaseBackend,
+    Record,
+    TransactionBackend,
+)
 
 logger = logging.getLogger("databases")
 
@@ -100,7 +105,7 @@ class AsyncMyConnection(ConnectionBackend):
         await self._database._pool.release(self._connection)
         self._connection = None
 
-    async def fetch_all(self, query: ClauseElement) -> typing.List[typing.Sequence]:
+    async def fetch_all(self, query: ClauseElement) -> typing.List[Record]:
         assert self._connection is not None, "Connection is not acquired"
         query_str, args, context = self._compile(query)
         async with self._connection.cursor() as cursor:
@@ -121,7 +126,7 @@ class AsyncMyConnection(ConnectionBackend):
             finally:
                 await cursor.close()
 
-    async def fetch_one(self, query: ClauseElement) -> typing.Optional[typing.Sequence]:
+    async def fetch_one(self, query: ClauseElement) -> typing.Optional[Record]:
         assert self._connection is not None, "Connection is not acquired"
         query_str, args, context = self._compile(query)
         async with self._connection.cursor() as cursor:
