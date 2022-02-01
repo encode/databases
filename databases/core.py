@@ -246,7 +246,7 @@ class Connection:
             try:
                 if self._connection_counter == 1:
                     await self._connection.acquire()
-            except Exception as e:
+            except BaseException as e:
                 self._connection_counter -= 1
                 raise e
         return self
