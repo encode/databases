@@ -303,24 +303,26 @@ async def test_ddl_queries(database_url):
             await database.execute(query)
 
 
+class DBException(Exception):
+    pass
+
+
+@pytest.mark.parametrize("exception", [DBException, asyncio.CancelledError])
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @mysql_versions
 @async_adapter
-async def test_queries_after_error(database_url):
+async def test_queries_after_error(database_url, exception):
     """
     Test that the basic `execute()` works after a previous error.
     """
-
-    class DBException(Exception):
-        pass
 
     async with Database(database_url) as database:
         with patch.object(
             database.connection()._connection,
             "acquire",
-            new=AsyncMock(side_effect=DBException),
+            new=AsyncMock(side_effect=exception),
         ):
-            with pytest.raises(DBException):
+            with pytest.raises(exception):
                 query = notes.select()
                 await database.fetch_all(query)
 
