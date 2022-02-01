@@ -1,8 +1,8 @@
 import asyncio
 import contextlib
+import contextvars
 import functools
 import logging
-import sys
 import typing
 from types import TracebackType
 from urllib.parse import SplitResult, parse_qsl, unquote, urlsplit
@@ -17,11 +17,6 @@ from databases.interfaces import (
     Record,
     TransactionBackend,
 )
-
-if sys.version_info >= (3, 7):  # pragma: no cover
-    import contextvars as contextvars
-else:  # pragma: no cover
-    import aiocontextvars as contextvars
 
 try:  # pragma: no cover
     import click
