@@ -307,7 +307,7 @@ class DBException(Exception):
     pass
 
 
-@pytest.mark.parametrize("exception", [DBException, asyncio.CancelledError])
+@pytest.mark.parametrize("exception", [Exception, asyncio.CancelledError])
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @mysql_versions
 @async_adapter
