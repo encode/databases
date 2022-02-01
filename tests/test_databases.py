@@ -303,10 +303,6 @@ async def test_ddl_queries(database_url):
             await database.execute(query)
 
 
-class DBException(Exception):
-    pass
-
-
 @pytest.mark.parametrize("exception", [Exception, asyncio.CancelledError])
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @mysql_versions
