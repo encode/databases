@@ -1,23 +1,51 @@
 #!/bin/sh
 
 export PREFIX=""
-if [ -d 'venv' ] ; then
+UNAME=$(uname)
+case "$UNAME" in
+"Linux") export SYSTEM="Linux" ;;
+"Darwin") export SYSTEM="Linux" ;;
+CYGWIN*) export SYSTEM="Windows" ;;
+MINGW*) export SYSTEM="Windows" ;;
+*) export SYSTEM="Linux" ;;
+esac
+
+if [ -d 'venv' ]; then
+  if [ $SYSTEM = "Linux" ]; then
     export PREFIX="venv/bin/"
+  else
+    export PREFIX="venv/Scripts/"
+  fi
 fi
 
-if [ -z "$TEST_DATABASE_URLS" ] ; then
-    echo "Variable TEST_DATABASE_URLS must be set."
-    exit 1
+if [ -z "$TEST_DATABASE_URLS" ] && [ -z "${TEST_IN_DOCKER+x}" ]; then
+  echo "Variable TEST_DATABASE_URLS or TEST_IN_DOCKER must be set."
+  exit 1
+fi
+
+if [ -n "${TEST_IN_DOCKER+x}" ]; then
+  docker-compose -f ./scripts/docker-compose.yml up -d
+  export TEST_DATABASE_URLS="sqlite:///test.db,
+  sqlite+aiosqlite:///test.db,
+  mysql+aiomysql://username:password@localhost:3306/testsuite,
+  mysql+asyncmy://username:password@localhost:3306/testsuite,
+  postgresql+aiopg://username:password@127.0.0.1:5432/testsuite,
+  postgresql+asyncpg://username:password@localhost:5432/testsuite
+  "
 fi
 
 set -ex
 
 if [ -z $GITHUB_ACTIONS ]; then
-    scripts/check
+  scripts/check
 fi
 
 ${PREFIX}coverage run -m pytest $@
 
 if [ -z $GITHUB_ACTIONS ]; then
-    scripts/coverage
+  scripts/coverage
+fi
+
+if [ -n "${TEST_IN_DOCKER+x}" ]; then
+  docker-compose -f ./scripts/docker-compose.yml down
 fi
