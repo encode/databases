@@ -88,8 +88,8 @@ class SQLiteConnection(ConnectionBackend):
 
     async def release(self) -> None:
         assert self._connection is not None, "Connection is not acquired"
-        await self._pool.release(self._connection)
-        self._connection = None
+        connection, self._connection = self._connection, None
+        await self._pool.release(connection)
 
     async def fetch_all(self, query: ClauseElement) -> typing.List[Record]:
         assert self._connection is not None, "Connection is not acquired"
