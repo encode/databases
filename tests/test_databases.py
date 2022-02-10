@@ -303,24 +303,22 @@ async def test_ddl_queries(database_url):
             await database.execute(query)
 
 
+@pytest.mark.parametrize("exception", [Exception, asyncio.CancelledError])
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @mysql_versions
 @async_adapter
-async def test_queries_after_error(database_url):
+async def test_queries_after_error(database_url, exception):
     """
     Test that the basic `execute()` works after a previous error.
     """
-
-    class DBException(Exception):
-        pass
 
     async with Database(database_url) as database:
         with patch.object(
             database.connection()._connection,
             "acquire",
-            new=AsyncMock(side_effect=DBException),
+            new=AsyncMock(side_effect=exception),
         ):
-            with pytest.raises(DBException):
+            with pytest.raises(exception):
                 query = notes.select()
                 await database.fetch_all(query)
 
@@ -1222,3 +1220,25 @@ async def test_result_named_access(database_url):
 
         assert result.text == "example1"
         assert result.completed is True
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@mysql_versions
+@async_adapter
+async def test_mapping_property_interface(database_url):
+    """
+    Test that all connections implement interface with `_mapping` property
+    """
+    async with Database(database_url) as database:
+        query = notes.insert()
+        values = {"text": "example1", "completed": True}
+        await database.execute(query, values)
+
+        query = notes.select()
+        single_result = await database.fetch_one(query=query)
+        assert single_result._mapping["text"] == "example1"
+        assert single_result._mapping["completed"] is True
+
+        list_result = await database.fetch_all(query=query)
+        assert list_result[0]._mapping["text"] == "example1"
+        assert list_result[0]._mapping["completed"] is True
