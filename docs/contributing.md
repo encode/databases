@@ -37,7 +37,7 @@ cd databases
 
 2. Create and activate virtual env
 ```bash
-virtualenv -p `which python3.6` env
+virtualenv env
 source env/bin/activate
 ```
 
@@ -107,7 +107,8 @@ run all of those with lint script
 ```
 
 5. Build documentation
-   1. If you have changed the documentation make sure it runs successfully
+   1. If you have changed the documentation make sure it runs successfully. 
+   You can preview the live documentation by running the following command:
 ```bash
 ./scripts/docs
 ```
