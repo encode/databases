@@ -66,8 +66,40 @@ run all of those with lint script
    2. The simples one is for sqlite alone: `sqlite:///test.db`
 
 3. Prepare tests (all backends)
-   1. In order to run all backends you need a docker instalation on your system [from here](https://docs.docker.com/get-docker/)
-   2. You need to set-up `TEST_IN_DOCKER` env variable (to any non-null value `YES` or `1`)
+   1. In order to run all backends you need either a docker installation on your system or all supported backends servers installed on your local machine.
+   2. A sample docker configuration that reflects the CI/CD workflow of databases might be:
+   
+   ```dockerfile
+    version: '2.1'
+    services:
+      postgres:
+        image: postgres:10.8
+        environment:
+          POSTGRES_USER: username
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: testsuite
+        ports:
+          - 5432:5432
+    
+      mysql:
+        image: mysql:5.7
+        environment:
+          MYSQL_USER: username
+          MYSQL_PASSWORD: password
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: testsuite
+        ports:
+          - 3306:3306
+   ```
+   3. To test all backends, the test urls need to consist of all possible drivers too, so a sample might look like following:
+   ```text
+    sqlite:///test.db,
+    sqlite+aiosqlite:///test.db,
+    mysql+aiomysql://username:password@localhost:3306/testsuite,
+    mysql+asyncmy://username:password@localhost:3306/testsuite,
+    postgresql+aiopg://username:password@127.0.0.1:5432/testsuite,
+    postgresql+asyncpg://username:password@localhost:5432/testsuite
+   ```
 
 4. Run tests
 ```bash
