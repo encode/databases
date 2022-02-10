@@ -1,6 +1,6 @@
 # Contibuting
 
-All contributions to *databases* are welcomed!
+All contributions to *databases* are welcome!
 
 ## Issues
 
