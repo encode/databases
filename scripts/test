@@ -5,8 +5,8 @@ if [ -d 'venv' ] ; then
     export PREFIX="venv/bin/"
 fi
 
-if [ -z "$TEST_DATABASE_URLS" ] && [ -z "${TEST_IN_DOCKER+x}" ]; then
-  echo "Variable TEST_DATABASE_URLS or TEST_IN_DOCKER must be set."
+if [ -z "$TEST_DATABASE_URLS" ]; then
+  echo "Variable TEST_DATABASE_URLS must be set."
   exit 1
 fi
 
@@ -22,6 +22,3 @@ if [ -z $GITHUB_ACTIONS ]; then
   scripts/coverage
 fi
 
-if [ -n "${TEST_IN_DOCKER+x}" ]; then
-  docker-compose -f ./scripts/docker-compose.yml down
-fi
