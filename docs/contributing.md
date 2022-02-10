@@ -109,7 +109,7 @@ run all of those with lint script
 5. Build documentation
    1. If you have changed the documentation make sure it runs successfully
 ```bash
-./scripts/test
+./scripts/docs
 ```
 
 6. Commit, push, and create your pull request
