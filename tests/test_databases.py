@@ -23,7 +23,7 @@ def mysql_versions(wrapped_func):
     """
 
     @functools.wraps(wrapped_func)
-    def check(*args, **kwargs):
+    def check(*args, **kwargs):  # pragma: no cover
         url = DatabaseURL(kwargs["database_url"])
         if url.scheme in ["mysql", "mysql+aiomysql"] and sys.version_info >= (3, 10):
             pytest.skip("aiomysql supports python 3.9 and lower")
