@@ -227,10 +227,13 @@ class MySQLConnection(ConnectionBackend):
         compiled = queries[0].compile(
             dialect=self._dialect, compile_kwargs={"render_postcompile": True}
         )
-        for args in values:
-            for key, val in args.items():
-                if key in compiled._bind_processors:
-                    args[key] = compiled._bind_processors[key](val)
+        if not isinstance(queries[0], DDLElement):
+            for args in values:
+                for key, val in args.items():
+                    if key in compiled._bind_processors:
+                        args[key] = compiled._bind_processors[key](val)
+        else:
+            values = []
         return compiled.string, values
 
     @property

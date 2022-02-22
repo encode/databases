@@ -203,11 +203,19 @@ class SQLiteConnection(ConnectionBackend):
         compiled = queries[0].compile(
             dialect=self._dialect, compile_kwargs={"render_postcompile": True}
         )
-        for args in values:
-            for key, val in args.items():
-                if key in compiled._bind_processors:
-                    args[key] = compiled._bind_processors[key](val)
-        return compiled.string, values
+        new_values = []
+        if not isinstance(queries[0], DDLElement):
+            for args in values:
+                temp_arr = []
+                for key in compiled.positiontup:
+                    raw_val = args[key]
+                    if key in compiled._bind_processors:
+                        val = compiled._bind_processors[key](raw_val)
+                    else:
+                        val = raw_val
+                    temp_arr.append(val)
+                new_values.append(temp_arr)
+        return compiled.string, new_values
 
     @property
     def raw_connection(self) -> aiosqlite.core.Connection:

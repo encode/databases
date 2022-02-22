@@ -272,11 +272,23 @@ class PostgresConnection(ConnectionBackend):
         compiled = queries[0].compile(
             dialect=self._dialect, compile_kwargs={"render_postcompile": True}
         )
-        for args in values:
-            for key, val in args.items():
-                if key in compiled._bind_processors:
-                    args[key] = compiled._bind_processors[key](val)
-        return compiled.string, values
+        new_values = []
+        if not isinstance(queries[0], DDLElement):
+            for args in values:
+                sorted_args = sorted(args.items())
+                mapping = {
+                    key: "$" + str(i) for i, (key, _) in enumerate(sorted_args, start=1)
+                }
+                compiled_query = compiled.string % mapping
+                processors = compiled._bind_processors
+                values = [
+                    processors[key](val) if key in processors else val
+                    for key, val in sorted_args
+                ]
+                new_values.append(values)
+        else:
+            compiled_query = compiled.string
+        return compiled_query, new_values
 
     @staticmethod
     def _create_column_maps(
