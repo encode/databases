@@ -304,7 +304,7 @@ class Connection:
     ) -> None:
         queries = [self._build_query(query, values_set) for values_set in values]
         async with self._query_lock:
-            await self._connection.execute_many(queries)
+            await self._connection.execute_many(queries, values)
 
     async def iterate(
         self, query: typing.Union[ClauseElement, str], values: dict = None

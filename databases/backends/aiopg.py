@@ -168,7 +168,9 @@ class AiopgConnection(ConnectionBackend):
         finally:
             cursor.close()
 
-    async def execute_many(self, queries: typing.List[ClauseElement]) -> None:
+    async def execute_many(
+        self, queries: typing.List[ClauseElement], values: typing.List[dict]
+    ) -> None:
         assert self._connection is not None, "Connection is not acquired"
         cursor = await self._connection.cursor()
         try:
