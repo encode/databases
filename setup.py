@@ -47,7 +47,7 @@ setup(
     author_email="tom@tomchristie.com",
     packages=get_packages("databases"),
     package_data={"databases": ["py.typed"]},
-    install_requires=["sqlalchemy>=1.4,<1.5", 'aiocontextvars;python_version<"3.7"'],
+    install_requires=["sqlalchemy[asyncio]>=1.4,<1.5", 'aiocontextvars;python_version<"3.7"'],
     extras_require={
         "postgresql": ["asyncpg"],
         "asyncpg": ["asyncpg"],
