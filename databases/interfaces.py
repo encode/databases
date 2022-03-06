@@ -41,7 +41,7 @@ class ConnectionBackend:
         raise NotImplementedError()  # pragma: no cover
 
     async def iterate(
-        self, query: ClauseElement
+        self, query: ClauseElement, n: int = None
     ) -> typing.AsyncGenerator[typing.Mapping, None]:
         raise NotImplementedError()  # pragma: no cover
         # mypy needs async iterators to contain a `yield`
