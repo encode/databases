@@ -1,6 +1,5 @@
 import logging
 import typing
-from collections.abc import Sequence
 
 import asyncpg
 from sqlalchemy.dialects.postgresql import pypostgresql
