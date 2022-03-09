@@ -1,3 +1,4 @@
+import asyncio
 import getpass
 import json
 import logging
@@ -171,10 +172,12 @@ class AiopgConnection(ConnectionBackend):
     async def execute_many(self, queries: typing.List[ClauseElement]) -> None:
         assert self._connection is not None, "Connection is not acquired"
         cursor = await self._connection.cursor()
+        futures = []
+        for single_query in queries:
+            single_query, args, context = self._compile(single_query)
+            futures.append(cursor.execute(single_query, args))
         try:
-            for single_query in queries:
-                single_query, args, context = self._compile(single_query)
-                await cursor.execute(single_query, args)
+            await asyncio.gather(*futures)
         finally:
             cursor.close()
 

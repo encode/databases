@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import typing
 
@@ -221,9 +222,11 @@ class PostgresConnection(ConnectionBackend):
         # asyncpg uses prepared statements under the hood, so we just
         # loop through multiple executes here, which should all end up
         # using the same prepared statement.
+        futures = []
         for single_query in queries:
             single_query, args, result_columns = self._compile(single_query)
-            await self._connection.execute(single_query, *args)
+            futures.append(self._connection.execute(single_query, *args))
+        await asyncio.gather(*futures)
 
     async def iterate(
         self, query: ClauseElement
