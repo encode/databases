@@ -225,6 +225,24 @@ async def test_queries(database_url):
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @mysql_versions
 @async_adapter
+async def test_queries_manual(database_url):
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            _t = sqlalchemy.sql.text
+
+            query = notes.insert()
+            values = {"text": "example1", "completed": True}
+            await database.execute(query, values)
+
+            query = sqlalchemy.select([_t("n.text")], from_obj=[_t("notes n")])
+            result = await database.fetch_one(query)
+
+            assert dict(result)
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@mysql_versions
+@async_adapter
 async def test_queries_raw(database_url):
     """
     Test that the basic `execute()`, `execute_many()`, `fetch_all()``, and

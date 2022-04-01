@@ -140,7 +140,10 @@ class Record(RecordInterface):
         elif isinstance(key, int):
             idx, datatype = self._column_map_int[key]
         else:
-            idx, datatype = self._column_map[key]
+            try:
+                idx, datatype = self._column_map[key]
+            except KeyError:
+                return self._row[key]
         raw = self._row[idx]
         processor = datatype._cached_result_processor(self._dialect, None)
 
