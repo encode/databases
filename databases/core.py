@@ -1,9 +1,9 @@
 import asyncio
 import contextlib
-from contextvars import ContextVar
 import functools
 import logging
 import typing
+from contextvars import ContextVar
 from types import TracebackType
 from urllib.parse import SplitResult, parse_qsl, unquote, urlsplit
 
