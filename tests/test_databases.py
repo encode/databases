@@ -23,7 +23,7 @@ def mysql_versions(wrapped_func):
     """
 
     @functools.wraps(wrapped_func)
-    def check(*args, **kwargs):
+    def check(*args, **kwargs):  # pragma: no cover
         url = DatabaseURL(kwargs["database_url"])
         if url.scheme in ["mysql", "mysql+aiomysql"] and sys.version_info >= (3, 10):
             pytest.skip("aiomysql supports python 3.9 and lower")
@@ -303,24 +303,22 @@ async def test_ddl_queries(database_url):
             await database.execute(query)
 
 
+@pytest.mark.parametrize("exception", [Exception, asyncio.CancelledError])
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @mysql_versions
 @async_adapter
-async def test_queries_after_error(database_url):
+async def test_queries_after_error(database_url, exception):
     """
     Test that the basic `execute()` works after a previous error.
     """
-
-    class DBException(Exception):
-        pass
 
     async with Database(database_url) as database:
         with patch.object(
             database.connection()._connection,
             "acquire",
-            new=AsyncMock(side_effect=DBException),
+            new=AsyncMock(side_effect=exception),
         ):
-            with pytest.raises(DBException):
+            with pytest.raises(exception):
                 query = notes.select()
                 await database.fetch_all(query)
 
@@ -1123,25 +1121,6 @@ async def test_column_names(database_url, select_query):
             assert sorted(results[0]._mapping.keys()) == ["completed", "id", "text"]
             assert results[0]["text"] == "example1"
             assert results[0]["completed"] == True
-
-
-@pytest.mark.parametrize("database_url", DATABASE_URLS)
-@mysql_versions
-@async_adapter
-async def test_parallel_transactions(database_url):
-    """
-    Test parallel transaction execution.
-    """
-
-    async def test_task(db):
-        async with db.transaction():
-            await db.fetch_one("SELECT 1")
-
-    async with Database(database_url) as database:
-        await database.fetch_one("SELECT 1")
-
-        tasks = [test_task(database) for i in range(4)]
-        await asyncio.gather(*tasks)
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
