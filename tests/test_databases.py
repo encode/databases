@@ -1124,25 +1124,6 @@ async def test_column_names(database_url, select_query):
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
-@mysql_versions
-@async_adapter
-async def test_parallel_transactions(database_url):
-    """
-    Test parallel transaction execution.
-    """
-
-    async def test_task(db):
-        async with db.transaction():
-            await db.fetch_one("SELECT 1")
-
-    async with Database(database_url) as database:
-        await database.fetch_one("SELECT 1")
-
-        tasks = [test_task(database) for i in range(4)]
-        await asyncio.gather(*tasks)
-
-
-@pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
 async def test_posgres_interface(database_url):
     """
