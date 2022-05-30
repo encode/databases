@@ -2,8 +2,8 @@ import asyncio
 import contextlib
 import functools
 import logging
-import sys
 import typing
+from contextvars import ContextVar
 from types import TracebackType
 from urllib.parse import SplitResult, parse_qsl, unquote, urlsplit
 
@@ -12,11 +12,6 @@ from sqlalchemy.sql import ClauseElement
 
 from databases.importer import import_from_string
 from databases.interfaces import DatabaseBackend, Record
-
-if sys.version_info >= (3, 7):  # pragma: no cover
-    import contextvars as contextvars
-else:  # pragma: no cover
-    import aiocontextvars as contextvars
 
 try:  # pragma: no cover
     import click
@@ -69,9 +64,7 @@ class Database:
         self._backend = backend_cls(self.url, **self.options)
 
         # Connections are stored as task-local state.
-        self._connection_context = contextvars.ContextVar(
-            "connection_context"
-        )  # type: contextvars.ContextVar
+        self._connection_context = ContextVar("connection_context")  # type: ContextVar
 
         # When `force_rollback=True` is used, we use a single global
         # connection, within a transaction that always rolls back.
@@ -120,7 +113,7 @@ class Database:
             self._global_transaction = None
             self._global_connection = None
         else:
-            self._connection_context = contextvars.ContextVar("connection_context")
+            self._connection_context = ContextVar("connection_context")
 
         await self._backend.disconnect()
         logger.info(
@@ -182,11 +175,6 @@ class Database:
             async for record in connection.iterate(query, values):
                 yield record
 
-    def _new_connection(self) -> "Connection":
-        connection = Connection(self._backend)
-        self._connection_context.set(connection)
-        return connection
-
     def connection(self) -> "Connection":
         if self._global_connection is not None:
             return self._global_connection
@@ -194,23 +182,14 @@ class Database:
         try:
             return self._connection_context.get()
         except LookupError:
-            return self._new_connection()
+            connection = Connection(self._backend)
+            self._connection_context.set(connection)
+            return connection
 
     def transaction(
         self, *, force_rollback: bool = False, **kwargs: typing.Any
     ) -> "Transaction":
-        try:
-            connection = self._connection_context.get()
-            is_root = not connection._transaction_stack
-            if is_root:
-                newcontext = contextvars.copy_context()
-                get_conn = lambda: newcontext.run(self._new_connection)
-            else:
-                get_conn = self.connection
-        except LookupError:
-            get_conn = self.connection
-
-        return Transaction(get_conn, force_rollback=force_rollback, **kwargs)
+        return Transaction(self.connection, force_rollback=force_rollback, **kwargs)
 
     @contextlib.contextmanager
     def force_rollback(self) -> typing.Iterator[None]:
