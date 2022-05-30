@@ -2,8 +2,8 @@ import asyncio
 import contextlib
 import functools
 import logging
-import sys
 import typing
+from contextvars import ContextVar
 from types import TracebackType
 from urllib.parse import SplitResult, parse_qsl, unquote, urlsplit
 
@@ -12,11 +12,6 @@ from sqlalchemy.sql import ClauseElement
 
 from databases.importer import import_from_string
 from databases.interfaces import DatabaseBackend, Record
-
-if sys.version_info >= (3, 7):  # pragma: no cover
-    from contextvars import ContextVar
-else:  # pragma: no cover
-    from aiocontextvars import ContextVar
 
 try:  # pragma: no cover
     import click
