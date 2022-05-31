@@ -1,4 +1,5 @@
 .vscode/
+.idea/
 *.pyc
 test.db
 .coverage
@@ -8,3 +9,4 @@ __pycache__/
 *.egg-info/
 htmlcov/
 venv/
+.idea/

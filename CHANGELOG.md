@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 0.6.0 (May 29th, 2022)
+
+* Dropped Python 3.6 support (#458)
+
+### Added
+
+* Add _mapping property to the result set interface (#447 )
+* Add contributing docs (#453 )
+
+### Fixed
+
+* Fix query result named access (#448)
+* Fix connections getting into a bad state when a task is cancelled (#457)
+* Revert #328 parallel transactions (#472)
+* Change extra installations to specific drivers (#436)
+
 ## 0.5.4 (January 14th, 2022)
 
 ### Added

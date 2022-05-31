@@ -5,19 +5,20 @@ if [ -d 'venv' ] ; then
     export PREFIX="venv/bin/"
 fi
 
-if [ -z "$TEST_DATABASE_URLS" ] ; then
-    echo "Variable TEST_DATABASE_URLS must be set."
-    exit 1
+if [ -z "$TEST_DATABASE_URLS" ]; then
+  echo "Variable TEST_DATABASE_URLS must be set."
+  exit 1
 fi
 
 set -ex
 
 if [ -z $GITHUB_ACTIONS ]; then
-    scripts/check
+  scripts/check
 fi
 
 ${PREFIX}coverage run -m pytest $@
 
 if [ -z $GITHUB_ACTIONS ]; then
-    scripts/coverage
+  scripts/coverage
 fi
+

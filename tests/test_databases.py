@@ -282,23 +282,21 @@ async def test_ddl_queries(database_url):
             await database.execute(query)
 
 
+@pytest.mark.parametrize("exception", [Exception, asyncio.CancelledError])
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
-async def test_queries_after_error(database_url):
+async def test_queries_after_error(database_url, exception):
     """
     Test that the basic `execute()` works after a previous error.
     """
-
-    class DBException(Exception):
-        pass
 
     async with Database(database_url) as database:
         with patch.object(
             database.connection()._connection,
             "acquire",
-            new=AsyncMock(side_effect=DBException),
+            new=AsyncMock(side_effect=exception),
         ):
-            with pytest.raises(DBException):
+            with pytest.raises(exception):
                 query = notes.select()
                 await database.fetch_all(query)
 
@@ -1078,6 +1076,7 @@ async def test_column_names(database_url, select_query):
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
+<<<<<<< HEAD
 @async_adapter
 async def test_parallel_transactions(database_url):
     """
@@ -1096,6 +1095,8 @@ async def test_parallel_transactions(database_url):
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
+=======
+>>>>>>> master
 @async_adapter
 async def test_posgres_interface(database_url):
     """
