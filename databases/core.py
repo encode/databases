@@ -315,6 +315,9 @@ class Connection:
         return query
 
 
+_CallableType = typing.TypeVar("_CallableType", bound=typing.Callable)
+
+
 class Transaction:
     def __init__(
         self,
@@ -347,13 +350,14 @@ class Transaction:
         else:
             await self.commit()
 
-    def __await__(self) -> typing.Generator:
+    def __await__(self) -> typing.Generator[None, None, "Transaction"]:
         """
         Called if using the low-level `transaction = await database.transaction()`
         """
+        reveal_type(self.start().__await__())
         return self.start().__await__()
 
-    def __call__(self, func: typing.Callable) -> typing.Callable:
+    def __call__(self, func: _CallableType) -> _CallableType:
         """
         Called if using `@database.transaction()` as a decorator.
         """
@@ -363,7 +367,7 @@ class Transaction:
             async with self:
                 return await func(*args, **kwargs)
 
-        return wrapper
+        return wrapper  # type: ignore
 
     async def start(self) -> "Transaction":
         self._connection = self._connection_callable()
