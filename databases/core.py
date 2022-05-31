@@ -1,6 +1,5 @@
 import asyncio
 import contextlib
-import contextvars
 import functools
 import logging
 import typing
