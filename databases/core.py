@@ -354,7 +354,6 @@ class Transaction:
         """
         Called if using the low-level `transaction = await database.transaction()`
         """
-        reveal_type(self.start().__await__())
         return self.start().__await__()
 
     def __call__(self, func: _CallableType) -> _CallableType:
