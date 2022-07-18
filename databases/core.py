@@ -371,15 +371,19 @@ class Transaction:
         async with self._connection._transaction_lock:
             assert self._connection._transaction_stack[-1] is self
             self._connection._transaction_stack.pop()
-            await self._transaction.commit()
-            await self._connection.__aexit__()
+            try:
+                await self._transaction.commit()
+            finally:
+                await self._connection.__aexit__()
 
     async def rollback(self) -> None:
         async with self._connection._transaction_lock:
             assert self._connection._transaction_stack[-1] is self
             self._connection._transaction_stack.pop()
-            await self._transaction.rollback()
-            await self._connection.__aexit__()
+            try:
+                await self._transaction.rollback()
+            finally:
+                await self._connection.__aexit__()
 
 
 class _EmptyNetloc(str):
