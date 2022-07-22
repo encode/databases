@@ -1,6 +1,5 @@
 import logging
 import typing
-from collections.abc import Mapping
 
 import asyncpg
 from sqlalchemy.dialects.postgresql import pypostgresql
@@ -11,7 +10,12 @@ from sqlalchemy.sql.schema import Column
 from sqlalchemy.types import TypeEngine
 
 from databases.core import LOG_EXTRA, DatabaseURL
-from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend
+from databases.interfaces import (
+    ConnectionBackend,
+    DatabaseBackend,
+    Record as RecordInterface,
+    TransactionBackend,
+)
 
 logger = logging.getLogger("databases")
 
@@ -78,7 +82,7 @@ class PostgresBackend(DatabaseBackend):
         return PostgresConnection(self, self._dialect)
 
 
-class Record(Mapping):
+class Record(RecordInterface):
     __slots__ = (
         "_row",
         "_result_columns",
@@ -104,8 +108,29 @@ class Record(Mapping):
         self._dialect = dialect
         self._column_map, self._column_map_int, self._column_map_full = column_maps
 
+    @property
+    def _mapping(self) -> typing.Mapping:
+        return self._row
+
+    def keys(self) -> typing.KeysView:
+        import warnings
+
+        warnings.warn(
+            "The `Row.keys()` method is deprecated to mimic SQLAlchemy behaviour, "
+            "use `Row._mapping.keys()` instead.",
+            DeprecationWarning,
+        )
+        return self._mapping.keys()
+
     def values(self) -> typing.ValuesView:
-        return self._row.values()
+        import warnings
+
+        warnings.warn(
+            "The `Row.values()` method is deprecated to mimic SQLAlchemy behaviour, "
+            "use `Row._mapping.values()` instead.",
+            DeprecationWarning,
+        )
+        return self._mapping.values()
 
     def __getitem__(self, key: typing.Any) -> typing.Any:
         if len(self._column_map) == 0:  # raw query
@@ -129,6 +154,9 @@ class Record(Mapping):
     def __len__(self) -> int:
         return len(self._row)
 
+    def __getattr__(self, name: str) -> typing.Any:
+        return self._mapping.get(name)
+
 
 class PostgresConnection(ConnectionBackend):
     def __init__(self, database: PostgresBackend, dialect: Dialect):
@@ -147,18 +175,18 @@ class PostgresConnection(ConnectionBackend):
         self._connection = await self._database._pool.release(self._connection)
         self._connection = None
 
-    async def fetch_all(self, query: ClauseElement) -> typing.List[typing.Mapping]:
+    async def fetch_all(self, query: ClauseElement) -> typing.List[RecordInterface]:
         assert self._connection is not None, "Connection is not acquired"
-        query, args, result_columns = self._compile(query)
-        rows = await self._connection.fetch(query, *args)
+        query_str, args, result_columns = self._compile(query)
+        rows = await self._connection.fetch(query_str, *args)
         dialect = self._dialect
         column_maps = self._create_column_maps(result_columns)
         return [Record(row, result_columns, dialect, column_maps) for row in rows]
 
-    async def fetch_one(self, query: ClauseElement) -> typing.Optional[typing.Mapping]:
+    async def fetch_one(self, query: ClauseElement) -> typing.Optional[RecordInterface]:
         assert self._connection is not None, "Connection is not acquired"
-        query, args, result_columns = self._compile(query)
-        row = await self._connection.fetchrow(query, *args)
+        query_str, args, result_columns = self._compile(query)
+        row = await self._connection.fetchrow(query_str, *args)
         if row is None:
             return None
         return Record(
@@ -185,8 +213,8 @@ class PostgresConnection(ConnectionBackend):
 
     async def execute(self, query: ClauseElement) -> typing.Any:
         assert self._connection is not None, "Connection is not acquired"
-        query, args, result_columns = self._compile(query)
-        return await self._connection.fetchval(query, *args)
+        query_str, args, result_columns = self._compile(query)
+        return await self._connection.fetchval(query_str, *args)
 
     async def execute_many(self, queries: typing.List[ClauseElement]) -> None:
         assert self._connection is not None, "Connection is not acquired"
@@ -201,16 +229,18 @@ class PostgresConnection(ConnectionBackend):
         self, query: ClauseElement
     ) -> typing.AsyncGenerator[typing.Any, None]:
         assert self._connection is not None, "Connection is not acquired"
-        query, args, result_columns = self._compile(query)
+        query_str, args, result_columns = self._compile(query)
         column_maps = self._create_column_maps(result_columns)
-        async for row in self._connection.cursor(query, *args):
+        async for row in self._connection.cursor(query_str, *args):
             yield Record(row, result_columns, self._dialect, column_maps)
 
     def transaction(self) -> TransactionBackend:
         return PostgresTransaction(connection=self)
 
     def _compile(self, query: ClauseElement) -> typing.Tuple[str, list, tuple]:
-        compiled = query.compile(dialect=self._dialect)
+        compiled = query.compile(
+            dialect=self._dialect, compile_kwargs={"render_postcompile": True}
+        )
 
         if not isinstance(query, DDLElement):
             compiled_params = sorted(compiled.params.items())

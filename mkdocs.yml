@@ -13,7 +13,10 @@ nav:
     - Database Queries: 'database_queries.md'
     - Connections & Transactions: 'connections_and_transactions.md'
     - Tests & Migrations: 'tests_and_migrations.md'
+    - Contributing: 'contributing.md'
 
 markdown_extensions:
+  - mkautodoc
   - admonition
-  - codehilite
+  - pymdownx.highlight
+  - pymdownx.superfences

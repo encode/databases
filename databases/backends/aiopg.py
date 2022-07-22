@@ -7,14 +7,19 @@ import uuid
 import aiopg
 from aiopg.sa.engine import APGCompiler_psycopg2
 from sqlalchemy.dialects.postgresql.psycopg2 import PGDialect_psycopg2
+from sqlalchemy.engine.cursor import CursorResultMetaData
 from sqlalchemy.engine.interfaces import Dialect, ExecutionContext
-from sqlalchemy.engine.result import ResultMetaData, RowProxy
+from sqlalchemy.engine.row import Row
 from sqlalchemy.sql import ClauseElement
 from sqlalchemy.sql.ddl import DDLElement
-from sqlalchemy.types import TypeEngine
 
 from databases.core import DatabaseURL
-from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend
+from databases.interfaces import (
+    ConnectionBackend,
+    DatabaseBackend,
+    Record,
+    TransactionBackend,
+)
 
 logger = logging.getLogger("databases")
 
@@ -112,41 +117,53 @@ class AiopgConnection(ConnectionBackend):
         await self._database._pool.release(self._connection)
         self._connection = None
 
-    async def fetch_all(self, query: ClauseElement) -> typing.List[typing.Mapping]:
+    async def fetch_all(self, query: ClauseElement) -> typing.List[Record]:
         assert self._connection is not None, "Connection is not acquired"
-        query, args, context = self._compile(query)
+        query_str, args, context = self._compile(query)
         cursor = await self._connection.cursor()
         try:
-            await cursor.execute(query, args)
+            await cursor.execute(query_str, args)
             rows = await cursor.fetchall()
-            metadata = ResultMetaData(context, cursor.description)
+            metadata = CursorResultMetaData(context, cursor.description)
             return [
-                RowProxy(metadata, row, metadata._processors, metadata._keymap)
+                Row(
+                    metadata,
+                    metadata._processors,
+                    metadata._keymap,
+                    Row._default_key_style,
+                    row,
+                )
                 for row in rows
             ]
         finally:
             cursor.close()
 
-    async def fetch_one(self, query: ClauseElement) -> typing.Optional[typing.Mapping]:
+    async def fetch_one(self, query: ClauseElement) -> typing.Optional[Record]:
         assert self._connection is not None, "Connection is not acquired"
-        query, args, context = self._compile(query)
+        query_str, args, context = self._compile(query)
         cursor = await self._connection.cursor()
         try:
-            await cursor.execute(query, args)
+            await cursor.execute(query_str, args)
             row = await cursor.fetchone()
             if row is None:
                 return None
-            metadata = ResultMetaData(context, cursor.description)
-            return RowProxy(metadata, row, metadata._processors, metadata._keymap)
+            metadata = CursorResultMetaData(context, cursor.description)
+            return Row(
+                metadata,
+                metadata._processors,
+                metadata._keymap,
+                Row._default_key_style,
+                row,
+            )
         finally:
             cursor.close()
 
     async def execute(self, query: ClauseElement) -> typing.Any:
         assert self._connection is not None, "Connection is not acquired"
-        query, args, context = self._compile(query)
+        query_str, args, context = self._compile(query)
         cursor = await self._connection.cursor()
         try:
-            await cursor.execute(query, args)
+            await cursor.execute(query_str, args)
             return cursor.lastrowid
         finally:
             cursor.close()
@@ -165,13 +182,19 @@ class AiopgConnection(ConnectionBackend):
         self, query: ClauseElement
     ) -> typing.AsyncGenerator[typing.Any, None]:
         assert self._connection is not None, "Connection is not acquired"
-        query, args, context = self._compile(query)
+        query_str, args, context = self._compile(query)
         cursor = await self._connection.cursor()
         try:
-            await cursor.execute(query, args)
-            metadata = ResultMetaData(context, cursor.description)
+            await cursor.execute(query_str, args)
+            metadata = CursorResultMetaData(context, cursor.description)
             async for row in cursor:
-                yield RowProxy(metadata, row, metadata._processors, metadata._keymap)
+                yield Row(
+                    metadata,
+                    metadata._processors,
+                    metadata._keymap,
+                    Row._default_key_style,
+                    row,
+                )
         finally:
             cursor.close()
 
@@ -181,7 +204,9 @@ class AiopgConnection(ConnectionBackend):
     def _compile(
         self, query: ClauseElement
     ) -> typing.Tuple[str, dict, CompilationContext]:
-        compiled = query.compile(dialect=self._dialect)
+        compiled = query.compile(
+            dialect=self._dialect, compile_kwargs={"render_postcompile": True}
+        )
 
         execution_context = self._dialect.execution_ctx_cls()
         execution_context.dialect = self._dialect
@@ -196,6 +221,7 @@ class AiopgConnection(ConnectionBackend):
                 compiled._result_columns,
                 compiled._ordered_columns,
                 compiled._textual_ordered_columns,
+                compiled._loose_column_name_matching,
             )
         else:
             args = {}

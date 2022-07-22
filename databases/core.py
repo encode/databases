@@ -2,21 +2,16 @@ import asyncio
 import contextlib
 import functools
 import logging
-import sys
 import typing
+from contextvars import ContextVar
 from types import TracebackType
-from urllib.parse import SplitResult, parse_qsl, urlsplit, unquote
+from urllib.parse import SplitResult, parse_qsl, unquote, urlsplit
 
 from sqlalchemy import text
 from sqlalchemy.sql import ClauseElement
 
 from databases.importer import import_from_string
-from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend
-
-if sys.version_info >= (3, 7):  # pragma: no cover
-    from contextvars import ContextVar
-else:  # pragma: no cover
-    from aiocontextvars import ContextVar
+from databases.interfaces import DatabaseBackend, Record
 
 try:  # pragma: no cover
     import click
@@ -46,6 +41,7 @@ class Database:
         "postgresql+aiopg": "databases.backends.aiopg:AiopgBackend",
         "postgres": "databases.backends.postgres:PostgresBackend",
         "mysql": "databases.backends.mysql:MySQLBackend",
+        "mysql+asyncmy": "databases.backends.asyncmy:AsyncMyBackend",
         "sqlite": "databases.backends.sqlite:SQLiteBackend",
     }
 
@@ -62,7 +58,7 @@ class Database:
 
         self._force_rollback = force_rollback
 
-        backend_str = self.SUPPORTED_BACKENDS[self.url.scheme]
+        backend_str = self._get_backend()
         backend_cls = import_from_string(backend_str)
         assert issubclass(backend_cls, DatabaseBackend)
         self._backend = backend_cls(self.url, **self.options)
@@ -79,7 +75,9 @@ class Database:
         """
         Establish the connection pool.
         """
-        assert not self.is_connected, "Already connected."
+        if self.is_connected:
+            logger.debug("Already connected, skipping connection")
+            return None
 
         await self._backend.connect()
         logger.info(
@@ -102,7 +100,9 @@ class Database:
         """
         Close all connections in the connection pool.
         """
-        assert self.is_connected, "Already disconnected."
+        if not self.is_connected:
+            logger.debug("Already disconnected, skipping disconnection")
+            return None
 
         if self._force_rollback:
             assert self._global_connection is not None
@@ -112,6 +112,8 @@ class Database:
 
             self._global_transaction = None
             self._global_connection = None
+        else:
+            self._connection_context = ContextVar("connection_context")
 
         await self._backend.disconnect()
         logger.info(
@@ -135,13 +137,13 @@ class Database:
 
     async def fetch_all(
         self, query: typing.Union[ClauseElement, str], values: dict = None
-    ) -> typing.List[typing.Mapping]:
+    ) -> typing.List[Record]:
         async with self.connection() as connection:
             return await connection.fetch_all(query, values)
 
     async def fetch_one(
         self, query: typing.Union[ClauseElement, str], values: dict = None
-    ) -> typing.Optional[typing.Mapping]:
+    ) -> typing.Optional[Record]:
         async with self.connection() as connection:
             return await connection.fetch_one(query, values)
 
@@ -198,6 +200,11 @@ class Database:
         finally:
             self._force_rollback = initial
 
+    def _get_backend(self) -> str:
+        return self.SUPPORTED_BACKENDS.get(
+            self.url.scheme, self.SUPPORTED_BACKENDS[self.url.dialect]
+        )
+
 
 class Connection:
     def __init__(self, backend: DatabaseBackend) -> None:
@@ -215,8 +222,12 @@ class Connection:
     async def __aenter__(self) -> "Connection":
         async with self._connection_lock:
             self._connection_counter += 1
-            if self._connection_counter == 1:
-                await self._connection.acquire()
+            try:
+                if self._connection_counter == 1:
+                    await self._connection.acquire()
+            except BaseException as e:
+                self._connection_counter -= 1
+                raise e
         return self
 
     async def __aexit__(
@@ -233,14 +244,14 @@ class Connection:
 
     async def fetch_all(
         self, query: typing.Union[ClauseElement, str], values: dict = None
-    ) -> typing.List[typing.Mapping]:
+    ) -> typing.List[Record]:
         built_query = self._build_query(query, values)
         async with self._query_lock:
             return await self._connection.fetch_all(built_query)
 
     async def fetch_one(
         self, query: typing.Union[ClauseElement, str], values: dict = None
-    ) -> typing.Optional[typing.Mapping]:
+    ) -> typing.Optional[Record]:
         built_query = self._build_query(query, values)
         async with self._query_lock:
             return await self._connection.fetch_one(built_query)
@@ -304,6 +315,9 @@ class Connection:
         return query
 
 
+_CallableType = typing.TypeVar("_CallableType", bound=typing.Callable)
+
+
 class Transaction:
     def __init__(
         self,
@@ -336,13 +350,13 @@ class Transaction:
         else:
             await self.commit()
 
-    def __await__(self) -> typing.Generator:
+    def __await__(self) -> typing.Generator[None, None, "Transaction"]:
         """
         Called if using the low-level `transaction = await database.transaction()`
         """
         return self.start().__await__()
 
-    def __call__(self, func: typing.Callable) -> typing.Callable:
+    def __call__(self, func: _CallableType) -> _CallableType:
         """
         Called if using `@database.transaction()` as a decorator.
         """
@@ -352,7 +366,7 @@ class Transaction:
             async with self:
                 return await func(*args, **kwargs)
 
-        return wrapper
+        return wrapper  # type: ignore
 
     async def start(self) -> "Transaction":
         self._connection = self._connection_callable()
@@ -445,7 +459,11 @@ class DatabaseURL:
 
     @property
     def hostname(self) -> typing.Optional[str]:
-        return self.components.hostname
+        return (
+            self.components.hostname
+            or self.options.get("host")
+            or self.options.get("unix_sock")
+        )
 
     @property
     def port(self) -> typing.Optional[int]:
