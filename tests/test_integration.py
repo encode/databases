@@ -5,7 +5,7 @@ from starlette.responses import JSONResponse
 from starlette.testclient import TestClient
 
 from databases import Database, DatabaseURL
-from tests.test_databases import DATABASE_URLS, mysql_versions
+from tests.test_databases import DATABASE_URLS
 
 metadata = sqlalchemy.MetaData()
 
@@ -84,7 +84,6 @@ def get_app(database_url):
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
-@mysql_versions
 def test_integration(database_url):
     app = get_app(database_url)
 
