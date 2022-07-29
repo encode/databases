@@ -571,7 +571,6 @@ async def test_transaction_doesnt_leak_when_commit_fails(database_url):
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
-@mysql_versions
 @async_adapter
 async def test_transaction_commit_low_level(database_url):
     """
