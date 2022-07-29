@@ -74,5 +74,5 @@ class Record(Sequence):
     def _mapping(self) -> typing.Mapping:
         raise NotImplementedError()  # pragma: no cover
 
-    def __getitem__(self, key: typing.Union[str | int]) -> typing.Any:
+    def __getitem__(self, key: typing.Any) -> typing.Any:
         raise NotImplementedError()  # pragma: no cover
