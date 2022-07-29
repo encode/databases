@@ -578,6 +578,34 @@ async def test_transaction_rollback(database_url):
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @mysql_versions
 @async_adapter
+async def test_transaction_doesnt_leak_when_commit_fails(database_url):
+    """
+    Ensure that transaction doesn't leak the connection when the commit or rollback
+    fails
+    """
+
+    async with Database(database_url) as database:
+        with pytest.raises(Exception) as excinfo:
+            async with database.connection() as connection:
+                await connection.execute(
+                    """
+                    CREATE TABLE test (id integer PRIMARY KEY INITIALLY DEFERRED);
+                    """
+                )
+                async with connection.transaction():
+                    await connection.execute("insert into test (id) values (1)")
+                    await connection.execute("insert into test (id) values (1)")
+
+        # During transaction.commit() postgres will raise this exception:
+        #  asyncpg.exceptions.UniqueViolationError: duplicate key value violates unique constraint "test_pkey"
+        #  DETAIL:  Key (id)=(1) already exists.
+        assert "unique constraint" in str(excinfo.value)
+        assert connection._connection_counter == 0
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@mysql_versions
+@async_adapter
 async def test_transaction_commit_low_level(database_url):
     """
     Ensure that an explicit `await transaction.commit()` is supported.
