@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 0.6.1 (Aug 9th, 2022)
+
+### Fixed
+
+* Improve typing for `Transaction` (#493)
+* Allow string indexing into Record (#501)
+
 ## 0.6.0 (May 29th, 2022)
 
 * Dropped Python 3.6 support (#458)
