@@ -155,7 +155,7 @@ class Record(RecordInterface):
         return len(self._row)
 
     def __getattr__(self, name: str) -> typing.Any:
-        return self._mapping.get(name)
+        return self.__getitem__(name)
 
 
 class PostgresConnection(ConnectionBackend):
