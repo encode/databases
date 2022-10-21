@@ -70,12 +70,49 @@ query = notes.select()
 async for row in database.iterate(query=query):
     ...
 
-# Close all connection in the connection pool
+# Close all connections in the connection pool
 await database.disconnect()
 ```
 
 Connections are managed as task-local state, with driver implementations
 transparently using connection pooling behind the scenes.
+
+## Creating tables
+
+Due to databases wrapping around multiple other packages, you can't use [the usual SQLAlchemy core way to create tables](https://docs.sqlalchemy.org/en/20/core/metadata.html#sqlalchemy.schema.MetaData.create_all). Luckily, there's a neat workaround using schema compilation:
+
+```python
+from databases import Database
+import sqlalchemy
+
+database = Database("postgresql+asyncpg://localhost/example")
+
+# Establish the connection pool
+await database.connect()
+
+metadata = sqlalchemy.MetaData()
+dialect = sqlalchemy.dialects.postgresql.dialect()
+
+# Define your table(s)
+notes = sqlalchemy.Table(
+    "notes",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("text", sqlalchemy.String(length=100)),
+    sqlalchemy.Column("completed", sqlalchemy.Boolean),
+)
+
+# Create tables
+for table in metadata.tables.values():
+    # Set `if_not_exists=False` if you want the query to throw an
+    # exception when the table already exists
+    schema = sqlalchemy.schema.CreateTable(table, if_not_exists=True)
+    query = str(schema.compile(dialect=dialect))
+    await database.execute(query=query)
+
+# Close all connections in the connection pool
+await database.disconnect()
+```
 
 ## Raw queries
 
@@ -111,17 +148,17 @@ Note that query arguments should follow the `:query_arg` style.
 
 ## Query result
 
-To keep in line with [SQLAlchemy 1.4 changes][sqlalchemy-mapping-changes] 
-query result object no longer implements a mapping interface. 
-To access query result as a mapping you should use the `_mapping` property. 
-That way you can process both SQLAlchemy Rows and databases Records from raw queries 
+To keep in line with [SQLAlchemy 1.4 changes][sqlalchemy-mapping-changes]
+query result object no longer implements a mapping interface.
+To access query result as a mapping you should use the `_mapping` property.
+That way you can process both SQLAlchemy Rows and databases Records from raw queries
 with the same function without any instance checks.
 
 ```python
 query = "SELECT * FROM notes WHERE id = :id"
 result = await database.fetch_one(query=query, values={"id": 1})
-result.id  # access field via attribute
-result._mapping['id']  # access field via mapping
+result.id  # Access field via attribute
+result._mapping['id']  # Access field via mapping
 ```
 
 [sqlalchemy-mapping-changes]: https://docs.sqlalchemy.org/en/14/changelog/migration_14.html#rowproxy-is-no-longer-a-proxy-is-now-called-row-and-behaves-like-an-enhanced-named-tuple
