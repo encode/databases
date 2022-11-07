@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## 0.6.2 (Nov 7th, 2022)
 
+### Changes
+
 * Pinned SQLAlchemy `<=1.4.41` to avoid breaking changes (#520).
 
 ## 0.6.1 (Aug 9th, 2022)
