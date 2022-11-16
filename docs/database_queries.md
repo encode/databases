@@ -24,8 +24,47 @@ notes = sqlalchemy.Table(
 )
 ```
 
-You can use any of the sqlalchemy column types such as `sqlalchemy.JSON`, or
+You can use any of the SQLAlchemy column types such as `sqlalchemy.JSON`, or
 custom column types.
+
+## Creating tables
+
+Due to databases wrapping around multiple other packages, you can't use [the usual SQLAlchemy core way to create tables](https://docs.sqlalchemy.org/en/20/core/metadata.html#sqlalchemy.schema.MetaData.create_all). Luckily, there's a neat workaround using schema compilation:
+
+```python
+from databases import Database
+import sqlalchemy
+
+database = Database("postgresql+asyncpg://localhost/example")
+
+# Establish the connection pool
+await database.connect()
+
+metadata = sqlalchemy.MetaData()
+dialect = sqlalchemy.dialects.postgresql.dialect()
+
+# Define your table(s)
+notes = sqlalchemy.Table(
+    "notes",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("text", sqlalchemy.String(length=100)),
+    sqlalchemy.Column("completed", sqlalchemy.Boolean),
+)
+
+# Create tables
+for table in metadata.tables.values():
+    # Set `if_not_exists=False` if you want the query to throw an
+    # exception when the table already exists
+    schema = sqlalchemy.schema.CreateTable(table, if_not_exists=True)
+    query = str(schema.compile(dialect=dialect))
+    await database.execute(query=query)
+
+# Close all connections in the connection pool
+await database.disconnect()
+```
+
+Note that this way of creating tables is only useful for experiments. In a production environment, you'd rather use something like [Alembic](https://alembic.sqlalchemy.org/en/latest/), which also helps with database migrations.
 
 ## Queries
 
@@ -74,45 +113,8 @@ async for row in database.iterate(query=query):
 await database.disconnect()
 ```
 
-Connections are managed as task-local state, with driver implementations
+Connections are managed as a task-local state, with driver implementations
 transparently using connection pooling behind the scenes.
-
-## Creating tables
-
-Due to databases wrapping around multiple other packages, you can't use [the usual SQLAlchemy core way to create tables](https://docs.sqlalchemy.org/en/20/core/metadata.html#sqlalchemy.schema.MetaData.create_all). Luckily, there's a neat workaround using schema compilation:
-
-```python
-from databases import Database
-import sqlalchemy
-
-database = Database("postgresql+asyncpg://localhost/example")
-
-# Establish the connection pool
-await database.connect()
-
-metadata = sqlalchemy.MetaData()
-dialect = sqlalchemy.dialects.postgresql.dialect()
-
-# Define your table(s)
-notes = sqlalchemy.Table(
-    "notes",
-    metadata,
-    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
-    sqlalchemy.Column("text", sqlalchemy.String(length=100)),
-    sqlalchemy.Column("completed", sqlalchemy.Boolean),
-)
-
-# Create tables
-for table in metadata.tables.values():
-    # Set `if_not_exists=False` if you want the query to throw an
-    # exception when the table already exists
-    schema = sqlalchemy.schema.CreateTable(table, if_not_exists=True)
-    query = str(schema.compile(dialect=dialect))
-    await database.execute(query=query)
-
-# Close all connections in the connection pool
-await database.disconnect()
-```
 
 ## Raw queries
 
