@@ -29,7 +29,7 @@ custom column types.
 
 ## Creating tables
 
-Due to databases wrapping around multiple other packages, you can't use [the usual SQLAlchemy core way to create tables](https://docs.sqlalchemy.org/en/20/core/metadata.html#sqlalchemy.schema.MetaData.create_all). Luckily, there's a neat workaround using schema compilation:
+Databases doesn't use SQLAlchemy's engine for database access internally. [The usual SQLAlchemy core way to create tables with `create_all`](https://docs.sqlalchemy.org/en/20/core/metadata.html#sqlalchemy.schema.MetaData.create_all) is therefore not available. To work around this you can use SQLAlchemy to [compile the query to SQL](https://docs.sqlalchemy.org/en/20/faq/sqlexpressions.html#how-do-i-render-sql-expressions-as-strings-possibly-with-bound-parameters-inlined) and then execute it with databases:
 
 ```python
 from databases import Database
@@ -64,7 +64,7 @@ for table in metadata.tables.values():
 await database.disconnect()
 ```
 
-Note that this way of creating tables is only useful for experiments. In a production environment, you'd rather use something like [Alembic](https://alembic.sqlalchemy.org/en/latest/), which also helps with database migrations.
+Note that this way of creating tables is only useful for local experimentation. For serious projects, we recommend using a proper database schema migrations solution like [Alembic](https://alembic.sqlalchemy.org/en/latest/).
 
 ## Queries
 
