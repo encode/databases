@@ -146,7 +146,7 @@ result = await database.fetch_one(query=query, values={"id": 1})
 Note that query arguments should follow the `:query_arg` style.
 
 [sqlalchemy-core]: https://docs.sqlalchemy.org/en/latest/core/
-[sqlalchemy-core-tutorial]: https://docs.sqlalchemy.org/en/latest/core/tutorial.html
+[sqlalchemy-core-tutorial]: https://docs.sqlalchemy.org/en/14/core/tutorial.html
 
 ## Query result
 
