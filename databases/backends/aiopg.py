@@ -179,7 +179,7 @@ class AiopgConnection(ConnectionBackend):
             cursor.close()
 
     async def iterate(
-        self, query: ClauseElement
+        self, query: ClauseElement, n: int = None
     ) -> typing.AsyncGenerator[typing.Any, None]:
         assert self._connection is not None, "Connection is not acquired"
         query_str, args, context = self._compile(query)
@@ -195,6 +195,10 @@ class AiopgConnection(ConnectionBackend):
                     Row._default_key_style,
                     row,
                 )
+                if n is not None:
+                    n -= 1
+                    if n == 0:
+                        break
         finally:
             cursor.close()
 

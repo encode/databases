@@ -169,10 +169,13 @@ class Database:
             return await connection.execute_many(query, values)
 
     async def iterate(
-        self, query: typing.Union[ClauseElement, str], values: dict = None
+        self,
+        query: typing.Union[ClauseElement, str],
+        values: dict = None,
+        n: int = None,
     ) -> typing.AsyncGenerator[typing.Mapping, None]:
         async with self.connection() as connection:
-            async for record in connection.iterate(query, values):
+            async for record in connection.iterate(query, values, n):
                 yield record
 
     def connection(self) -> "Connection":
@@ -281,12 +284,15 @@ class Connection:
             await self._connection.execute_many(queries)
 
     async def iterate(
-        self, query: typing.Union[ClauseElement, str], values: dict = None
+        self,
+        query: typing.Union[ClauseElement, str],
+        values: dict = None,
+        n: int = None,
     ) -> typing.AsyncGenerator[typing.Any, None]:
         built_query = self._build_query(query, values)
         async with self.transaction():
             async with self._query_lock:
-                async for record in self._connection.iterate(built_query):
+                async for record in self._connection.iterate(built_query, n):
                     yield record
 
     def transaction(
