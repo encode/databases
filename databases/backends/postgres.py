@@ -45,7 +45,7 @@ class PostgresBackend(DatabaseBackend):
     def _get_connection_kwargs(self) -> dict:
         url_options = self._database_url.options
 
-        kwargs = {}  # type: typing.Dict[str, typing.Any]
+        kwargs: typing.Dict[str, typing.Any] = {}
         min_size = url_options.get("min_size")
         max_size = url_options.get("max_size")
         ssl = url_options.get("ssl")
@@ -162,7 +162,7 @@ class PostgresConnection(ConnectionBackend):
     def __init__(self, database: PostgresBackend, dialect: Dialect):
         self._database = database
         self._dialect = dialect
-        self._connection = None  # type: typing.Optional[asyncpg.connection.Connection]
+        self._connection: typing.Optional[asyncpg.connection.Connection] = None
 
     async def acquire(self) -> None:
         assert self._connection is None, "Connection is already acquired"
@@ -305,9 +305,7 @@ class PostgresConnection(ConnectionBackend):
 class PostgresTransaction(TransactionBackend):
     def __init__(self, connection: PostgresConnection):
         self._connection = connection
-        self._transaction = (
-            None
-        )  # type: typing.Optional[asyncpg.transaction.Transaction]
+        self._transaction: typing.Optional[asyncpg.transaction.Transaction] = None
 
     async def start(
         self, is_root: bool, extra_options: typing.Dict[typing.Any, typing.Any]
