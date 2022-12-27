@@ -64,12 +64,12 @@ class Database:
         self._backend = backend_cls(self.url, **self.options)
 
         # Connections are stored as task-local state.
-        self._connection_context = ContextVar("connection_context")  # type: ContextVar
+        self._connection_context: ContextVar = ContextVar("connection_context")
 
         # When `force_rollback=True` is used, we use a single global
         # connection, within a transaction that always rolls back.
-        self._global_connection = None  # type: typing.Optional[Connection]
-        self._global_transaction = None  # type: typing.Optional[Transaction]
+        self._global_connection: typing.Optional[Connection] = None
+        self._global_transaction: typing.Optional[Transaction] = None
 
     async def connect(self) -> None:
         """
@@ -223,7 +223,7 @@ class Connection:
         self._connection_counter = 0
 
         self._transaction_lock = asyncio.Lock()
-        self._transaction_stack = []  # type: typing.List[Transaction]
+        self._transaction_stack: typing.List[Transaction] = []
 
         self._query_lock = asyncio.Lock()
 
