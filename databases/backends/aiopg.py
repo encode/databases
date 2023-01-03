@@ -104,7 +104,7 @@ class AiopgConnection(ConnectionBackend):
     def __init__(self, database: AiopgBackend, dialect: Dialect):
         self._database = database
         self._dialect = dialect
-        self._connection = None  # type: typing.Optional[aiopg.Connection]
+        self._connection: typing.Optional[aiopg.Connection] = None
 
     async def acquire(self) -> None:
         assert self._connection is None, "Connection is already acquired"

@@ -92,7 +92,7 @@ class AsyncMyConnection(ConnectionBackend):
     def __init__(self, database: AsyncMyBackend, dialect: Dialect):
         self._database = database
         self._dialect = dialect
-        self._connection = None  # type: typing.Optional[asyncmy.Connection]
+        self._connection: typing.Optional[asyncmy.Connection] = None
 
     async def acquire(self) -> None:
         assert self._connection is None, "Connection is already acquired"
