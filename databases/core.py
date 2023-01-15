@@ -13,6 +13,8 @@ from sqlalchemy.sql import ClauseElement
 from databases.importer import import_from_string
 from databases.interfaces import DatabaseBackend, Record
 
+from pymysql.err import OperationalError
+
 try:  # pragma: no cover
     import click
 
@@ -362,7 +364,11 @@ class Transaction:
         Called when exiting `async with database.transaction()`
         """
         if exc_type is not None or self._force_rollback:
-            await self.rollback()
+            if exc_type == OperationalError and exc_value.args[0] == 2013:
+                await self.rollback(skip=True)
+                raise exc_value
+            else:
+                await self.rollback()
         else:
             await self.commit()
 
@@ -391,10 +397,15 @@ class Transaction:
         async with self._connection._transaction_lock:
             is_root = not self._connection._transaction_stack
             await self._connection.__aenter__()
-            await self._transaction.start(
-                is_root=is_root, extra_options=self._extra_options
-            )
-            self._connection._transaction_stack.append(self)
+            try:
+                await self._transaction.start(
+                    is_root=is_root, extra_options=self._extra_options
+                )
+            except OperationalError as e:
+                await self._connection.__aexit__()
+                raise e
+            else:
+                self._connection._transaction_stack.append(self)
         return self
 
     async def commit(self) -> None:
@@ -404,11 +415,12 @@ class Transaction:
             await self._transaction.commit()
             await self._connection.__aexit__()
 
-    async def rollback(self) -> None:
+    async def rollback(self,skip=False) -> None:
         async with self._connection._transaction_lock:
             assert self._connection._transaction_stack[-1] is self
             self._connection._transaction_stack.pop()
-            await self._transaction.rollback()
+            if(not skip):
+                await self._transaction.rollback()
             await self._connection.__aexit__()
 
 
