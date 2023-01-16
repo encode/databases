@@ -28,4 +28,4 @@ mkautodoc==0.1.0
 
 # Packaging
 twine==4.0.1
-wheel==0.37.1
+wheel==0.38.1
