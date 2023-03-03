@@ -14,12 +14,7 @@ from sqlalchemy.sql import ClauseElement
 from sqlalchemy.sql.ddl import DDLElement
 
 from databases.core import DatabaseURL
-from databases.interfaces import (
-    ConnectionBackend,
-    DatabaseBackend,
-    Record,
-    TransactionBackend,
-)
+from databases.interfaces import ConnectionBackend, DatabaseBackend, Record, TransactionBackend
 
 logger = logging.getLogger("databases")
 
@@ -34,9 +29,7 @@ class AiopgBackend(DatabaseBackend):
         self._pool: typing.Union[aiopg.Pool, None] = None
 
     def _get_dialect(self) -> Dialect:
-        dialect = PGDialect_psycopg2(
-            json_serializer=json.dumps, json_deserializer=lambda x: x
-        )
+        dialect = PGDialect_psycopg2(json_serializer=json.dumps, json_deserializer=lambda x: x)
         dialect.statement_compiler = APGCompiler_psycopg2
         dialect.implicit_returning = True
         dialect.supports_native_enum = True
@@ -178,9 +171,7 @@ class AiopgConnection(ConnectionBackend):
         finally:
             cursor.close()
 
-    async def iterate(
-        self, query: ClauseElement
-    ) -> typing.AsyncGenerator[typing.Any, None]:
+    async def iterate(self, query: ClauseElement) -> typing.AsyncGenerator[typing.Any, None]:
         assert self._connection is not None, "Connection is not acquired"
         query_str, args, context = self._compile(query)
         cursor = await self._connection.cursor()
@@ -201,9 +192,7 @@ class AiopgConnection(ConnectionBackend):
     def transaction(self) -> TransactionBackend:
         return AiopgTransaction(self)
 
-    def _compile(
-        self, query: ClauseElement
-    ) -> typing.Tuple[str, dict, CompilationContext]:
+    def _compile(self, query: ClauseElement) -> typing.Tuple[str, dict, CompilationContext]:
         compiled = query.compile(
             dialect=self._dialect, compile_kwargs={"render_postcompile": True}
         )
