@@ -4,11 +4,12 @@ import typing
 import asyncpg
 from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.sql import ClauseElement
+from sqlalchemy.sql.compiler import _CompileLabel
 from sqlalchemy.sql.ddl import DDLElement
 from sqlalchemy.sql.schema import Column
 from sqlalchemy.types import TypeEngine
 
-from databases.backends.dialects.psycopg import PGDialect_psycopg
+from databases.backends.dialects.psycopg import dialect as psycopg_dialect
 from databases.core import LOG_EXTRA, DatabaseURL
 from databases.interfaces import (
     ConnectionBackend,
@@ -30,7 +31,7 @@ class PostgresBackend(DatabaseBackend):
         self._pool = None
 
     def _get_dialect(self) -> Dialect:
-        dialect = PGDialect_psycopg(paramstyle="pyformat")
+        dialect = psycopg_dialect(paramstyle="pyformat")
 
         dialect.implicit_returning = True
         dialect.supports_native_enum = True
@@ -254,22 +255,21 @@ class PostgresConnection(ConnectionBackend):
             compiled_query = compiled.string % mapping
 
             processors = compiled._bind_processors
-            args = [
+            _args = [
                 processors[key](val) if key in processors else val
                 for key, val in compiled_params
             ]
-
             result_map = compiled._result_columns
         else:
             compiled_query = compiled.string
-            args = []
+            _args = []
             result_map = None
 
         query_message = compiled_query.replace(" \n", " ").replace("\n", " ")
         logger.debug(
-            "Query: %s Args: %s", query_message, repr(tuple(args)), extra=LOG_EXTRA
+            "Query: %s Args: %s", query_message, repr(tuple(_args)), extra=LOG_EXTRA
         )
-        return compiled_query, args, result_map
+        return compiled_query, _args, result_map
 
     @staticmethod
     def _create_column_maps(
@@ -296,7 +296,13 @@ class PostgresConnection(ConnectionBackend):
         for idx, (column_name, _, column, datatype) in enumerate(result_columns):
             column_map[column_name] = (idx, datatype)
             column_map_int[idx] = (idx, datatype)
-            column_map_full[str(column[0])] = (idx, datatype)
+
+            # Added in SQLA 2.0 and _CompileLabels do not have _annotations
+            # When this happens, the mapping is on the second position
+            if isinstance(column[0], _CompileLabel):
+                column_map_full[str(column[2])] = (idx, datatype)
+            else:
+                column_map_full[str(column[0])] = (idx, datatype)
         return column_map, column_map_int, column_map_full
 
     @property

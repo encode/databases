@@ -8,13 +8,19 @@ package can go to SQLAlchemy 2.0+.
 import typing
 
 from sqlalchemy import types, util
-from sqlalchemy.dialects.postgresql.base import PGDialect
+from sqlalchemy.dialects.postgresql.base import PGDialect, PGExecutionContext
 from sqlalchemy.engine import processors
 from sqlalchemy.types import Float, Numeric
 
 
+class PGExecutionContext_psycopg(PGExecutionContext):
+    ...
+
+
 class PGNumeric(Numeric):
-    def bind_processor(self, dialect: typing.Any) -> typing.Union[str, None]:  # pragma: no cover
+    def bind_processor(
+        self, dialect: typing.Any
+    ) -> typing.Union[str, None]:  # pragma: no cover
         return processors.to_str
 
     def result_processor(
@@ -31,7 +37,10 @@ class PGDialect_psycopg(PGDialect):
         PGDialect.colspecs,
         {
             types.Numeric: PGNumeric,
-            # prevents PGNumeric from being used
             types.Float: Float,
         },
     )
+    execution_ctx_cls = PGExecutionContext_psycopg
+
+
+dialect = PGDialect_psycopg

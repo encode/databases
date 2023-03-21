@@ -102,7 +102,6 @@ def create_test_database():
         if database_url.scheme in ["mysql", "mysql+aiomysql", "mysql+asyncmy"]:
             url = str(database_url.replace(driver="pymysql"))
         elif database_url.scheme in [
-            "postgresql+aiopg",
             "sqlite+aiosqlite",
             "postgresql+asyncpg",
         ]:
@@ -171,7 +170,9 @@ async def test_queries(database_url):
             assert result == "example1"
 
             # fetch_val() with no rows
-            query = sqlalchemy.sql.select(*[notes.c.text]).where(notes.c.text == "impossible")
+            query = sqlalchemy.sql.select(*[notes.c.text]).where(
+                notes.c.text == "impossible"
+            )
             result = await database.fetch_val(query=query)
             assert result is None
 
@@ -1101,7 +1102,11 @@ async def test_posgres_interface(database_url):
                     "use `Row._mapping.keys()` instead."
                 ),
             ):
-                assert list(result.keys()) == [k for k in result] == ["id", "text", "completed"]
+                assert (
+                    list(result.keys())
+                    == [k for k in result]
+                    == ["id", "text", "completed"]
+                )
 
             with pytest.warns(
                 DeprecationWarning,
