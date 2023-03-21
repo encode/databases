@@ -26,7 +26,6 @@ def create_test_database():
         if database_url.scheme in ["mysql", "mysql+aiomysql", "mysql+asyncmy"]:
             url = str(database_url.replace(driver="pymysql"))
         elif database_url.scheme in [
-            "postgresql+aiopg",
             "sqlite+aiosqlite",
             "postgresql+asyncpg",
         ]:
@@ -42,7 +41,6 @@ def create_test_database():
         if database_url.scheme in ["mysql", "mysql+aiomysql", "mysql+asyncmy"]:
             url = str(database_url.replace(driver="pymysql"))
         elif database_url.scheme in [
-            "postgresql+aiopg",
             "sqlite+aiosqlite",
             "postgresql+asyncpg",
         ]:

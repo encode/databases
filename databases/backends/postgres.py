@@ -2,17 +2,20 @@ import logging
 import typing
 
 import asyncpg
-from sqlalchemy.dialects.postgresql import psycopg
 from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.sql import ClauseElement
 from sqlalchemy.sql.ddl import DDLElement
 from sqlalchemy.sql.schema import Column
 from sqlalchemy.types import TypeEngine
 
+from databases.backends.dialects.psycopg import PGDialect_psycopg
 from databases.core import LOG_EXTRA, DatabaseURL
-from databases.interfaces import ConnectionBackend, DatabaseBackend
-from databases.interfaces import Record as RecordInterface
-from databases.interfaces import TransactionBackend
+from databases.interfaces import (
+    ConnectionBackend,
+    DatabaseBackend,
+    Record as RecordInterface,
+    TransactionBackend,
+)
 
 logger = logging.getLogger("databases")
 
@@ -27,7 +30,7 @@ class PostgresBackend(DatabaseBackend):
         self._pool = None
 
     def _get_dialect(self) -> Dialect:
-        dialect = psycopg.dialect(paramstyle="pyformat")
+        dialect = PGDialect_psycopg(paramstyle="pyformat")
 
         dialect.implicit_returning = True
         dialect.supports_native_enum = True
@@ -152,7 +155,10 @@ class Record(RecordInterface):
         return len(self._row)
 
     def __getattr__(self, name: str) -> typing.Any:
-        return self._mapping.get(name)
+        try:
+            return self.__getitem__(name)
+        except KeyError as e:
+            raise AttributeError(e.args[0]) from e
 
 
 class PostgresConnection(ConnectionBackend):
@@ -193,7 +199,9 @@ class PostgresConnection(ConnectionBackend):
             self._create_column_maps(result_columns),
         )
 
-    async def fetch_val(self, query: ClauseElement, column: typing.Any = 0) -> typing.Any:
+    async def fetch_val(
+        self, query: ClauseElement, column: typing.Any = 0
+    ) -> typing.Any:
         # we are not calling self._connection.fetchval here because
         # it does not convert all the types, e.g. JSON stays string
         # instead of an object
@@ -220,7 +228,9 @@ class PostgresConnection(ConnectionBackend):
             single_query, args, result_columns = self._compile(single_query)
             await self._connection.execute(single_query, *args)
 
-    async def iterate(self, query: ClauseElement) -> typing.AsyncGenerator[typing.Any, None]:
+    async def iterate(
+        self, query: ClauseElement
+    ) -> typing.AsyncGenerator[typing.Any, None]:
         assert self._connection is not None, "Connection is not acquired"
         query_str, args, result_columns = self._compile(query)
         column_maps = self._create_column_maps(result_columns)
@@ -238,12 +248,15 @@ class PostgresConnection(ConnectionBackend):
         if not isinstance(query, DDLElement):
             compiled_params = sorted(compiled.params.items())
 
-            mapping = {key: "$" + str(i) for i, (key, _) in enumerate(compiled_params, start=1)}
+            mapping = {
+                key: "$" + str(i) for i, (key, _) in enumerate(compiled_params, start=1)
+            }
             compiled_query = compiled.string % mapping
 
             processors = compiled._bind_processors
             args = [
-                processors[key](val) if key in processors else val for key, val in compiled_params
+                processors[key](val) if key in processors else val
+                for key, val in compiled_params
             ]
 
             result_map = compiled._result_columns
@@ -253,7 +266,9 @@ class PostgresConnection(ConnectionBackend):
             result_map = None
 
         query_message = compiled_query.replace(" \n", " ").replace("\n", " ")
-        logger.debug("Query: %s Args: %s", query_message, repr(tuple(args)), extra=LOG_EXTRA)
+        logger.debug(
+            "Query: %s Args: %s", query_message, repr(tuple(args)), extra=LOG_EXTRA
+        )
         return compiled_query, args, result_map
 
     @staticmethod

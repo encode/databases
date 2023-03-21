@@ -86,7 +86,6 @@ def create_test_database():
         if database_url.scheme in ["mysql", "mysql+aiomysql", "mysql+asyncmy"]:
             url = str(database_url.replace(driver="pymysql"))
         elif database_url.scheme in [
-            "postgresql+aiopg",
             "sqlite+aiosqlite",
             "postgresql+asyncpg",
         ]:
@@ -119,7 +118,7 @@ def async_adapter(wrapped_func):
 
     @functools.wraps(wrapped_func)
     def run_sync(*args, **kwargs):
-        loop = asyncio.new_event_loop()
+        loop = asyncio.get_event_loop()
         task = wrapped_func(*args, **kwargs)
         return loop.run_until_complete(task)
 
@@ -167,24 +166,22 @@ async def test_queries(database_url):
             assert result["completed"] == True
 
             # fetch_val()
-            query = sqlalchemy.sql.select([notes.c.text])
+            query = sqlalchemy.sql.select(*[notes.c.text])
             result = await database.fetch_val(query=query)
             assert result == "example1"
 
             # fetch_val() with no rows
-            query = sqlalchemy.sql.select([notes.c.text]).where(
-                notes.c.text == "impossible"
-            )
+            query = sqlalchemy.sql.select(*[notes.c.text]).where(notes.c.text == "impossible")
             result = await database.fetch_val(query=query)
             assert result is None
 
             # fetch_val() with a different column
-            query = sqlalchemy.sql.select([notes.c.id, notes.c.text])
+            query = sqlalchemy.sql.select(*[notes.c.id, notes.c.text])
             result = await database.fetch_val(query=query, column=1)
             assert result == "example1"
 
             # row access (needed to maintain test coverage for Record.__getitem__ in postgres backend)
-            query = sqlalchemy.sql.select([notes.c.text])
+            query = sqlalchemy.sql.select(*[notes.c.text])
             result = await database.fetch_one(query=query)
             assert result["text"] == "example1"
             assert result[0] == "example1"
@@ -354,7 +351,7 @@ async def test_results_support_column_reference(database_url):
             await database.execute(query, values)
 
             # fetch_all()
-            query = sqlalchemy.select([articles, custom_date])
+            query = sqlalchemy.select(*[articles, custom_date])
             results = await database.fetch_all(query=query)
             assert len(results) == 1
             assert results[0][articles.c.title] == "Hello, world Article"
@@ -1104,11 +1101,7 @@ async def test_posgres_interface(database_url):
                     "use `Row._mapping.keys()` instead."
                 ),
             ):
-                assert (
-                    list(result.keys())
-                    == [k for k in result]
-                    == ["id", "text", "completed"]
-                )
+                assert list(result.keys()) == [k for k in result] == ["id", "text", "completed"]
 
             with pytest.warns(
                 DeprecationWarning,
