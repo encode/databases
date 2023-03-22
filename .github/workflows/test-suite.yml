@@ -1,63 +1,63 @@
 ---
-name: Test Suite
+  name: Test Suite
 
-on:
-  push:
-    branches: ["master"]
-  pull_request:
-    branches: ["master"]
+  on:
+    push:
+      branches: ["master"]
+    pull_request:
+      branches: ["master"]
 
-jobs:
-  tests:
-    name: "Python ${{ matrix.python-version }}"
-    runs-on: "ubuntu-latest"
+  jobs:
+    tests:
+      name: "Python ${{ matrix.python-version }}"
+      runs-on: "ubuntu-latest"
 
-    strategy:
-      matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11"]
+      strategy:
+        matrix:
+          python-version: ["3.8", "3.9", "3.10", "3.11"]
 
-    services:
-      mysql:
-        image: mysql:5.7
-        env:
-          MYSQL_USER: username
-          MYSQL_PASSWORD: password
-          MYSQL_ROOT_PASSWORD: password
-          MYSQL_DATABASE: testsuite
-        ports:
-          - 3306:3306
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+      services:
+        mysql:
+          image: mysql:5.7
+          env:
+            MYSQL_USER: username
+            MYSQL_PASSWORD: password
+            MYSQL_ROOT_PASSWORD: password
+            MYSQL_DATABASE: testsuite
+          ports:
+            - 3306:3306
+          options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
 
-      postgres:
-        image: postgres:14
-        env:
-          POSTGRES_USER: username
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: testsuite
-        ports:
-          - 5432:5432
-        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+        postgres:
+          image: postgres:14
+          env:
+            POSTGRES_USER: username
+            POSTGRES_PASSWORD: password
+            POSTGRES_DB: testsuite
+          ports:
+            - 5432:5432
+          options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
 
-    steps:
-      - uses: "actions/checkout@v3"
-      - uses: "actions/setup-python@v4"
-        with:
-          python-version: "${{ matrix.python-version }}"
-      - name: "Install dependencies"
-        run: "scripts/install"
-      - name: "Run linting checks"
-        run: "scripts/check"
-      - name: "Build package & docs"
-        run: "scripts/build"
-      - name: "Run tests"
-        env:
-          TEST_DATABASE_URLS: |
-            sqlite:///testsuite,
-            sqlite+aiosqlite:///testsuite,
-            mysql://username:password@localhost:3306/testsuite,
-            mysql+aiomysql://username:password@localhost:3306/testsuite,
-            mysql+asyncmy://username:password@localhost:3306/testsuite,
-            postgresql://username:password@localhost:5432/testsuite,
-            postgresql+asyncpg://username:password@localhost:5432/testsuite,
-            postgresql+aiopg://username:password@localhost:5432/testsuite,
-        run: "scripts/test"
+      steps:
+        - uses: "actions/checkout@v3"
+        - uses: "actions/setup-python@v4"
+          with:
+            python-version: "${{ matrix.python-version }}"
+        - name: "Install dependencies"
+          run: "scripts/install"
+        - name: "Run linting checks"
+          run: "scripts/check"
+        - name: "Build package & docs"
+          run: "scripts/build"
+        - name: "Run tests"
+          env:
+            TEST_DATABASE_URLS: |
+              sqlite:///testsuite,
+              sqlite+aiosqlite:///testsuite,
+              mysql://username:password@localhost:3306/testsuite,
+              mysql+aiomysql://username:password@localhost:3306/testsuite,
+              mysql+asyncmy://username:password@localhost:3306/testsuite,
+              postgresql://username:password@localhost:5432/testsuite,
+              postgresql+aiopg://username:password@127.0.0.1:5432/testsuite,
+              postgresql+asyncpg://username:password@localhost:5432/testsuite
+          run: "scripts/test"

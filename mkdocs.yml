@@ -14,7 +14,6 @@ nav:
     - Connections & Transactions: "connections_and_transactions.md"
     - Tests & Migrations: "tests_and_migrations.md"
     - Contributing: "contributing.md"
-    - Release Notes: "release-notes.md"
 
 markdown_extensions:
     - mkautodoc
