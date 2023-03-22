@@ -498,6 +498,7 @@ async def test_transaction_commit_serializable(database_url):
 
         query = notes.insert().values(text="example1", completed=True)
         conn.execute(query)
+        conn.close()
 
     def delete_independently():
         engine = sqlalchemy.create_engine(str(database_url))
@@ -505,6 +506,7 @@ async def test_transaction_commit_serializable(database_url):
 
         query = notes.delete()
         conn.execute(query)
+        conn.close()
 
     async with Database(database_url) as database:
         async with database.transaction(force_rollback=True, isolation="serializable"):
