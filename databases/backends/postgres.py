@@ -4,11 +4,9 @@ import typing
 import asyncpg
 from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.sql import ClauseElement
-from sqlalchemy.sql.compiler import _CompileLabel
 from sqlalchemy.sql.ddl import DDLElement
-from sqlalchemy.sql.schema import Column
-from sqlalchemy.types import TypeEngine
 
+from databases.backends.common.records import Record, create_column_maps
 from databases.backends.dialects.psycopg import dialect as psycopg_dialect
 from databases.core import LOG_EXTRA, DatabaseURL
 from databases.interfaces import (
@@ -83,85 +81,6 @@ class PostgresBackend(DatabaseBackend):
         return PostgresConnection(self, self._dialect)
 
 
-class Record(RecordInterface):
-    __slots__ = (
-        "_row",
-        "_result_columns",
-        "_dialect",
-        "_column_map",
-        "_column_map_int",
-        "_column_map_full",
-    )
-
-    def __init__(
-        self,
-        row: asyncpg.Record,
-        result_columns: tuple,
-        dialect: Dialect,
-        column_maps: typing.Tuple[
-            typing.Mapping[typing.Any, typing.Tuple[int, TypeEngine]],
-            typing.Mapping[int, typing.Tuple[int, TypeEngine]],
-            typing.Mapping[str, typing.Tuple[int, TypeEngine]],
-        ],
-    ) -> None:
-        self._row = row
-        self._result_columns = result_columns
-        self._dialect = dialect
-        self._column_map, self._column_map_int, self._column_map_full = column_maps
-
-    @property
-    def _mapping(self) -> typing.Mapping:
-        return self._row
-
-    def keys(self) -> typing.KeysView:
-        import warnings
-
-        warnings.warn(
-            "The `Row.keys()` method is deprecated to mimic SQLAlchemy behaviour, "
-            "use `Row._mapping.keys()` instead.",
-            DeprecationWarning,
-        )
-        return self._mapping.keys()
-
-    def values(self) -> typing.ValuesView:
-        import warnings
-
-        warnings.warn(
-            "The `Row.values()` method is deprecated to mimic SQLAlchemy behaviour, "
-            "use `Row._mapping.values()` instead.",
-            DeprecationWarning,
-        )
-        return self._mapping.values()
-
-    def __getitem__(self, key: typing.Any) -> typing.Any:
-        if len(self._column_map) == 0:  # raw query
-            return self._row[key]
-        elif isinstance(key, Column):
-            idx, datatype = self._column_map_full[str(key)]
-        elif isinstance(key, int):
-            idx, datatype = self._column_map_int[key]
-        else:
-            idx, datatype = self._column_map[key]
-        raw = self._row[idx]
-        processor = datatype._cached_result_processor(self._dialect, None)
-
-        if processor is not None:
-            return processor(raw)
-        return raw
-
-    def __iter__(self) -> typing.Iterator:
-        return iter(self._row.keys())
-
-    def __len__(self) -> int:
-        return len(self._row)
-
-    def __getattr__(self, name: str) -> typing.Any:
-        try:
-            return self.__getitem__(name)
-        except KeyError as e:
-            raise AttributeError(e.args[0]) from e
-
-
 class PostgresConnection(ConnectionBackend):
     def __init__(self, database: PostgresBackend, dialect: Dialect):
         self._database = database
@@ -184,7 +103,7 @@ class PostgresConnection(ConnectionBackend):
         query_str, args, result_columns = self._compile(query)
         rows = await self._connection.fetch(query_str, *args)
         dialect = self._dialect
-        column_maps = self._create_column_maps(result_columns)
+        column_maps = create_column_maps(result_columns)
         return [Record(row, result_columns, dialect, column_maps) for row in rows]
 
     async def fetch_one(self, query: ClauseElement) -> typing.Optional[RecordInterface]:
@@ -197,7 +116,7 @@ class PostgresConnection(ConnectionBackend):
             row,
             result_columns,
             self._dialect,
-            self._create_column_maps(result_columns),
+            create_column_maps(result_columns),
         )
 
     async def fetch_val(
@@ -234,7 +153,7 @@ class PostgresConnection(ConnectionBackend):
     ) -> typing.AsyncGenerator[typing.Any, None]:
         assert self._connection is not None, "Connection is not acquired"
         query_str, args, result_columns = self._compile(query)
-        column_maps = self._create_column_maps(result_columns)
+        column_maps = create_column_maps(result_columns)
         async for row in self._connection.cursor(query_str, *args):
             yield Record(row, result_columns, self._dialect, column_maps)
 
@@ -270,40 +189,6 @@ class PostgresConnection(ConnectionBackend):
             "Query: %s Args: %s", query_message, repr(tuple(args)), extra=LOG_EXTRA
         )
         return compiled_query, args, result_map
-
-    @staticmethod
-    def _create_column_maps(
-        result_columns: tuple,
-    ) -> typing.Tuple[
-        typing.Mapping[typing.Any, typing.Tuple[int, TypeEngine]],
-        typing.Mapping[int, typing.Tuple[int, TypeEngine]],
-        typing.Mapping[str, typing.Tuple[int, TypeEngine]],
-    ]:
-        """
-        Generate column -> datatype mappings from the column definitions.
-
-        These mappings are used throughout PostgresConnection methods
-        to initialize Record-s. The underlying DB driver does not do type
-        conversion for us so we have wrap the returned asyncpg.Record-s.
-
-        :return: Three mappings from different ways to address a column to \
-                 corresponding column indexes and datatypes: \
-                 1. by column identifier; \
-                 2. by column index; \
-                 3. by column name in Column sqlalchemy objects.
-        """
-        column_map, column_map_int, column_map_full = {}, {}, {}
-        for idx, (column_name, _, column, datatype) in enumerate(result_columns):
-            column_map[column_name] = (idx, datatype)
-            column_map_int[idx] = (idx, datatype)
-
-            # Added in SQLA 2.0 and _CompileLabels do not have _annotations
-            # When this happens, the mapping is on the second position
-            if isinstance(column[0], _CompileLabel):
-                column_map_full[str(column[2])] = (idx, datatype)
-            else:
-                column_map_full[str(column[0])] = (idx, datatype)
-        return column_map, column_map_int, column_map_full
 
     @property
     def raw_connection(self) -> asyncpg.connection.Connection:

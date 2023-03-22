@@ -117,7 +117,7 @@ def async_adapter(wrapped_func):
 
     @functools.wraps(wrapped_func)
     def run_sync(*args, **kwargs):
-        loop = asyncio.get_event_loop()
+        loop = asyncio.new_event_loop()
         task = wrapped_func(*args, **kwargs)
         return loop.run_until_complete(task)
 
@@ -242,6 +242,7 @@ async def test_queries_raw(database_url):
             query = "SELECT completed FROM notes WHERE text = :text"
             result = await database.fetch_val(query=query, values={"text": "example1"})
             assert result == True
+
             query = "SELECT * FROM notes WHERE text = :text"
             result = await database.fetch_val(
                 query=query, values={"text": "example1"}, column="completed"
@@ -687,6 +688,7 @@ async def test_json_field(database_url):
             # fetch_all()
             query = session.select()
             results = await database.fetch_all(query=query)
+
             assert len(results) == 1
             assert results[0]["data"] == {"text": "hello", "boolean": True, "int": 1}
 
