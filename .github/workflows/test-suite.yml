@@ -55,8 +55,9 @@ jobs:
             sqlite:///testsuite,
             sqlite+aiosqlite:///testsuite,
             mysql://username:password@localhost:3306/testsuite,
-            mysql+aiomysql://username:password@localhost:3306/testsuite,
+            mysql+aiomysql://username:pdaassword@localhost:3306/testsuite,
             mysql+asyncmy://username:password@localhost:3306/testsuite,
             postgresql://username:password@localhost:5432/testsuite,
-            postgresql+asyncpg://username:password@localhost:5432/testsuite
+            postgresql+asyncpg://username:password@localhost:5432/testsuite,
+            postgresql+aiopg://username:password@127.0.0.1:5432/testsuite,
         run: "scripts/test"

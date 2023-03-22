@@ -33,6 +33,7 @@ $ pip install databases
 Database drivers supported are:
 
 * [asyncpg][asyncpg]
+* [aiopg][aiopg]
 * [aiomysql][aiomysql]
 * [asyncmy][asyncmy]
 * [aiosqlite][aiosqlite]
@@ -41,6 +42,7 @@ You can install the required database drivers with:
 
 ```shell
 $ pip install databases[asyncpg]
+$ pip install databases[aiopg]
 $ pip install databases[aiomysql]
 $ pip install databases[asyncmy]
 $ pip install databases[aiosqlite]

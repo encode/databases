@@ -10,6 +10,8 @@ from sqlalchemy.types import TypeEngine
 
 from databases.interfaces import Record as RecordInterface
 
+DIALECT_EXCLUDE = {"postgresql"}
+
 
 class Record(RecordInterface):
     __slots__ = (
@@ -60,6 +62,10 @@ class Record(RecordInterface):
         raw = self._row[idx]
         processor = datatype._cached_result_processor(self._dialect, None)
 
+        if self._dialect.name not in DIALECT_EXCLUDE:
+            if isinstance(raw, dict):
+                raw = json.dumps(raw)
+
         if processor is not None and (not isinstance(raw, (datetime, date))):
             return processor(raw)
         return raw
@@ -86,10 +92,7 @@ class Row(SQLRow):
         """
         if isinstance(key, int):
             field = self._fields[key]
-            data = self._mapping[field]
-            if isinstance(data, dict):
-                return json.dumps(data)
-            return data
+            return self._mapping[field]
         return self._mapping[key]
 
     def keys(self):

@@ -15,8 +15,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Removed support for python 3.7 in favour to 3.8.
     - Python 3.7 support will end in June 2023
-- Removed support for `aiopg`.
-
 
 ## 0.7.0 (Dec 18th, 2022)
 

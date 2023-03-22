@@ -145,7 +145,7 @@ class PostgresConnection(ConnectionBackend):
         # loop through multiple executes here, which should all end up
         # using the same prepared statement.
         for single_query in queries:
-            single_query, args, _ = self._compile(single_query)
+            single_query, args, _, _ = self._compile(single_query)
             await self._connection.execute(single_query, *args)
 
     async def iterate(
