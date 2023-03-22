@@ -15,11 +15,12 @@ It allows you to make queries using the powerful [SQLAlchemy Core][sqlalchemy-co
 expression language, and provides support for PostgreSQL, MySQL, and SQLite.
 
 Databases is suitable for integrating against any async Web framework, such as [Starlette][starlette],
-[Sanic][sanic], [Responder][responder], [Quart][quart], [aiohttp][aiohttp], [Tornado][tornado], or [FastAPI][fastapi].
+[Sanic][sanic], [Responder][responder], [Quart][quart], [aiohttp][aiohttp], [Tornado][tornado],
+[FastAPI][fastapi] or [Esmerald][esmerald].
 
 **Documentation**: [https://www.encode.io/databases/](https://www.encode.io/databases/)
 
-**Requirements**: Python 3.7+
+**Requirements**: Python 3.8+
 
 ---
 
@@ -116,3 +117,4 @@ for examples of how to start using databases together with SQLAlchemy core expre
 [aiohttp]: https://github.com/aio-libs/aiohttp
 [tornado]: https://github.com/tornadoweb/tornado
 [fastapi]: https://github.com/tiangolo/fastapi
+[esmerald]: https://github.com/dymmond/esmerald

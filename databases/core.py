@@ -326,7 +326,7 @@ class Connection:
 
             return query.bindparams(**values) if values is not None else query
         elif values:
-            return query.values(**values)
+            return query.values(**values)  # type: ignore
 
         return query
 
