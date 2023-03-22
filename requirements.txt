@@ -1,7 +1,7 @@
 -e .
 
 # Async database drivers
-asyncmy==0.2.5
+asyncmy==0.2.7
 aiopg==1.4.0
 aiomysql==0.1.1
 aiosqlite==0.17.0
