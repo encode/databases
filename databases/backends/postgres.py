@@ -136,7 +136,7 @@ class PostgresConnection(ConnectionBackend):
 
     async def execute(self, query: ClauseElement) -> typing.Any:
         assert self._connection is not None, "Connection is not acquired"
-        query_str, args, result_columns = self._compile(query)
+        query_str, args, _ = self._compile(query)
         return await self._connection.fetchval(query_str, *args)
 
     async def execute_many(self, queries: typing.List[ClauseElement]) -> None:
@@ -145,7 +145,7 @@ class PostgresConnection(ConnectionBackend):
         # loop through multiple executes here, which should all end up
         # using the same prepared statement.
         for single_query in queries:
-            single_query, args, result_columns = self._compile(single_query)
+            single_query, args, _ = self._compile(single_query)
             await self._connection.execute(single_query, *args)
 
     async def iterate(

@@ -2,21 +2,22 @@ site_name: Databases
 site_description: Async database support for Python.
 
 theme:
-    name: 'material'
+    name: "material"
 
 repo_name: encode/databases
 repo_url: https://github.com/encode/databases
 # edit_uri: ""
 
 nav:
-    - Introduction: 'index.md'
-    - Database Queries: 'database_queries.md'
-    - Connections & Transactions: 'connections_and_transactions.md'
-    - Tests & Migrations: 'tests_and_migrations.md'
-    - Contributing: 'contributing.md'
+    - Introduction: "index.md"
+    - Database Queries: "database_queries.md"
+    - Connections & Transactions: "connections_and_transactions.md"
+    - Tests & Migrations: "tests_and_migrations.md"
+    - Contributing: "contributing.md"
+    - Release Notes: "release-notes.md"
 
 markdown_extensions:
-  - mkautodoc
-  - admonition
-  - pymdownx.highlight
-  - pymdownx.superfences
+    - mkautodoc
+    - admonition
+    - pymdownx.highlight
+    - pymdownx.superfences

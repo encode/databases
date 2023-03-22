@@ -1,0 +1,36 @@
+version: "3.8"
+services:
+  db:
+    restart: always
+    image: postgres:14
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
+      POSTGRES_DB: "testsuite"
+    expose:
+      - "5432"
+    ports:
+      - "5432:5432"
+
+  mysql:
+    restart: always
+    image: mysql:5.7
+    environment:
+      MYSQL_USER: "mysql"
+      MYSQL_PASSWORD: "mysql"
+      MYSQL_DATABASE: "testsuite"
+      MYSQL_ROOT_PASSWORD: "password"
+    expose:
+      - "3306"
+    ports:
+      - "3306:3306"
+    command: --default-authentication-plugin=mysql_native_password
+
+  redis:
+    restart: always
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    expose:
+      - "6379"

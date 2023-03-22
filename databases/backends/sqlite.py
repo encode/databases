@@ -11,12 +11,7 @@ from sqlalchemy.sql.ddl import DDLElement
 
 from databases.backends.common.records import Record, Row, create_column_maps
 from databases.core import LOG_EXTRA, DatabaseURL
-from databases.interfaces import (
-    ConnectionBackend,
-    DatabaseBackend,
-    Record,
-    TransactionBackend,
-)
+from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend
 
 logger = logging.getLogger("databases")
 
@@ -121,7 +116,7 @@ class SQLiteConnection(ConnectionBackend):
 
     async def execute(self, query: ClauseElement) -> typing.Any:
         assert self._connection is not None, "Connection is not acquired"
-        query_str, args, context = self._compile(query)
+        query_str, args, result_columns, context = self._compile(query)
         async with self._connection.cursor() as cursor:
             await cursor.execute(query_str, args)
             if cursor.lastrowid == 0:
@@ -163,13 +158,20 @@ class SQLiteConnection(ConnectionBackend):
         execution_context = self._dialect.execution_ctx_cls()
         execution_context.dialect = self._dialect
 
+        args = []
+        result_map = None
+
         if not isinstance(query, DDLElement):
             compiled_params = sorted(compiled.params.items())
 
-            args = compiled.construct_params()
-            for key, val in args.items():
+            params = compiled.construct_params()
+            for key in compiled.positiontup:
+                raw_val = params[key]
                 if key in compiled._bind_processors:
-                    args[key] = compiled._bind_processors[key](val)
+                    val = compiled._bind_processors[key](raw_val)
+                else:
+                    val = raw_val
+                args.append(val)
 
             execution_context.result_column_struct = (
                 compiled._result_columns,
@@ -186,8 +188,6 @@ class SQLiteConnection(ConnectionBackend):
             result_map = compiled._result_columns
 
         else:
-            args = {}
-            result_map = None
             compiled_query = compiled.string
 
         query_message = compiled_query.replace(" \n", " ").replace("\n", " ")
