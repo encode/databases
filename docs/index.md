@@ -17,8 +17,6 @@ expression language, and provides support for PostgreSQL, MySQL, and SQLite.
 Databases is suitable for integrating against any async Web framework, such as [Starlette][starlette],
 [Sanic][sanic], [Responder][responder], [Quart][quart], [aiohttp][aiohttp], [Tornado][tornado], or [FastAPI][fastapi].
 
-**Documentation**: [https://www.encode.io/databases/](https://www.encode.io/databases/)
-
 **Requirements**: Python 3.7+
 
 ---
@@ -91,7 +89,7 @@ rows = await database.fetch_all(query=query)
 print('High Scores:', rows)
 ```
 
-Check out the documentation on [making database queries](https://www.encode.io/databases/database_queries/)
+Check out the documentation on [making database queries](database_queries.md)
 for examples of how to start using databases together with SQLAlchemy core expressions.
 
 
