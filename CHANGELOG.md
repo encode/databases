@@ -4,17 +4,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## 0.8.0 (Mar 21, 2022)
-
 ### Added
 
 - Support for SQLAlchemy 2.0+
 - Added internal support for the new psycopg dialect.
-
-### Changed
-
-- Removed support for python 3.7 in favour to 3.8.
-    - Python 3.7 support will end in June 2023
 
 ## 0.7.0 (Dec 18th, 2022)
 
