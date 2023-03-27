@@ -54,14 +54,9 @@ jobs:
           python-version: "${{ matrix.python-version }}"
       - name: "Install drivers"
         run: |
-          curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
-          curl https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list > /etc/apt/sources.list.d/mssql-release.list
-          sudo apt-get update -y
           sudo ACCEPT_EULA=Y apt-get install -y msodbcsql17
-          sudo ACCEPT_EULA=Y apt-get install -y mssql-tools
-          echo 'export PATH="$PATH:/opt/mssql-tools/bin"' >> ~/.bashrc
-          source ~/.bashrc
           sudo apt-get install -y unixodbc-dev
+
       - name: "Install dependencies"
         run: "scripts/install"
       - name: "Run linting checks"
