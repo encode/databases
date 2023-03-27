@@ -57,6 +57,7 @@ setup(
         "asyncmy": ["asyncmy"],
         "sqlite": ["aiosqlite"],
         "aiosqlite": ["aiosqlite"],
+        "aioodbc": ["aioodbc"],
     },
     classifiers=[
         "Development Status :: 3 - Alpha",

@@ -42,6 +42,9 @@ class Database:
         "postgres": "databases.backends.postgres:PostgresBackend",
         "mysql": "databases.backends.mysql:MySQLBackend",
         "mysql+asyncmy": "databases.backends.asyncmy:AsyncMyBackend",
+        "mssql": "databases.backends.mssql:MSSQLBackend",
+        "mssql+pyodbc": "databases.backends.mssql:MSSQLBackend",
+        "mssql+aioodbc": "databases.backends.mssql:MSSQLBackend",
         "sqlite": "databases.backends.sqlite:SQLiteBackend",
     }
 

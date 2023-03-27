@@ -6,10 +6,12 @@ aiopg==1.4.0
 aiomysql==0.1.1
 aiosqlite==0.17.0
 asyncpg==0.26.0
+aioodbc==0.4.0
 
 # Sync database drivers for standard tooling around setup/teardown/migrations.
 psycopg2-binary==2.9.5
 pymysql==1.0.2
+pyodbc==4.0.35
 
 # Testing
 autoflake==1.4

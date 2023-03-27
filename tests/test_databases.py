@@ -88,6 +88,8 @@ def create_test_database():
             "postgresql+aiopg",
             "sqlite+aiosqlite",
             "postgresql+asyncpg",
+            "mssql+pyodbc",
+            "mssql+aioodbc",
         ]:
             url = str(database_url.replace(driver=None))
         engine = sqlalchemy.create_engine(url)
@@ -105,6 +107,8 @@ def create_test_database():
             "postgresql+aiopg",
             "sqlite+aiosqlite",
             "postgresql+asyncpg",
+            "mssql+pyodbc",
+            "mssql+aioodbc",
         ]:
             url = str(database_url.replace(driver=None))
         engine = sqlalchemy.create_engine(url)
@@ -856,7 +860,6 @@ async def test_queries_with_expose_backend_connection(database_url):
             async with connection.transaction(force_rollback=True):
                 # Get the raw connection
                 raw_connection = connection.raw_connection
-
                 # Insert query
                 if database.url.scheme in [
                     "mysql",
@@ -865,6 +868,12 @@ async def test_queries_with_expose_backend_connection(database_url):
                     "postgresql+aiopg",
                 ]:
                     insert_query = "INSERT INTO notes (text, completed) VALUES (%s, %s)"
+                elif database.url.scheme in [
+                    "mssql",
+                    "mssql+pyodbc",
+                    "mssql+aioodbc",
+                ]:
+                    insert_query = "INSERT INTO notes (text, completed) VALUES (?, ?)"
                 else:
                     insert_query = "INSERT INTO notes (text, completed) VALUES ($1, $2)"
 
@@ -875,6 +884,9 @@ async def test_queries_with_expose_backend_connection(database_url):
                     "mysql",
                     "mysql+aiomysql",
                     "postgresql+aiopg",
+                    "mssql",
+                    "mssql+pyodbc",
+                    "mssql+aioodbc",
                 ]:
                     cursor = await raw_connection.cursor()
                     await cursor.execute(insert_query, values)
@@ -900,6 +912,10 @@ async def test_queries_with_expose_backend_connection(database_url):
                     # No async support for `executemany`
                     for value in values:
                         await cursor.execute(insert_query, value)
+                elif database.url.scheme in ["mssql", "mssql+aioodbc", "mssql+pyodbc"]:
+                    cursor = await raw_connection.cursor()
+                    for value in values:
+                        await cursor.execute(insert_query, value)
                 else:
                     await raw_connection.executemany(insert_query, values)
 
@@ -911,11 +927,14 @@ async def test_queries_with_expose_backend_connection(database_url):
                     "mysql",
                     "mysql+aiomysql",
                     "postgresql+aiopg",
+                    "mssql",
+                    "mssql+pyodbc",
+                    "mssql+aioodbc",
                 ]:
                     cursor = await raw_connection.cursor()
                     await cursor.execute(select_query)
                     results = await cursor.fetchall()
-                elif database.url.scheme == "mysql+asyncmy":
+                elif database.url.scheme == "mysql+asyncmy" or data:
                     async with raw_connection.cursor() as cursor:
                         await cursor.execute(select_query)
                         results = await cursor.fetchall()
@@ -940,6 +959,13 @@ async def test_queries_with_expose_backend_connection(database_url):
                     async with raw_connection.cursor() as cursor:
                         await cursor.execute(select_query)
                         result = await cursor.fetchone()
+                elif database.url.scheme in ["mssql", "mssql+pyodbc", "mssql+aioodbc"]:
+                    cursor = await raw_connection.cursor()
+                    try:
+                        await cursor.execute(select_query)
+                        result = await cursor.fetchone()
+                    finally:
+                        await cursor.close()
                 else:
                     cursor = await raw_connection.cursor()
                     await cursor.execute(select_query)
@@ -1019,7 +1045,10 @@ async def test_iterate_outside_transaction_with_values(database_url):
         pytest.skip("MySQL does not support `FROM (VALUES ...)` (F641)")
 
     async with Database(database_url) as database:
-        query = "SELECT * FROM (VALUES (1), (2), (3), (4), (5)) as t"
+        if database_url.dialect == "mssql":
+            query = "SELECT * FROM (VALUES (1), (2), (3), (4), (5)) as X(t)"
+        else:
+            query = "SELECT * FROM (VALUES (1), (2), (3), (4), (5)) as t"
         iterate_results = []
 
         async for result in database.iterate(query=query):
@@ -1041,13 +1070,24 @@ async def test_iterate_outside_transaction_with_temp_table(database_url):
         pytest.skip("SQLite interface does not work with temporary tables.")
 
     async with Database(database_url) as database:
-        query = "CREATE TEMPORARY TABLE no_transac(num INTEGER)"
-        await database.execute(query)
+        if database_url.dialect == "mssql":
+            query = "CREATE TABLE ##no_transac(num INTEGER)"
+            await database.execute(query)
 
-        query = "INSERT INTO no_transac(num) VALUES (1), (2), (3), (4), (5)"
-        await database.execute(query)
+            query = "INSERT INTO ##no_transac VALUES (1), (2), (3), (4), (5)"
+            await database.execute(query)
 
-        query = "SELECT * FROM no_transac"
+            query = "SELECT * FROM ##no_transac"
+
+        else:
+            query = "CREATE TEMPORARY TABLE no_transac(num INTEGER)"
+            await database.execute(query)
+
+            query = "INSERT INTO no_transac(num) VALUES (1), (2), (3), (4), (5)"
+            await database.execute(query)
+
+            query = "SELECT * FROM no_transac"
+
         iterate_results = []
 
         async for result in database.iterate(query=query):
