@@ -934,7 +934,7 @@ async def test_queries_with_expose_backend_connection(database_url):
                     cursor = await raw_connection.cursor()
                     await cursor.execute(select_query)
                     results = await cursor.fetchall()
-                elif database.url.scheme == "mysql+asyncmy" or data:
+                elif database.url.scheme == "mysql+asyncmy":
                     async with raw_connection.cursor() as cursor:
                         await cursor.execute(select_query)
                         results = await cursor.fetchall()

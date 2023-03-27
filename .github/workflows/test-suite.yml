@@ -41,11 +41,17 @@ jobs:
       mssql:
         image: mcr.microsoft.com/mssql/server:2019-GA-ubuntu-16.04
         env:
-          MSSQL_SA_PASSWORD: "mssql123mssql"
+          MSSQL_SA_PASSWORD: "Mssql123$#mssql"
           ACCEPT_EULA: "Y"
-          MSSQL_PID: "Developer"
+          MSSQL_PID: Express
         ports:
-          - "1433:1433"
+          - 1433/tcp
+        options: >-
+          --health-cmd "/opt/mssql-tools/bin/sqlcmd -U sa -P $MSSQL_SA_PASSWORD -Q 'select 1' -b -o /dev/null"
+          --health-interval 60s
+          --health-timeout 30s
+          --health-start-period 20s
+          --health-retries 3
 
     steps:
       - uses: "actions/checkout@v3"
@@ -73,8 +79,8 @@ jobs:
             mysql+asyncmy://username:password@localhost:3306/testsuite,
             postgresql://username:password@localhost:5432/testsuite,
             postgresql+aiopg://username:password@127.0.0.1:5432/testsuite,
-            postgresql+asyncpg://username:password@localhost:5432/testsuite
-            mssql://sa:mssql123mssql@localhost:1433/master?driver=ODBC+Driver+17+for+SQL+Server,
-            mssql+pyodbc://sa:mssql123mssql@localhost:1433/master?driver=ODBC+Driver+17+for+SQL+Server,
-            mssql+aioodbc://sa:mssql123mssql@localhost:1433/master?driver=ODBC+Driver+17+for+SQL+Server
+            postgresql+asyncpg://username:password@localhost:5432/testsuite,
+            mssql://sa:Mssql123$#mssql@localhost:1433/master?driver=ODBC+Driver+17+for+SQL+Server,
+            mssql+pyodbc://sa:Mssql123$#mssql@localhost:1433/master?driver=ODBC+Driver+17+for+SQL+Server,
+            mssql+aioodbc://sa:Mssql123$#mssql@localhost:1433/master?driver=ODBC+Driver+17+for+SQL+Server
         run: "scripts/test"
