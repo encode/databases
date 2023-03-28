@@ -78,7 +78,7 @@ class MSSQLBackend(DatabaseBackend):
         user = self._database_url.username or getpass.getuser()
         password = self._database_url.password
 
-        dsn = f"Driver={driver};Database={database};Server={hostname};UID={user};PWD={password};Port={port}"
+        dsn = f"Driver={driver};Database={database};Server={hostname},{port};UID={user};PWD={password};"
 
         self._pool = await aioodbc.create_pool(
             dsn=dsn,
