@@ -4,6 +4,7 @@ import typing
 import uuid
 
 import aioodbc
+import pyodbc as ext_pyodbc
 from sqlalchemy.dialects.mssql import pyodbc
 from sqlalchemy.engine.cursor import CursorResultMetaData
 from sqlalchemy.engine.interfaces import Dialect, ExecutionContext
@@ -55,9 +56,15 @@ class MSSQLBackend(DatabaseBackend):
         if ssl is not None:
             kwargs["ssl"] = {"true": True, "false": False}[ssl.lower()]
 
-        kwargs["trusted_connection"] = trusted_connection.lower()
-        kwargs["driver"] = driver
-        kwargs["timeout"] = timeout
+        kwargs.update(
+            {
+                "ignore_no_transaction_on_rollback": True,
+                "trusted_connection": trusted_connection.lower(),
+                "timeout": timeout,
+                "autocommit": True,
+                "driver": driver,
+            }
+        )
 
         for key, value in self._options.items():
             # Coerce 'min_size' and 'max_size' for consistency.
@@ -88,7 +95,6 @@ class MSSQLBackend(DatabaseBackend):
 
         self._pool = await aioodbc.create_pool(
             dsn=dsn,
-            autocommit=True,
             **kwargs,
         )
 
@@ -304,8 +310,10 @@ class MSSQLTransaction(TransactionBackend):
         assert self._connection._connection is not None, "Connection is not acquired"
         cursor = await self._connection._connection.cursor()
         if self._is_root:
-            await cursor.execute("BEGIN TRANSACTION")
-            await cursor.execute("ROLLBACK TRANSACTION")
+            try:
+                await cursor.execute(f"ROLLBACK TRANSACTION")
+            except ext_pyodbc.ProgrammingError:
+                logger.error("There is no transaction to rollback")
         else:
             try:
                 await cursor.execute(f"ROLLBACK TRANSACTION {self._savepoint_name}")
