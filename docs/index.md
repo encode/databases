@@ -34,6 +34,7 @@ Database drivers supported are:
 * [aiomysql][aiomysql]
 * [asyncmy][asyncmy]
 * [aiosqlite][aiosqlite]
+* [aioodbc][aioodbc]
 
 You can install the required database drivers with:
 
@@ -43,9 +44,10 @@ $ pip install databases[aiopg]
 $ pip install databases[aiomysql]
 $ pip install databases[asyncmy]
 $ pip install databases[aiosqlite]
+$ pip install databases[aioodbc]
 ```
 
-Note that if you are using any synchronous SQLAlchemy functions such as `engine.create_all()` or [alembic][alembic] migrations then you still have to install a synchronous DB driver: [psycopg2][psycopg2] for PostgreSQL and [pymysql][pymysql] for MySQL.
+Note that if you are using any synchronous SQLAlchemy functions such as `engine.create_all()` or [alembic][alembic] migrations then you still have to install a synchronous DB driver: [psycopg2][psycopg2] for PostgreSQL, [pymysql][pymysql] for MySQL and [pyodbc][pyodbc] for SQL Server.
 
 ---
 
@@ -101,11 +103,13 @@ for examples of how to start using databases together with SQLAlchemy core expre
 [alembic]: https://alembic.sqlalchemy.org/en/latest/
 [psycopg2]: https://www.psycopg.org/
 [pymysql]: https://github.com/PyMySQL/PyMySQL
+[pyodbc]: https://github.com/mkleehammer/pyodbc
 [asyncpg]: https://github.com/MagicStack/asyncpg
 [aiopg]: https://github.com/aio-libs/aiopg
 [aiomysql]: https://github.com/aio-libs/aiomysql
 [asyncmy]: https://github.com/long2ice/asyncmy
 [aiosqlite]: https://github.com/omnilib/aiosqlite
+[aioodbc]: https://aioodbc.readthedocs.io/en/latest/
 
 [starlette]: https://github.com/encode/starlette
 [sanic]: https://github.com/huge-success/sanic

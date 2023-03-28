@@ -6,6 +6,7 @@ import sys
 import pytest
 
 from databases.backends.aiopg import AiopgBackend
+from databases.backends.mssql import MSSQLBackend
 from databases.backends.mysql import MySQLBackend
 from databases.backends.postgres import PostgresBackend
 from databases.core import DatabaseURL
@@ -169,3 +170,38 @@ def test_aiopg_explicit_ssl():
     backend = AiopgBackend("postgresql+aiopg://localhost/database", ssl=True)
     kwargs = backend._get_connection_kwargs()
     assert kwargs == {"ssl": True}
+
+
+@pytest.mark.skipif(sys.version_info >= (3, 10), reason="requires python3.9 or lower")
+def test_mssql_pool_size():
+    backend = MySQLBackend("mssql+pyodbc://localhost/database?min_size=1&max_size=20")
+    kwargs = backend._get_connection_kwargs()
+    assert kwargs == {"minsize": 1, "maxsize": 20}
+
+
+@pytest.mark.skipif(sys.version_info >= (3, 10), reason="requires python3.9 or lower")
+def test_mssql_explicit_pool_size():
+    backend = MySQLBackend("mssql+pyodbc://localhost/database", min_size=1, max_size=20)
+    kwargs = backend._get_connection_kwargs()
+    assert kwargs == {"minsize": 1, "maxsize": 20}
+
+
+@pytest.mark.skipif(sys.version_info >= (3, 10), reason="requires python3.9 or lower")
+def test_mssql_ssl():
+    backend = MySQLBackend("mssql+pyodbc://localhost/database?ssl=true")
+    kwargs = backend._get_connection_kwargs()
+    assert kwargs == {"ssl": True}
+
+
+@pytest.mark.skipif(sys.version_info >= (3, 10), reason="requires python3.9 or lower")
+def test_mssql_explicit_ssl():
+    backend = MySQLBackend("mssql+pyodbc://localhost/database", ssl=True)
+    kwargs = backend._get_connection_kwargs()
+    assert kwargs == {"ssl": True}
+
+
+@pytest.mark.skipif(sys.version_info >= (3, 10), reason="requires python3.9 or lower")
+def test_mssql_pool_recycle():
+    backend = MySQLBackend("mssql+pyodbc://localhost/database?pool_recycle=20")
+    kwargs = backend._get_connection_kwargs()
+    assert kwargs == {"pool_recycle": 20}

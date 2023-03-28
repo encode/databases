@@ -31,6 +31,13 @@ def create_test_database():
             "postgresql+asyncpg",
         ]:
             url = str(database_url.replace(driver=None))
+        elif database_url.scheme in [
+            "mssql",
+            "mssql+pyodbc",
+            "mssql+aioodbc",
+            "mssql+pymssql",
+        ]:
+            url = str(database_url.replace(driver="pyodbc"))
         engine = sqlalchemy.create_engine(url)
         metadata.create_all(engine)
 
@@ -47,6 +54,13 @@ def create_test_database():
             "postgresql+asyncpg",
         ]:
             url = str(database_url.replace(driver=None))
+        elif database_url.scheme in [
+            "mssql",
+            "mssql+pyodbc",
+            "mssql+aioodbc",
+            "mssql+pymssql",
+        ]:
+            url = str(database_url.replace(driver="pyodbc"))
         engine = sqlalchemy.create_engine(url)
         metadata.drop_all(engine)
 
