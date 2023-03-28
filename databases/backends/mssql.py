@@ -41,6 +41,7 @@ class MSSQLBackend(DatabaseBackend):
         pool_recycle = url_options.get("pool_recycle")
         ssl = url_options.get("ssl")
         driver = url_options.get("driver")
+        timeout = url_options.get("connection_timeout", 30)
         trusted_connection = url_options.get("trusted_connection", "no")
 
         assert driver is not None, "The driver must be specified"
@@ -56,6 +57,7 @@ class MSSQLBackend(DatabaseBackend):
 
         kwargs["trusted_connection"] = trusted_connection.lower()
         kwargs["driver"] = driver
+        kwargs["timeout"] = timeout
 
         for key, value in self._options.items():
             # Coerce 'min_size' and 'max_size' for consistency.
@@ -77,8 +79,12 @@ class MSSQLBackend(DatabaseBackend):
         port = self._database_url.port or 1433
         user = self._database_url.username or getpass.getuser()
         password = self._database_url.password
+        timeout = kwargs.pop("timeout")
 
-        dsn = f"Driver={driver};Database={database};Server={hostname},{port};UID={user};PWD={password};"
+        if port:
+            dsn = f"Driver={driver};Database={database};Server={hostname},{port};UID={user};PWD={password};Connection+Timeout={timeout}"
+        else:
+            dsn = f"Driver={driver};Database={database};Server={hostname},{port};UID={user};PWD={password};Connection+Timeout={timeout}"
 
         self._pool = await aioodbc.create_pool(
             dsn=dsn,

@@ -29,10 +29,15 @@ def create_test_database():
             "postgresql+aiopg",
             "sqlite+aiosqlite",
             "postgresql+asyncpg",
-            "mssql+pyodbc",
-            "mssql+aioodbc",
         ]:
             url = str(database_url.replace(driver=None))
+        elif database_url.scheme in [
+            "mssql",
+            "mssql+pyodbc",
+            "mssql+aioodbc",
+            "mssql+pymssql",
+        ]:
+            url = str(database_url.replace(driver="pyodbc"))
         engine = sqlalchemy.create_engine(url)
         metadata.create_all(engine)
 
@@ -43,14 +48,19 @@ def create_test_database():
         database_url = DatabaseURL(url)
         if database_url.scheme in ["mysql", "mysql+aiomysql", "mysql+asyncmy"]:
             url = str(database_url.replace(driver="pymysql"))
-        if database_url.scheme in ["mssql", "mssql+aioodbc"]:
-            url = str(database_url.replace(driver="pyodbc"))
         elif database_url.scheme in [
             "postgresql+aiopg",
             "sqlite+aiosqlite",
             "postgresql+asyncpg",
         ]:
             url = str(database_url.replace(driver=None))
+        elif database_url.scheme in [
+            "mssql",
+            "mssql+pyodbc",
+            "mssql+aioodbc",
+            "mssql+pymssql",
+        ]:
+            url = str(database_url.replace(driver="pyodbc"))
         engine = sqlalchemy.create_engine(url)
         metadata.drop_all(engine)
 

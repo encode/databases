@@ -11,9 +11,6 @@ jobs:
   tests:
     name: "Python ${{ matrix.python-version }}"
     runs-on: "ubuntu-latest"
-    env:
-      MSSQL_SA_PASSWORD: Mssql123$#mssql
-
     strategy:
       matrix:
         python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
@@ -43,13 +40,13 @@ jobs:
       mssql:
         image: mcr.microsoft.com/mssql/server:2019-GA-ubuntu-16.04
         env:
-          MSSQL_SA_PASSWORD: ${{ env.MSSQL_SA_PASSWORD }}
+          MSSQL_SA_PASSWORD: Mssql123mssql-
           ACCEPT_EULA: "Y"
-          MSSQL_PID: Express
+          MSSQL_PID: Developer
         ports:
-          - 1433/tcp
+          - 1433:1433
         options: >-
-          --health-cmd "/opt/mssql-tools/bin/sqlcmd -U sa -P $MSSQL_SA_PASSWORD -Q 'select 1' -b -o /dev/null"
+          --health-cmd "/opt/mssql-tools/bin/sqlcmd -U sa -P Mssql123mssql- -Q 'select 1' -b -o /dev/null"
           --health-interval 60s
           --health-timeout 30s
           --health-start-period 20s
@@ -82,7 +79,7 @@ jobs:
             postgresql://username:password@localhost:5432/testsuite,
             postgresql+aiopg://username:password@127.0.0.1:5432/testsuite,
             postgresql+asyncpg://username:password@localhost:5432/testsuite,
-            mssql://sa:Mssql123$#mssql@127.0.0.1:1433/master?driver=ODBC+Driver+17+for+SQL+Server,
-            mssql+pyodbc://sa:Mssql123$#mssql@127.0.0.1:1433/master?driver=ODBC+Driver+17+for+SQL+Server,
-            mssql+aioodbc://sa:Mssql123$#mssql@127.0.0.1:1433/master?driver=ODBC+Driver+17+for+SQL+Server
+            mssql://sa:Mssql123mssql-@localhost:1433/master?driver=ODBC+Driver+17+for+SQL+Server,
+            mssql+pyodbc://sa:Mssql123mssql-@localhost:1433/master?driver=ODBC+Driver+17+for+SQL+Server,
+            mssql+aioodbc://sa:Mssql123mssql-@localhost:1433/master?driver=ODBC+Driver+17+for+SQL+Server
         run: "scripts/test"
