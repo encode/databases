@@ -4,11 +4,6 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-### Added
-
-- Support for SQLAlchemy 2.0+
-- Added internal support for the new psycopg dialect.
-
 ## 0.7.0 (Dec 18th, 2022)
 
 ### Fixed
