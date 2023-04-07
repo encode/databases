@@ -11,7 +11,7 @@ from sqlalchemy import text
 from sqlalchemy.sql import ClauseElement
 
 from databases.importer import import_from_string
-from databases.interfaces import DatabaseBackend, Record
+from databases.interfaces import DatabaseBackend, Record, TransactionBackend
 
 try:  # pragma: no cover
     import click
@@ -344,6 +344,9 @@ class Transaction:
         self._connection_callable = connection_callable
         self._force_rollback = force_rollback
         self._extra_options = kwargs
+        self._transaction_context: ContextVar[TransactionBackend | None] = ContextVar(
+            "transaction_context"
+        )
 
     async def __aenter__(self) -> "Transaction":
         """
@@ -385,31 +388,38 @@ class Transaction:
         return wrapper  # type: ignore
 
     async def start(self) -> "Transaction":
-        self._connection = self._connection_callable()
-        self._transaction = self._connection._connection.transaction()
+        connection = self._connection_callable()
+        transaction = connection._connection.transaction()
+        self._transaction_context.set(transaction)
 
-        async with self._connection._transaction_lock:
-            is_root = not self._connection._transaction_stack
-            await self._connection.__aenter__()
-            await self._transaction.start(
-                is_root=is_root, extra_options=self._extra_options
-            )
-            self._connection._transaction_stack.append(self)
+        async with connection._transaction_lock:
+            is_root = not connection._transaction_stack
+            await connection.__aenter__()
+            await transaction.start(is_root=is_root, extra_options=self._extra_options)
+            connection._transaction_stack.append(self)
         return self
 
     async def commit(self) -> None:
-        async with self._connection._transaction_lock:
-            assert self._connection._transaction_stack[-1] is self
-            self._connection._transaction_stack.pop()
-            await self._transaction.commit()
-            await self._connection.__aexit__()
+        connection = self._connection_callable()
+        transaction = self._transaction_context.get()
+        assert transaction is not None, "Transaction not found in current task"
+        async with connection._transaction_lock:
+            assert connection._transaction_stack[-1] is self
+            connection._transaction_stack.pop()
+            await transaction.commit()
+            await connection.__aexit__()
+            self._transaction_context.set(None)
 
     async def rollback(self) -> None:
-        async with self._connection._transaction_lock:
-            assert self._connection._transaction_stack[-1] is self
-            self._connection._transaction_stack.pop()
-            await self._transaction.rollback()
-            await self._connection.__aexit__()
+        connection = self._connection_callable()
+        transaction = self._transaction_context.get()
+        assert transaction is not None, "Transaction not found in current task"
+        async with connection._transaction_lock:
+            assert connection._transaction_stack[-1] is self
+            connection._transaction_stack.pop()
+            await transaction.rollback()
+            await connection.__aexit__()
+            self._transaction_context.set(None)
 
 
 class _EmptyNetloc(str):
