@@ -5,6 +5,7 @@ import logging
 import typing
 from contextvars import ContextVar
 from types import TracebackType
+from typing import Optional
 from urllib.parse import SplitResult, parse_qsl, unquote, urlsplit
 
 from sqlalchemy import text
@@ -63,8 +64,13 @@ class Database:
         assert issubclass(backend_cls, DatabaseBackend)
         self._backend = backend_cls(self.url, **self.options)
 
-        # Connections are stored as task-local state.
-        self._connection_context: ContextVar = ContextVar("connection_context")
+        # Connections are stored as task-local state, and cannot be garbage collected,
+        # since the immutable global Context stores a strong reference to each ContextVar
+        # that is created. We need these local ContextVars since two Database objects
+        # could run in the same asyncio.Task with connections to different databases.
+        self._connection_contextvar: ContextVar[Optional["Connection"]] = ContextVar(
+            f"databases:Database:{id(self)}"
+        )
 
         # When `force_rollback=True` is used, we use a single global
         # connection, within a transaction that always rolls back.
@@ -113,7 +119,7 @@ class Database:
             self._global_transaction = None
             self._global_connection = None
         else:
-            self._connection_context = ContextVar("connection_context")
+            self._connection_contextvar.set(None)
 
         await self._backend.disconnect()
         logger.info(
@@ -187,12 +193,12 @@ class Database:
         if self._global_connection is not None:
             return self._global_connection
 
-        try:
-            return self._connection_context.get()
-        except LookupError:
+        connection = self._connection_contextvar.get(default=None)
+        if connection is None:
             connection = Connection(self._backend)
-            self._connection_context.set(connection)
-            return connection
+            self._connection_contextvar.set(connection)
+
+        return connection
 
     def transaction(
         self, *, force_rollback: bool = False, **kwargs: typing.Any
@@ -344,9 +350,15 @@ class Transaction:
         self._connection_callable = connection_callable
         self._force_rollback = force_rollback
         self._extra_options = kwargs
-        self._transaction_context: ContextVar[TransactionBackend | None] = ContextVar(
-            "transaction_context"
-        )
+
+        # This ContextVar can never be garbage collected - similar to the ContextVar
+        # at Database._connection_contextvar - since the current Context has a strong
+        # reference to every ContextVar that is created. We need local ContextVars since
+        # there may be multiple (even nested) transactions in a single asyncio.Task,
+        # which each need their own unique TransactionBackend object.
+        self._transaction_contextvar: ContextVar[
+            Optional[TransactionBackend]
+        ] = ContextVar(f"databases:Transaction:{id(self)}")
 
     async def __aenter__(self) -> "Transaction":
         """
@@ -390,7 +402,11 @@ class Transaction:
     async def start(self) -> "Transaction":
         connection = self._connection_callable()
         transaction = connection._connection.transaction()
-        self._transaction_context.set(transaction)
+
+        # Cannot store returned reset token anywhere, for the same reason
+        # we need a ContextVar in the first place - `self` is not
+        # a safe object on which to store references for concurrent code.
+        self._transaction_contextvar.set(transaction)
 
         async with connection._transaction_lock:
             is_root = not connection._transaction_stack
@@ -401,25 +417,27 @@ class Transaction:
 
     async def commit(self) -> None:
         connection = self._connection_callable()
-        transaction = self._transaction_context.get()
+        transaction = self._transaction_contextvar.get(default=None)
         assert transaction is not None, "Transaction not found in current task"
         async with connection._transaction_lock:
             assert connection._transaction_stack[-1] is self
             connection._transaction_stack.pop()
             await transaction.commit()
             await connection.__aexit__()
-            self._transaction_context.set(None)
+            # Have no reset token, set to None instead
+            self._transaction_contextvar.set(None)
 
     async def rollback(self) -> None:
         connection = self._connection_callable()
-        transaction = self._transaction_context.get()
+        transaction = self._transaction_contextvar.get(default=None)
         assert transaction is not None, "Transaction not found in current task"
         async with connection._transaction_lock:
             assert connection._transaction_stack[-1] is self
             connection._transaction_stack.pop()
             await transaction.rollback()
             await connection.__aexit__()
-            self._transaction_context.set(None)
+            # Have no reset token, set to None instead
+            self._transaction_contextvar.set(None)
 
 
 class _EmptyNetloc(str):
