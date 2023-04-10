@@ -193,7 +193,7 @@ class Database:
         if self._global_connection is not None:
             return self._global_connection
 
-        connection = self._connection_contextvar.get(default=None)
+        connection = self._connection_contextvar.get(None)
         if connection is None:
             connection = Connection(self._backend)
             self._connection_contextvar.set(connection)
@@ -417,7 +417,7 @@ class Transaction:
 
     async def commit(self) -> None:
         connection = self._connection_callable()
-        transaction = self._transaction_contextvar.get(default=None)
+        transaction = self._transaction_contextvar.get(None)
         assert transaction is not None, "Transaction not found in current task"
         async with connection._transaction_lock:
             assert connection._transaction_stack[-1] is self
@@ -429,7 +429,7 @@ class Transaction:
 
     async def rollback(self) -> None:
         connection = self._connection_callable()
-        transaction = self._transaction_contextvar.get(default=None)
+        transaction = self._transaction_contextvar.get(None)
         assert transaction is not None, "Transaction not found in current task"
         async with connection._transaction_lock:
             assert connection._transaction_stack[-1] is self
