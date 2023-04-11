@@ -36,8 +36,8 @@ except ImportError:  # pragma: no cover
 logger = logging.getLogger("databases")
 
 # Connections are stored as task-local state, but care must be taken to ensure
-# that two database instances in the same task overwrite each other's connections.
-# For this reason, key comprises the database instance and the current task.
+# that two database instances in the same task do not overwrite each other's connections.
+# For this reason, the dict key comprises the database instance and the current task.
 _connection_contextmap: ContextVar[
     Dict[Tuple["Database", asyncio.Task], "Connection"]
 ] = ContextVar("databases:Connection")
