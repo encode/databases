@@ -2,10 +2,11 @@ import asyncio
 import datetime
 import decimal
 import functools
+import itertools
 import os
 import re
 from unittest.mock import MagicMock, patch
-import itertools
+
 import pytest
 import sqlalchemy
 

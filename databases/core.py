@@ -5,7 +5,7 @@ import logging
 import typing
 from contextvars import ContextVar
 from types import TracebackType
-from typing import Dict, Optional
+from typing import Dict
 from urllib.parse import SplitResult, parse_qsl, unquote, urlsplit
 
 from sqlalchemy import text
@@ -127,6 +127,7 @@ class Database:
             self._global_connection = None
         else:
             task = asyncio.current_task()
+            assert task is not None, "Not running in an asyncio task"
             connections = _get_connection_contextmap()
             if (self, task) in connections:
                 del connections[self, task]
@@ -204,6 +205,7 @@ class Database:
             return self._global_connection
 
         task = asyncio.current_task()
+        assert task is not None, "Not running in an asyncio task"
         connections = _get_connection_contextmap()
         if (self, task) not in connections:
             connections[self, task] = Connection(self._backend)
