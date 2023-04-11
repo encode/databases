@@ -5,7 +5,7 @@ import functools
 import os
 import re
 from unittest.mock import MagicMock, patch
-
+import itertools
 import pytest
 import sqlalchemy
 
@@ -789,15 +789,16 @@ async def test_connect_and_disconnect(database_url):
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
-async def test_connection_context(database_url):
-    """
-    Test connection contexts are task-local.
-    """
+async def test_connection_context_same_task(database_url):
     async with Database(database_url) as database:
         async with database.connection() as connection_1:
             async with database.connection() as connection_2:
                 assert connection_1 is connection_2
 
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_connection_context_multiple_tasks(database_url):
     async with Database(database_url) as database:
         connection_1 = None
         connection_2 = None
@@ -817,15 +818,28 @@ async def test_connection_context(database_url):
                 connection_2 = connection
                 await test_complete.wait()
 
-        loop = asyncio.get_event_loop()
-        task_1 = loop.create_task(get_connection_1())
-        task_2 = loop.create_task(get_connection_2())
+        task_1 = asyncio.create_task(get_connection_1())
+        task_2 = asyncio.create_task(get_connection_2())
         while connection_1 is None or connection_2 is None:
             await asyncio.sleep(0.000001)
         assert connection_1 is not connection_2
         test_complete.set()
         await task_1
         await task_2
+
+
+@pytest.mark.parametrize(
+    "database_url1,database_url2",
+    (
+        pytest.param(db1, db2, id=f"{db1} | {db2}")
+        for (db1, db2) in itertools.combinations(DATABASE_URLS, 2)
+    ),
+)
+@async_adapter
+async def test_connection_context_multiple_databases(database_url1, database_url2):
+    async with Database(database_url1) as database1:
+        async with Database(database_url2) as database2:
+            assert database1.connection() is not database2.connection()
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
