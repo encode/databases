@@ -961,16 +961,59 @@ async def test_database_url_interface(database_url):
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
 async def test_concurrent_access_on_single_connection(database_url):
-    database_url = DatabaseURL(database_url)
-    if database_url.dialect != "postgresql":
-        pytest.skip("Test requires `pg_sleep()`")
-
     async with Database(database_url, force_rollback=True) as database:
 
         async def db_lookup():
-            await database.fetch_one("SELECT pg_sleep(1)")
+            await database.fetch_one("SELECT 1 AS value")
 
-        await asyncio.gather(db_lookup(), db_lookup())
+        await asyncio.gather(
+            db_lookup(),
+            db_lookup(),
+        )
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_concurrent_transactions_on_single_connection(database_url: str):
+    async with Database(database_url) as database:
+
+        @database.transaction()
+        async def db_lookup():
+            await database.fetch_one(query="SELECT 1 AS value")
+
+        await asyncio.gather(
+            db_lookup(),
+            db_lookup(),
+        )
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_concurrent_tasks_on_single_connection(database_url: str):
+    async with Database(database_url) as database:
+
+        async def db_lookup():
+            await database.fetch_one(query="SELECT 1 AS value")
+
+        await asyncio.gather(
+            asyncio.create_task(db_lookup()),
+            asyncio.create_task(db_lookup()),
+        )
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_concurrent_task_transactions_on_single_connection(database_url: str):
+    async with Database(database_url) as database:
+
+        @database.transaction()
+        async def db_lookup():
+            await database.fetch_one(query="SELECT 1 AS value")
+
+        await asyncio.gather(
+            asyncio.create_task(db_lookup()),
+            asyncio.create_task(db_lookup()),
+        )
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
