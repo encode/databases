@@ -5,7 +5,7 @@ import logging
 import typing
 from contextvars import ContextVar
 from types import TracebackType
-from typing import Dict
+from typing import Dict, Tuple
 from urllib.parse import SplitResult, parse_qsl, unquote, urlsplit
 
 from sqlalchemy import text
@@ -39,11 +39,11 @@ logger = logging.getLogger("databases")
 # that two database instances in the same task overwrite each other's connections.
 # For this reason, key comprises the database instance and the current task.
 _connection_contextmap: ContextVar[
-    Dict[tuple["Database", asyncio.Task], "Connection"]
+    Dict[Tuple["Database", asyncio.Task], "Connection"]
 ] = ContextVar("databases:Connection")
 
 
-def _get_connection_contextmap() -> Dict[tuple["Database", asyncio.Task], "Connection"]:
+def _get_connection_contextmap() -> Dict[Tuple["Database", asyncio.Task], "Connection"]:
     connections = _connection_contextmap.get(None)
     if connections is None:
         connections = {}
