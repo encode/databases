@@ -11,7 +11,7 @@ from sqlalchemy import text
 from sqlalchemy.sql import ClauseElement
 
 from databases.importer import import_from_string
-from databases.interfaces import DatabaseBackend, Record
+from databases.interfaces import DatabaseBackend, Record, TransactionBackend
 
 try:  # pragma: no cover
     import click
@@ -63,8 +63,8 @@ class Database:
         assert issubclass(backend_cls, DatabaseBackend)
         self._backend = backend_cls(self.url, **self.options)
 
-        # Connections are stored as task-local state.
-        self._connection_context: ContextVar = ContextVar("connection_context")
+        # Connections are stored per asyncio task
+        self._connections: typing.Dict[typing.Optional[asyncio.Task], Connection]= {}
 
         # When `force_rollback=True` is used, we use a single global
         # connection, within a transaction that always rolls back.
@@ -113,7 +113,7 @@ class Database:
             self._global_transaction = None
             self._global_connection = None
         else:
-            self._connection_context = ContextVar("connection_context")
+            self._connections.pop(asyncio.current_task(), None)
 
         await self._backend.disconnect()
         logger.info(
@@ -187,12 +187,12 @@ class Database:
         if self._global_connection is not None:
             return self._global_connection
 
-        try:
-            return self._connection_context.get()
-        except LookupError:
+        current_task = asyncio.current_task()
+        if current_task not in self._connections:
             connection = Connection(self._backend)
-            self._connection_context.set(connection)
-            return connection
+            self._connections[current_task] = connection
+
+        return self._connections[current_task]
 
     def transaction(
         self, *, force_rollback: bool = False, **kwargs: typing.Any
@@ -344,6 +344,9 @@ class Transaction:
         self._connection_callable = connection_callable
         self._force_rollback = force_rollback
         self._extra_options = kwargs
+        
+        # Transactions are stored per asyncio task
+        self._transactions: typing.Dict[typing.Optional[asyncio.Task], "TransactionBackend"]= {}
 
     async def __aenter__(self) -> "Transaction":
         """
@@ -385,31 +388,35 @@ class Transaction:
         return wrapper  # type: ignore
 
     async def start(self) -> "Transaction":
-        self._connection = self._connection_callable()
-        self._transaction = self._connection._connection.transaction()
+        connection = self._connection_callable()
+        transaction = self._transactions[asyncio.current_task()] = connection._connection.transaction()
 
-        async with self._connection._transaction_lock:
-            is_root = not self._connection._transaction_stack
-            await self._connection.__aenter__()
-            await self._transaction.start(
+        async with connection._transaction_lock:
+            is_root = not connection._transaction_stack
+            await connection.__aenter__()
+            await transaction.start(
                 is_root=is_root, extra_options=self._extra_options
             )
-            self._connection._transaction_stack.append(self)
+            connection._transaction_stack.append(self)
         return self
 
     async def commit(self) -> None:
-        async with self._connection._transaction_lock:
-            assert self._connection._transaction_stack[-1] is self
-            self._connection._transaction_stack.pop()
-            await self._transaction.commit()
-            await self._connection.__aexit__()
+        connection = self._connection_callable()
+        transaction = self._transactions[asyncio.current_task()]
+        async with connection._transaction_lock:
+            assert connection._transaction_stack[-1] is self
+            connection._transaction_stack.pop()
+            await transaction.commit()
+            await connection.__aexit__()
 
     async def rollback(self) -> None:
-        async with self._connection._transaction_lock:
-            assert self._connection._transaction_stack[-1] is self
-            self._connection._transaction_stack.pop()
-            await self._transaction.rollback()
-            await self._connection.__aexit__()
+        connection = self._connection_callable()
+        transaction = self._transactions[asyncio.current_task()]
+        async with connection._transaction_lock:
+            assert connection._transaction_stack[-1] is self
+            connection._transaction_stack.pop()
+            await transaction.rollback()
+            await connection.__aexit__()
 
 
 class _EmptyNetloc(str):
