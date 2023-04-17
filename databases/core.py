@@ -7,13 +7,12 @@ from contextvars import ContextVar
 from types import TracebackType
 from urllib.parse import SplitResult, parse_qsl, unquote, urlsplit
 
+from pymysql.err import OperationalError
 from sqlalchemy import text
 from sqlalchemy.sql import ClauseElement
 
 from databases.importer import import_from_string
 from databases.interfaces import DatabaseBackend, Record
-
-from pymysql.err import OperationalError
 
 try:  # pragma: no cover
     import click
@@ -364,11 +363,7 @@ class Transaction:
         Called when exiting `async with database.transaction()`
         """
         if exc_type is not None or self._force_rollback:
-            if exc_type == OperationalError and exc_value.args[0] == 2013:
-                await self.rollback(skip=True)
-                raise exc_value
-            else:
-                await self.rollback()
+            await self.rollback()
         else:
             await self.commit()
 
@@ -401,27 +396,33 @@ class Transaction:
                 await self._transaction.start(
                     is_root=is_root, extra_options=self._extra_options
                 )
-            except OperationalError as e:
+                self._connection._transaction_stack.append(self)
+            except Exception as e:
                 await self._connection.__aexit__()
                 raise e
-            else:
-                self._connection._transaction_stack.append(self)
         return self
 
     async def commit(self) -> None:
         async with self._connection._transaction_lock:
             assert self._connection._transaction_stack[-1] is self
             self._connection._transaction_stack.pop()
-            await self._transaction.commit()
-            await self._connection.__aexit__()
+            try:
+                await self._transaction.commit()
+            except Exception as e:
+                raise e
+            finally:
+                await self._connection.__aexit__()
 
-    async def rollback(self,skip=False) -> None:
+    async def rollback(self) -> None:
         async with self._connection._transaction_lock:
             assert self._connection._transaction_stack[-1] is self
             self._connection._transaction_stack.pop()
-            if(not skip):
+            try:
                 await self._transaction.rollback()
-            await self._connection.__aexit__()
+            except Exception as e:
+                raise e
+            finally:
+                await self._connection.__aexit__()
 
 
 class _EmptyNetloc(str):
