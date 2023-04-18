@@ -63,7 +63,7 @@ class Database:
         self._backend = backend_cls(self.url, **self.options)
 
         # Connections are stored per asyncio task
-        self._connections: typing.Dict[typing.Optional[asyncio.Task], Connection] = {}
+        self._connections: typing.Dict[asyncio.Task, Connection] = {}
 
         # When `force_rollback=True` is used, we use a single global
         # connection, within a transaction that always rolls back.
