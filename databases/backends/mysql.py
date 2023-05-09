@@ -66,6 +66,7 @@ class MySQLBackend(DatabaseBackend):
         self._pool = await aiomysql.create_pool(
             host=self._database_url.hostname,
             port=self._database_url.port or 3306,
+            unix_socket=self._database_url.options.get('unix_sock'),
             user=self._database_url.username or getpass.getuser(),
             password=self._database_url.password,
             db=self._database_url.database,
