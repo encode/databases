@@ -2,12 +2,13 @@ import asyncio
 import datetime
 import decimal
 import functools
+import gc
 import itertools
 import os
 import re
-import gc
-from unittest.mock import MagicMock, patch
 from typing import MutableMapping
+from unittest.mock import MagicMock, patch
+
 import pytest
 import sqlalchemy
 

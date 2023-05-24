@@ -1,12 +1,13 @@
 import asyncio
 import contextlib
-from contextvars import ContextVar
 import functools
 import logging
 import typing
+import weakref
+from contextvars import ContextVar
 from types import TracebackType
 from urllib.parse import SplitResult, parse_qsl, unquote, urlsplit
-import weakref
+
 from sqlalchemy import text
 from sqlalchemy.sql import ClauseElement
 
@@ -93,8 +94,12 @@ class Database:
             connections = weakref.WeakKeyDictionary()
             _ACTIVE_CONNECTIONS.set(connections)
 
-        connections[self] = connection
-        return connections[self]
+        if connection is None:
+            connections.pop(self, None)
+        else:
+            connections[self] = connection
+
+        return connections.get(self, None)
 
     async def connect(self) -> None:
         """
@@ -390,8 +395,12 @@ class Transaction:
             transactions = weakref.WeakKeyDictionary()
             _ACTIVE_TRANSACTIONS.set(transactions)
 
-        transactions[self] = transaction
-        return transactions[self]
+        if transaction is None:
+            transactions.pop(self, None)
+        else:
+            transactions[self] = transaction
+
+        return transactions.get(self, None)
 
     async def __aenter__(self) -> "Transaction":
         """
@@ -448,6 +457,7 @@ class Transaction:
         async with self._connection._transaction_lock:
             assert self._connection._transaction_stack[-1] is self
             self._connection._transaction_stack.pop()
+            assert self._transaction is not None
             await self._transaction.commit()
             await self._connection.__aexit__()
             self._transaction = None
@@ -456,6 +466,7 @@ class Transaction:
         async with self._connection._transaction_lock:
             assert self._connection._transaction_stack[-1] is self
             self._connection._transaction_stack.pop()
+            assert self._transaction is not None
             await self._transaction.rollback()
             await self._connection.__aexit__()
             self._transaction = None
