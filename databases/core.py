@@ -1,11 +1,12 @@
 import asyncio
 import contextlib
+from contextvars import ContextVar
 import functools
 import logging
 import typing
 from types import TracebackType
 from urllib.parse import SplitResult, parse_qsl, unquote, urlsplit
-
+import weakref
 from sqlalchemy import text
 from sqlalchemy.sql import ClauseElement
 
@@ -32,6 +33,14 @@ except ImportError:  # pragma: no cover
 
 
 logger = logging.getLogger("databases")
+
+_ACTIVE_CONNECTIONS: ContextVar[
+    typing.Optional[weakref.WeakKeyDictionary["Database", "Connection"]]
+] = ContextVar("databases:open_connections", default=None)
+
+_ACTIVE_TRANSACTIONS: ContextVar[
+    typing.Optional[weakref.WeakKeyDictionary["Transaction", "TransactionBackend"]]
+] = ContextVar("databases:open_transactions", default=None)
 
 
 class Database:
@@ -62,13 +71,30 @@ class Database:
         assert issubclass(backend_cls, DatabaseBackend)
         self._backend = backend_cls(self.url, **self.options)
 
-        # Connections are stored per asyncio task
-        self._connections: typing.Dict[asyncio.Task, Connection] = {}
-
         # When `force_rollback=True` is used, we use a single global
         # connection, within a transaction that always rolls back.
         self._global_connection: typing.Optional[Connection] = None
         self._global_transaction: typing.Optional[Transaction] = None
+
+    @property
+    def _connection(self) -> typing.Optional["Connection"]:
+        connections = _ACTIVE_CONNECTIONS.get()
+        if connections is None:
+            return None
+
+        return connections.get(self, None)
+
+    @_connection.setter
+    def _connection(
+        self, connection: typing.Optional["Connection"]
+    ) -> typing.Optional["Connection"]:
+        connections = _ACTIVE_CONNECTIONS.get()
+        if connections is None:
+            connections = weakref.WeakKeyDictionary()
+            _ACTIVE_CONNECTIONS.set(connections)
+
+        connections[self] = connection
+        return connections[self]
 
     async def connect(self) -> None:
         """
@@ -112,10 +138,7 @@ class Database:
             self._global_transaction = None
             self._global_connection = None
         else:
-            current_task = asyncio.current_task()
-            assert current_task is not None, "No currently running task"
-            if current_task in self._connections:
-                del self._connections[current_task]
+            self._connection = None
 
         await self._backend.disconnect()
         logger.info(
@@ -189,12 +212,10 @@ class Database:
         if self._global_connection is not None:
             return self._global_connection
 
-        current_task = asyncio.current_task()
-        assert current_task is not None, "No currently running task"
-        if current_task not in self._connections:
-            self._connections[current_task] = Connection(self._backend)
+        if not self._connection:
+            self._connection = Connection(self._backend)
 
-        return self._connections[current_task]
+        return self._connection
 
     def transaction(
         self, *, force_rollback: bool = False, **kwargs: typing.Any
@@ -347,10 +368,30 @@ class Transaction:
         self._force_rollback = force_rollback
         self._extra_options = kwargs
 
-        # Transactions are stored per asyncio task
-        self._transactions: typing.Dict[
-            typing.Optional[asyncio.Task], TransactionBackend
-        ] = {}
+    @property
+    def _connection(self) -> "Connection":
+        # Returns the same connection if called multiple times
+        return self._connection_callable()
+
+    @property
+    def _transaction(self) -> typing.Optional["TransactionBackend"]:
+        transactions = _ACTIVE_TRANSACTIONS.get()
+        if transactions is None:
+            return None
+
+        return transactions.get(self, None)
+
+    @_transaction.setter
+    def _transaction(
+        self, transaction: typing.Optional["TransactionBackend"]
+    ) -> typing.Optional["TransactionBackend"]:
+        transactions = _ACTIVE_TRANSACTIONS.get()
+        if transactions is None:
+            transactions = weakref.WeakKeyDictionary()
+            _ACTIVE_TRANSACTIONS.set(transactions)
+
+        transactions[self] = transaction
+        return transactions[self]
 
     async def __aenter__(self) -> "Transaction":
         """
@@ -392,41 +433,32 @@ class Transaction:
         return wrapper  # type: ignore
 
     async def start(self) -> "Transaction":
-        connection = self._connection_callable()
-        current_task = asyncio.current_task()
-        assert current_task is not None, "No currently running task"
-        transaction = connection._connection.transaction()
-        self._transactions[current_task] = transaction
-        async with connection._transaction_lock:
-            is_root = not connection._transaction_stack
-            await connection.__aenter__()
-            await transaction.start(is_root=is_root, extra_options=self._extra_options)
-            connection._transaction_stack.append(self)
+        self._transaction = self._connection._connection.transaction()
+
+        async with self._connection._transaction_lock:
+            is_root = not self._connection._transaction_stack
+            await self._connection.__aenter__()
+            await self._transaction.start(
+                is_root=is_root, extra_options=self._extra_options
+            )
+            self._connection._transaction_stack.append(self)
         return self
 
     async def commit(self) -> None:
-        connection = self._connection_callable()
-        current_task = asyncio.current_task()
-        transaction = self._transactions.get(current_task, None)
-        assert transaction is not None, "Transaction not found in current task"
-        async with connection._transaction_lock:
-            assert connection._transaction_stack[-1] is self
-            connection._transaction_stack.pop()
-            await transaction.commit()
-            await connection.__aexit__()
-            del self._transactions[current_task]
+        async with self._connection._transaction_lock:
+            assert self._connection._transaction_stack[-1] is self
+            self._connection._transaction_stack.pop()
+            await self._transaction.commit()
+            await self._connection.__aexit__()
+            self._transaction = None
 
     async def rollback(self) -> None:
-        connection = self._connection_callable()
-        current_task = asyncio.current_task()
-        transaction = self._transactions.get(current_task, None)
-        assert transaction is not None, "Transaction not found in current task"
-        async with connection._transaction_lock:
-            assert connection._transaction_stack[-1] is self
-            connection._transaction_stack.pop()
-            await transaction.rollback()
-            await connection.__aexit__()
-            del self._transactions[current_task]
+        async with self._connection._transaction_lock:
+            assert self._connection._transaction_stack[-1] is self
+            self._connection._transaction_stack.pop()
+            await self._transaction.rollback()
+            await self._connection.__aexit__()
+            self._transaction = None
 
 
 class _EmptyNetloc(str):
