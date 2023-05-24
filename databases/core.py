@@ -35,12 +35,12 @@ except ImportError:  # pragma: no cover
 
 logger = logging.getLogger("databases")
 
-_ACTIVE_CONNECTIONS: ContextVar[
-    typing.Optional[weakref.WeakKeyDictionary["Database", "Connection"]]
-] = ContextVar("databases:open_connections", default=None)
 
+_ACTIVE_CONNECTIONS: ContextVar[
+    typing.Optional["weakref.WeakKeyDictionary['Database', 'Connection']"]
+] = ContextVar("databases:open_connections", default=None)
 _ACTIVE_TRANSACTIONS: ContextVar[
-    typing.Optional[weakref.WeakKeyDictionary["Transaction", "TransactionBackend"]]
+    typing.Optional["weakref.WeakKeyDictionary['Transaction', 'TransactionBackend']"]
 ] = ContextVar("databases:open_transactions", default=None)
 
 
