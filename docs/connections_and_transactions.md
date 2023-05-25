@@ -67,6 +67,7 @@ A transaction can be acquired from the database connection pool:
 async with database.transaction():
     ...
 ```
+
 It can also be acquired from a specific database connection:
 
 ```python
@@ -95,8 +96,54 @@ async def create_users(request):
     ...
 ```
 
-Transaction blocks are managed as task-local state. Nested transactions
-are fully supported, and are implemented using database savepoints.
+Transaction state is stored in the context of the currently executing asynchronous task.
+This state is _inherited_ by tasks that are started from within an active transaction:
+
+```python
+async def add_excitement(database: Database, id: int):
+    await database.execute(
+        "UPDATE notes SET text = CONCAT(text, '!!!') WHERE id = :id",
+        {"id": id}
+    )
+
+
+async with Database(database_url) as database:
+    async with database.transaction():
+        # This note won't exist until the transaction closes...
+        await database.execute(
+            "INSERT INTO notes(id, text) values (1, 'databases is cool')"
+        )
+        # ...but child tasks inherit transaction state!
+        await asyncio.create_task(add_excitement(database, id=1))
+
+    await database.fetch_val("SELECT text FROM notes WHERE id=1")
+    # ^ returns: "databases is cool!!!"
+```
+
+!!! note
+    In python 3.11, you can opt-out of context propagation by providing a new context to
+    [`asyncio.create_task`](https://docs.python.org/3.11/library/asyncio-task.html#creating-tasks).
+
+Nested transactions are fully supported, and are implemented using database savepoints:
+
+```python
+async with databases.Database(database_url) as db:
+    async with db.transaction() as outer:
+        # Do something in the outer transaction
+        ...
+
+        # Suppress to prevent influence on the outer transaction
+        with contextlib.suppress(ValueError):
+            async with db.transaction():
+                # Do something in the inner transaction
+                ...
+
+                raise ValueError('Abort the inner transaction')
+
+    # Observe the results of the outer transaction,
+    # without effects from the inner transaction.
+    await db.fetch_all('SELECT * FROM ...')
+```
 
 Transaction isolation-level can be specified if the driver backend supports that:
 
