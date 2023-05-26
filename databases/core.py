@@ -36,12 +36,9 @@ except ImportError:  # pragma: no cover
 logger = logging.getLogger("databases")
 
 
-_ACTIVE_CONNECTIONS: ContextVar[
-    typing.Optional["weakref.WeakKeyDictionary['Database', 'Connection']"]
-] = ContextVar("databases:open_connections", default=None)
 _ACTIVE_TRANSACTIONS: ContextVar[
     typing.Optional["weakref.WeakKeyDictionary['Transaction', 'TransactionBackend']"]
-] = ContextVar("databases:open_transactions", default=None)
+] = ContextVar("databases:active_transactions", default=None)
 
 
 class Database:
@@ -54,6 +51,8 @@ class Database:
         "sqlite": "databases.backends.sqlite:SQLiteBackend",
     }
 
+    _connection_map: "weakref.WeakKeyDictionary[asyncio.Task, 'Connection']"
+
     def __init__(
         self,
         url: typing.Union[str, "DatabaseURL"],
@@ -64,6 +63,7 @@ class Database:
         self.url = DatabaseURL(url)
         self.options = options
         self.is_connected = False
+        self._connection_map = weakref.WeakKeyDictionary()
 
         self._force_rollback = force_rollback
 
@@ -78,28 +78,28 @@ class Database:
         self._global_transaction: typing.Optional[Transaction] = None
 
     @property
-    def _connection(self) -> typing.Optional["Connection"]:
-        connections = _ACTIVE_CONNECTIONS.get()
-        if connections is None:
-            return None
+    def _current_task(self) -> asyncio.Task:
+        task = asyncio.current_task()
+        if not task:
+            raise RuntimeError("No currently active asyncio.Task found")
+        return task
 
-        return connections.get(self, None)
+    @property
+    def _connection(self) -> typing.Optional["Connection"]:
+        return self._connection_map.get(self._current_task)
 
     @_connection.setter
     def _connection(
         self, connection: typing.Optional["Connection"]
     ) -> typing.Optional["Connection"]:
-        connections = _ACTIVE_CONNECTIONS.get()
-        if connections is None:
-            connections = weakref.WeakKeyDictionary()
-            _ACTIVE_CONNECTIONS.set(connections)
+        task = self._current_task
 
         if connection is None:
-            connections.pop(self, None)
+            self._connection_map.pop(task, None)
         else:
-            connections[self] = connection
+            self._connection_map[task] = connection
 
-        return connections.get(self, None)
+        return self._connection
 
     async def connect(self) -> None:
         """
@@ -119,7 +119,7 @@ class Database:
             assert self._global_connection is None
             assert self._global_transaction is None
 
-            self._global_connection = Connection(self._backend)
+            self._global_connection = Connection(self, self._backend)
             self._global_transaction = self._global_connection.transaction(
                 force_rollback=True
             )
@@ -218,7 +218,7 @@ class Database:
             return self._global_connection
 
         if not self._connection:
-            self._connection = Connection(self._backend)
+            self._connection = Connection(self, self._backend)
 
         return self._connection
 
@@ -243,7 +243,8 @@ class Database:
 
 
 class Connection:
-    def __init__(self, backend: DatabaseBackend) -> None:
+    def __init__(self, database: Database, backend: DatabaseBackend) -> None:
+        self._database = database
         self._backend = backend
 
         self._connection_lock = asyncio.Lock()
@@ -277,6 +278,7 @@ class Connection:
             self._connection_counter -= 1
             if self._connection_counter == 0:
                 await self._connection.release()
+                self._database._connection = None
 
     async def fetch_all(
         self,
@@ -393,13 +395,15 @@ class Transaction:
         transactions = _ACTIVE_TRANSACTIONS.get()
         if transactions is None:
             transactions = weakref.WeakKeyDictionary()
-            _ACTIVE_TRANSACTIONS.set(transactions)
+        else:
+            transactions = transactions.copy()
 
         if transaction is None:
             transactions.pop(self, None)
         else:
             transactions[self] = transaction
 
+        _ACTIVE_TRANSACTIONS.set(transactions)
         return transactions.get(self, None)
 
     async def __aenter__(self) -> "Transaction":

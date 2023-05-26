@@ -7,14 +7,14 @@ that transparently handles the use of either transactions or savepoints.
 
 ## Connecting and disconnecting
 
-You can control the database connect/disconnect, by using it as a async context manager.
+You can control the database connection pool with an async context manager:
 
 ```python
 async with Database(DATABASE_URL) as database:
     ...
 ```
 
-Or by using explicit connection and disconnection:
+Or by using the explicit `.connect()` and `.disconnect()` methods:
 
 ```python
 database = Database(DATABASE_URL)
@@ -22,6 +22,8 @@ await database.connect()
 ...
 await database.disconnect()
 ```
+
+Connections within this connection pool are acquired for each new `asyncio.Task`.
 
 If you're integrating against a web framework, then you'll probably want
 to hook into framework startup or shutdown events. For example, with
@@ -96,12 +98,13 @@ async def create_users(request):
     ...
 ```
 
-Transaction state is stored in the context of the currently executing asynchronous task.
-This state is _inherited_ by tasks that are started from within an active transaction:
+Transaction state is tied to the connection used in the currently executing asynchronous task.
+If you would like to influence an active transaction from another task, the connection must be
+shared. This state is _inherited_ by tasks that are share the same connection:
 
 ```python
-async def add_excitement(database: Database, id: int):
-    await database.execute(
+async def add_excitement(connnection: databases.core.Connection, id: int):
+    await connection.execute(
         "UPDATE notes SET text = CONCAT(text, '!!!') WHERE id = :id",
         {"id": id}
     )
@@ -113,16 +116,12 @@ async with Database(database_url) as database:
         await database.execute(
             "INSERT INTO notes(id, text) values (1, 'databases is cool')"
         )
-        # ...but child tasks inherit transaction state!
-        await asyncio.create_task(add_excitement(database, id=1))
+        # ...but child tasks can use this connection now!
+        await asyncio.create_task(add_excitement(database.connection(), id=1))
 
     await database.fetch_val("SELECT text FROM notes WHERE id=1")
     # ^ returns: "databases is cool!!!"
 ```
-
-!!! note
-    In python 3.11, you can opt-out of context propagation by providing a new context to
-    [`asyncio.create_task`](https://docs.python.org/3.11/library/asyncio-task.html#creating-tasks).
 
 Nested transactions are fully supported, and are implemented using database savepoints:
 

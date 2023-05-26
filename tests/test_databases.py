@@ -482,11 +482,29 @@ async def test_transaction_commit(database_url):
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
-async def test_transaction_context_child_task_interaction(database_url):
+async def test_transaction_context_child_task_inheritance(database_url):
+    """
+    Ensure that transactions are inherited by child tasks.
+    """
+    async with Database(database_url) as database:
+
+        async def check_transaction(transaction, active_transaction):
+            # Should have inherited the same transaction backend from the parent task
+            assert transaction._transaction is active_transaction
+
+        async with database.transaction() as transaction:
+            await asyncio.create_task(
+                check_transaction(transaction, transaction._transaction)
+            )
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_transaction_context_child_task_inheritance_example(database_url):
     """
     Ensure that child tasks may influence inherited transactions.
     """
-    # This is an practical example of the next test.
+    # This is an practical example of the above test.
     async with Database(database_url) as database:
         async with database.transaction():
             # Create a note
@@ -503,35 +521,17 @@ async def test_transaction_context_child_task_interaction(database_url):
             result = await database.fetch_one(notes.select().where(notes.c.id == 1))
             assert result.text == "prior"
 
-            async def run_update_from_child_task():
-                # Chage the note from a child task
-                await database.execute(
+            async def run_update_from_child_task(connection):
+                # Change the note from a child task
+                await connection.execute(
                     notes.update().where(notes.c.id == 1).values(text="test")
                 )
 
-            await asyncio.create_task(run_update_from_child_task())
+            await asyncio.create_task(run_update_from_child_task(database.connection()))
 
             # Confirm the child's change
             result = await database.fetch_one(notes.select().where(notes.c.id == 1))
             assert result.text == "test"
-
-
-@pytest.mark.parametrize("database_url", DATABASE_URLS)
-@async_adapter
-async def test_transaction_context_child_task_inheritance(database_url):
-    """
-    Ensure that transactions are inherited by child tasks.
-    """
-    async with Database(database_url) as database:
-
-        async def check_transaction(transaction, active_transaction):
-            # Should have inherited the same transaction backend from the parent task
-            assert transaction._transaction is active_transaction
-
-        async with database.transaction() as transaction:
-            await asyncio.create_task(
-                check_transaction(transaction, transaction._transaction)
-            )
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
@@ -568,56 +568,99 @@ async def test_transaction_context_sibling_task_isolation(database_url):
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
-async def test_connection_context_cleanup_contextmanager(database_url):
+async def test_transaction_context_sibling_task_isolation_example(database_url):
     """
-    Ensure that contextvar connections are not persisted unecessarily.
+    Ensure that transactions are running in sibling tasks are isolated from eachother.
     """
-    from databases.core import _ACTIVE_CONNECTIONS
+    # This is an practical example of the above test.
+    setup = asyncio.Event()
+    done = asyncio.Event()
 
-    assert _ACTIVE_CONNECTIONS.get() is None
+    async def tx1(connection):
+        async with connection.transaction():
+            await db.execute(
+                notes.insert(), values={"id": 1, "text": "tx1", "completed": False}
+            )
+            setup.set()
+            await done.wait()
 
-    async with Database(database_url) as database:
-        # .connect is lazy, it doesn't create a Connection, but .connection does
-        connection = database.connection()
+    async def tx2(connection):
+        async with connection.transaction():
+            await setup.wait()
+            result = await db.fetch_all(notes.select())
+            assert result == [], result
+            done.set()
 
-        open_connections = _ACTIVE_CONNECTIONS.get()
-        assert isinstance(open_connections, MutableMapping)
-        assert open_connections.get(database) is connection
-
-    # Context manager closes, open_connections is cleaned up
-    open_connections = _ACTIVE_CONNECTIONS.get()
-    assert isinstance(open_connections, MutableMapping)
-    assert open_connections.get(database, None) is None
+    async with Database(database_url) as db:
+        await asyncio.gather(tx1(db), tx2(db))
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
-async def test_connection_context_cleanup_garbagecollector(database_url):
+async def test_connection_cleanup_contextmanager(database_url):
     """
-    Ensure that contextvar connections are not persisted unecessarily, even
+    Ensure that task connections are not persisted unecessarily.
+    """
+
+    ready = asyncio.Event()
+    done = asyncio.Event()
+
+    async def check_child_connection(database: Database):
+        async with database.connection():
+            ready.set()
+            await done.wait()
+
+    async with Database(database_url) as database:
+        # Should have a connection in this task
+        # .connect is lazy, it doesn't create a Connection, but .connection does
+        connection = database.connection()
+        assert isinstance(database._connection_map, MutableMapping)
+        assert database._connection_map.get(asyncio.current_task()) is connection
+
+        # Create a child task and see if it registers a connection
+        task = asyncio.create_task(check_child_connection(database))
+        await ready.wait()
+        assert database._connection_map.get(task) is not None
+        assert database._connection_map.get(task) is not connection
+
+        # Let the child task finish, and see if it cleaned up
+        done.set()
+        await task
+        # This is normal exit logic cleanup, the WeakKeyDictionary
+        # shouldn't have cleaned up yet since the task is still referenced
+        assert task not in database._connection_map
+
+    # Context manager closes, all open connections are removed
+    assert isinstance(database._connection_map, MutableMapping)
+    assert len(database._connection_map) == 0
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_connection_cleanup_garbagecollector(database_url):
+    """
+    Ensure that connections for tasks are not persisted unecessarily, even
     if exit handlers are not called.
     """
-    from databases.core import _ACTIVE_CONNECTIONS
-
-    assert _ACTIVE_CONNECTIONS.get() is None
-
     database = Database(database_url)
     await database.connect()
-    connection = database.connection()
 
-    # Should be tracking the connection
-    open_connections = _ACTIVE_CONNECTIONS.get()
-    assert isinstance(open_connections, MutableMapping)
-    assert open_connections.get(database) is connection
+    created = asyncio.Event()
 
-    # neither .disconnect nor .__aexit__ are called before deleting the reference
-    del database
+    async def check_child_connection(database: Database):
+        # neither .disconnect nor .__aexit__ are called before deleting this task
+        database.connection()
+        created.set()
+
+    task = asyncio.create_task(check_child_connection(database))
+    await created.wait()
+    assert task in database._connection_map
+    await task
+    del task
     gc.collect()
 
-    # Should have dropped reference to connection, even without proper cleanup
-    open_connections = _ACTIVE_CONNECTIONS.get()
-    assert isinstance(open_connections, MutableMapping)
-    assert len(open_connections) == 0
+    # Should not have a connection for the task anymore
+    assert len(database._connection_map) == 0
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
@@ -632,7 +675,6 @@ async def test_transaction_context_cleanup_contextmanager(database_url):
 
     async with Database(database_url) as database:
         async with database.transaction() as transaction:
-
             open_transactions = _ACTIVE_TRANSACTIONS.get()
             assert isinstance(open_transactions, MutableMapping)
             assert open_transactions.get(transaction) is transaction._transaction
@@ -818,15 +860,42 @@ async def test_transaction_decorator(database_url):
         with pytest.raises(RuntimeError):
             await insert_data(raise_exception=True)
 
-        query = notes.select()
-        results = await database.fetch_all(query=query)
+        results = await database.fetch_all(query=notes.select())
         assert len(results) == 0
 
         await insert_data(raise_exception=False)
 
-        query = notes.select()
-        results = await database.fetch_all(query=query)
+        results = await database.fetch_all(query=notes.select())
         assert len(results) == 1
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_transaction_decorator_concurrent(database_url):
+    """
+    Ensure that @database.transaction() can be called concurrently.
+    """
+
+    database = Database(database_url)
+
+    @database.transaction()
+    async def insert_data():
+        await database.execute(
+            query=notes.insert().values(text="example", completed=True)
+        )
+
+    async with database:
+        await asyncio.gather(
+            insert_data(),
+            insert_data(),
+            insert_data(),
+            insert_data(),
+            insert_data(),
+            insert_data(),
+        )
+
+        results = await database.fetch_all(query=notes.select())
+        assert len(results) == 6
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
@@ -1007,7 +1076,7 @@ async def test_connection_context_same_task(database_url):
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
-async def test_connection_context_multiple_tasks(database_url):
+async def test_connection_context_multiple_sibling_tasks(database_url):
     async with Database(database_url) as database:
         connection_1 = None
         connection_2 = None
@@ -1032,6 +1101,47 @@ async def test_connection_context_multiple_tasks(database_url):
         while connection_1 is None or connection_2 is None:
             await asyncio.sleep(0.000001)
         assert connection_1 is not connection_2
+        test_complete.set()
+        await task_1
+        await task_2
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_connection_context_multiple_tasks(database_url):
+    async with Database(database_url) as database:
+        parent_connection = database.connection()
+        connection_1 = None
+        connection_2 = None
+        task_1_ready = asyncio.Event()
+        task_2_ready = asyncio.Event()
+        test_complete = asyncio.Event()
+
+        async def get_connection_1():
+            nonlocal connection_1
+
+            async with database.connection() as connection:
+                connection_1 = connection
+                task_1_ready.set()
+                await test_complete.wait()
+
+        async def get_connection_2():
+            nonlocal connection_2
+
+            async with database.connection() as connection:
+                connection_2 = connection
+                task_2_ready.set()
+                await test_complete.wait()
+
+        task_1 = asyncio.create_task(get_connection_1())
+        task_2 = asyncio.create_task(get_connection_2())
+        await task_1_ready.wait()
+        await task_2_ready.wait()
+
+        assert connection_1 is not parent_connection
+        assert connection_2 is not parent_connection
+        assert connection_1 is not connection_2
+
         test_complete.set()
         await task_1
         await task_2
