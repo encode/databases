@@ -214,24 +214,24 @@ class PostgresConnection(ConnectionBackend):
     async def execute(self, query: ClauseElement) -> typing.Any:
         assert self._connection is not None, "Connection is not acquired"
         query_str, args, result_columns = self._compile(query)
-        
+
         data, status, _ = await self._connection._execute(
             query_str, args, limit=1, timeout=None, return_status=True
         )
-        
+
         lastrowid = None
         if data:
             lastrowid = data[0][0]
-        
+
         if status is None:
             return lastrowid
-        
+
         status_arr = status.decode().split(" ")
         opp = status_arr[0]
-        
+
         if opp == "INSERT" or lastrowid is not None:
             return lastrowid
-        
+
         try:
             rowcount = int(status_arr[-1])
         except ValueError:
