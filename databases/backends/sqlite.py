@@ -80,7 +80,7 @@ class SQLiteConnection(ConnectionBackend):
     def __init__(self, pool: SQLitePool, dialect: Dialect):
         self._pool = pool
         self._dialect = dialect
-        self._connection = None  # type: typing.Optional[aiosqlite.Connection]
+        self._connection: typing.Optional[aiosqlite.Connection] = None
 
     async def acquire(self) -> None:
         assert self._connection is None, "Connection is already acquired"
@@ -185,6 +185,7 @@ class SQLiteConnection(ConnectionBackend):
                 compiled._result_columns,
                 compiled._ordered_columns,
                 compiled._textual_ordered_columns,
+                compiled._ad_hoc_textual,
                 compiled._loose_column_name_matching,
             )
 
