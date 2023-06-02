@@ -95,6 +95,17 @@ async def create_users(request):
     ...
 ```
 
+When using with other decorators (such as route decorator `@router.post("")`
+from FastAPI), try to put `@database.transaction()` right above the function
+signature to ensure the automatic transaction management to be applied:
+
+```python
+@router.post("/my-awesome-endpoint")
+@database.transaction()
+async def awesome_endpoint():
+    ...
+```
+
 Transaction blocks are managed as task-local state. Nested transactions
 are fully supported, and are implemented using database savepoints.
 
