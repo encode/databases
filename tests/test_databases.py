@@ -1545,7 +1545,8 @@ async def test_mapping_property_interface(database_url):
         list_result = await database.fetch_all(query=query)
         assert list_result[0]._mapping["text"] == "example1"
         assert list_result[0]._mapping["completed"] is True
-        
+
+
 @async_adapter
 async def test_should_not_maintain_ref_when_no_cache_param():
     async with Database("sqlite:///file::memory:", uri=True) as database:
@@ -1588,3 +1589,24 @@ async def test_should_remove_ref_on_disconnect():
         query = notes.select()
         with pytest.raises(sqlite3.OperationalError):
             await database.fetch_all(query=query)
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_mapping_property_interface(database_url):
+    """
+    Test that all connections implement interface with `_mapping` property
+    """
+    async with Database(database_url) as database:
+        query = notes.insert()
+        values = {"text": "example1", "completed": True}
+        await database.execute(query, values)
+
+        query = notes.select()
+        single_result = await database.fetch_one(query=query)
+        assert single_result._mapping["text"] == "example1"
+        assert single_result._mapping["completed"] is True
+
+        list_result = await database.fetch_all(query=query)
+        assert list_result[0]._mapping["text"] == "example1"
+        assert list_result[0]._mapping["completed"] is True
