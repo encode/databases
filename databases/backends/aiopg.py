@@ -31,7 +31,7 @@ class AiopgBackend(DatabaseBackend):
         self._database_url = DatabaseURL(database_url)
         self._options = options
         self._dialect = self._get_dialect()
-        self._pool = None
+        self._pool: typing.Union[aiopg.Pool, None] = None
 
     def _get_dialect(self) -> Dialect:
         dialect = PGDialect_psycopg2(
@@ -104,7 +104,7 @@ class AiopgConnection(ConnectionBackend):
     def __init__(self, database: AiopgBackend, dialect: Dialect):
         self._database = database
         self._dialect = dialect
-        self._connection = None  # type: typing.Optional[aiopg.Connection]
+        self._connection: typing.Optional[aiopg.Connection] = None
 
     async def acquire(self) -> None:
         assert self._connection is None, "Connection is already acquired"
@@ -221,6 +221,7 @@ class AiopgConnection(ConnectionBackend):
                 compiled._result_columns,
                 compiled._ordered_columns,
                 compiled._textual_ordered_columns,
+                compiled._ad_hoc_textual,
                 compiled._loose_column_name_matching,
             )
         else:

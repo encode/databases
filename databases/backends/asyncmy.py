@@ -40,6 +40,7 @@ class AsyncMyBackend(DatabaseBackend):
         max_size = url_options.get("max_size")
         pool_recycle = url_options.get("pool_recycle")
         ssl = url_options.get("ssl")
+        unix_socket = url_options.get("unix_socket")
 
         if min_size is not None:
             kwargs["minsize"] = int(min_size)
@@ -49,6 +50,8 @@ class AsyncMyBackend(DatabaseBackend):
             kwargs["pool_recycle"] = int(pool_recycle)
         if ssl is not None:
             kwargs["ssl"] = {"true": True, "false": False}[ssl.lower()]
+        if unix_socket is not None:
+            kwargs["unix_socket"] = unix_socket
 
         for key, value in self._options.items():
             # Coerce 'min_size' and 'max_size' for consistency.
@@ -92,7 +95,7 @@ class AsyncMyConnection(ConnectionBackend):
     def __init__(self, database: AsyncMyBackend, dialect: Dialect):
         self._database = database
         self._dialect = dialect
-        self._connection = None  # type: typing.Optional[asyncmy.Connection]
+        self._connection: typing.Optional[asyncmy.Connection] = None
 
     async def acquire(self) -> None:
         assert self._connection is None, "Connection is already acquired"
@@ -211,6 +214,7 @@ class AsyncMyConnection(ConnectionBackend):
                 compiled._result_columns,
                 compiled._ordered_columns,
                 compiled._textual_ordered_columns,
+                compiled._ad_hoc_textual,
                 compiled._loose_column_name_matching,
             )
         else:
