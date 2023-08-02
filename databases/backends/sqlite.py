@@ -1,6 +1,8 @@
 import logging
+import sqlite3
 import typing
 import uuid
+from urllib.parse import urlencode
 
 import aiosqlite
 from sqlalchemy.dialects.sqlite import pysqlite
@@ -45,7 +47,9 @@ class SQLiteBackend(DatabaseBackend):
         # )
 
     async def disconnect(self) -> None:
-        pass
+        # if it extsis, remove reference to connection to cached in-memory database on disconnect
+        if self._pool._memref:
+            self._pool._memref = None
         # assert self._pool is not None, "DatabaseBackend is not running"
         # self._pool.close()
         # await self._pool.wait_closed()
@@ -57,12 +61,20 @@ class SQLiteBackend(DatabaseBackend):
 
 class SQLitePool:
     def __init__(self, url: DatabaseURL, **options: typing.Any) -> None:
-        self._url = url
+        self._database = url.database
+        self._memref = None
+        # add query params to database connection string
+        if url.options:
+            self._database += "?" + urlencode(url.options)
         self._options = options
+
+        if url.options and "cache" in url.options:
+            # reference to a connection to the cached in-memory database must be held to keep it from being deleted
+            self._memref = sqlite3.connect(self._database, **self._options)
 
     async def acquire(self) -> aiosqlite.Connection:
         connection = aiosqlite.connect(
-            database=self._url.database, isolation_level=None, **self._options
+            database=self._database, isolation_level=None, **self._options
         )
         await connection.__aenter__()
         return connection
