@@ -1585,6 +1585,9 @@ async def test_should_remove_ref_on_disconnect():
         values = {"text": "example1", "completed": True}
         await database.execute(query, values)
 
+    # Run garbage collection to reset the database if we dropped the reference
+    gc.collect()
+
     async with Database("sqlite:///file::memory:?cache=shared", uri=True) as database:
         query = notes.select()
         with pytest.raises(sqlite3.OperationalError):
