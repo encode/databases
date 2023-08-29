@@ -1549,7 +1549,10 @@ async def test_mapping_property_interface(database_url):
 
 @async_adapter
 async def test_should_not_maintain_ref_when_no_cache_param():
-    async with Database("sqlite:///file::memory:", uri=True) as database:
+    async with Database(
+        "sqlite:///file::memory:test_should_not_maintain_ref_when_no_cache_param",
+        uri=True,
+    ) as database:
         query = sqlalchemy.schema.CreateTable(notes)
         await database.execute(query)
 
@@ -1561,7 +1564,10 @@ async def test_should_not_maintain_ref_when_no_cache_param():
 
 @async_adapter
 async def test_should_maintain_ref_when_cache_param():
-    async with Database("sqlite:///file::memory:?cache=shared", uri=True) as database:
+    async with Database(
+        "sqlite:///file::memory:test_should_maintain_ref_when_cache_param?cache=shared",
+        uri=True,
+    ) as database:
         query = sqlalchemy.schema.CreateTable(notes)
         await database.execute(query)
 
@@ -1577,7 +1583,10 @@ async def test_should_maintain_ref_when_cache_param():
 
 @async_adapter
 async def test_should_remove_ref_on_disconnect():
-    async with Database("sqlite:///file::memory:?cache=shared", uri=True) as database:
+    async with Database(
+        "sqlite:///file::memory:test_should_remove_ref_on_disconnect?cache=shared",
+        uri=True,
+    ) as database:
         query = sqlalchemy.schema.CreateTable(notes)
         await database.execute(query)
 
@@ -1588,7 +1597,10 @@ async def test_should_remove_ref_on_disconnect():
     # Run garbage collection to reset the database if we dropped the reference
     gc.collect()
 
-    async with Database("sqlite:///file::memory:?cache=shared", uri=True) as database:
+    async with Database(
+        "sqlite:///file::memory:test_should_remove_ref_on_disconnect?cache=shared",
+        uri=True,
+    ) as database:
         query = notes.select()
         with pytest.raises(sqlite3.OperationalError):
             await database.fetch_all(query=query)
