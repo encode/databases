@@ -115,6 +115,9 @@ def create_test_database():
         engine = sqlalchemy.create_engine(url)
         metadata.drop_all(engine)
 
+    # Run garbage collection to ensure any in-memory databases are dropped
+    gc.collect()
+
 
 def async_adapter(wrapped_func):
     """
@@ -1550,7 +1553,7 @@ async def test_mapping_property_interface(database_url):
 @async_adapter
 async def test_should_not_maintain_ref_when_no_cache_param():
     async with Database(
-        "sqlite:///file::memory:test_should_not_maintain_ref_when_no_cache_param",
+        "sqlite:///file::memory:",
         uri=True,
     ) as database:
         query = sqlalchemy.schema.CreateTable(notes)
@@ -1565,7 +1568,7 @@ async def test_should_not_maintain_ref_when_no_cache_param():
 @async_adapter
 async def test_should_maintain_ref_when_cache_param():
     async with Database(
-        "sqlite:///file::memory:test_should_maintain_ref_when_cache_param?cache=shared",
+        "sqlite:///file::memory:?cache=shared",
         uri=True,
     ) as database:
         query = sqlalchemy.schema.CreateTable(notes)
@@ -1584,7 +1587,7 @@ async def test_should_maintain_ref_when_cache_param():
 @async_adapter
 async def test_should_remove_ref_on_disconnect():
     async with Database(
-        "sqlite:///file::memory:test_should_remove_ref_on_disconnect?cache=shared",
+        "sqlite:///file::memory:?cache=shared",
         uri=True,
     ) as database:
         query = sqlalchemy.schema.CreateTable(notes)
@@ -1598,7 +1601,7 @@ async def test_should_remove_ref_on_disconnect():
     gc.collect()
 
     async with Database(
-        "sqlite:///file::memory:test_should_remove_ref_on_disconnect?cache=shared",
+        "sqlite:///file::memory:?cache=shared",
         uri=True,
     ) as database:
         query = notes.select()
