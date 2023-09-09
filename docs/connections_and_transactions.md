@@ -100,7 +100,7 @@ async def create_users(request):
 
 Transaction state is tied to the connection used in the currently executing asynchronous task.
 If you would like to influence an active transaction from another task, the connection must be
-shared. This state is _inherited_ by tasks that are share the same connection:
+shared. This state is _inherited_ by tasks that share the same connection:
 
 ```python
 async def add_excitement(connnection: databases.core.Connection, id: int):
