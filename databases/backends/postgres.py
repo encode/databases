@@ -55,7 +55,8 @@ class PostgresBackend(DatabaseBackend):
         if max_size is not None:
             kwargs["max_size"] = int(max_size)
         if ssl is not None:
-            kwargs["ssl"] = {"true": True, "false": False}[ssl.lower()]
+            ssl = ssl.lower()
+            kwargs["ssl"] = {"true": True, "false": False}.get(ssl, ssl)
 
         kwargs.update(self._options)
 

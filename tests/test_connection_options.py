@@ -46,10 +46,22 @@ def test_postgres_ssl():
     assert kwargs == {"ssl": True}
 
 
+def test_postgres_ssl_verify_full():
+    backend = PostgresBackend("postgres://localhost/database?ssl=verify-full")
+    kwargs = backend._get_connection_kwargs()
+    assert kwargs == {"ssl": "verify-full"}
+
+
 def test_postgres_explicit_ssl():
     backend = PostgresBackend("postgres://localhost/database", ssl=True)
     kwargs = backend._get_connection_kwargs()
     assert kwargs == {"ssl": True}
+
+
+def test_postgres_explicit_ssl_verify_full():
+    backend = PostgresBackend("postgres://localhost/database", ssl="verify-full")
+    kwargs = backend._get_connection_kwargs()
+    assert kwargs == {"ssl": "verify-full"}
 
 
 def test_postgres_no_extra_options():
