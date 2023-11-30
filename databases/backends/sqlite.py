@@ -147,10 +147,13 @@ class SQLiteConnection(ConnectionBackend):
                 return cursor.rowcount
             return cursor.lastrowid
 
-    async def execute_many(self, queries: typing.List[ClauseElement]) -> None:
+    async def execute_many(
+        self, queries: typing.List[ClauseElement], values: typing.List[dict]
+    ) -> None:
         assert self._connection is not None, "Connection is not acquired"
-        for single_query in queries:
-            await self.execute(single_query)
+        query_str, values = self._compile_many(queries, values)
+        async with self._connection.cursor() as cursor:
+            await cursor.executemany(query_str, values)
 
     async def iterate(
         self, query: ClauseElement
@@ -206,6 +209,26 @@ class SQLiteConnection(ConnectionBackend):
             "Query: %s Args: %s", query_message, repr(tuple(args)), extra=LOG_EXTRA
         )
         return compiled.string, args, CompilationContext(execution_context)
+
+    def _compile_many(
+        self, queries: typing.List[ClauseElement], values: typing.List[dict]
+    ) -> typing.Tuple[str, list]:
+        compiled = queries[0].compile(
+            dialect=self._dialect, compile_kwargs={"render_postcompile": True}
+        )
+        new_values = []
+        if not isinstance(queries[0], DDLElement):
+            for args in values:
+                temp_arr = []
+                for key in compiled.positiontup:
+                    raw_val = args[key]
+                    if key in compiled._bind_processors:
+                        val = compiled._bind_processors[key](raw_val)
+                    else:
+                        val = raw_val
+                    temp_arr.append(val)
+                new_values.append(temp_arr)
+        return compiled.string, new_values
 
     @property
     def raw_connection(self) -> aiosqlite.core.Connection:

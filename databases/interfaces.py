@@ -37,7 +37,9 @@ class ConnectionBackend:
     async def execute(self, query: ClauseElement) -> typing.Any:
         raise NotImplementedError()  # pragma: no cover
 
-    async def execute_many(self, queries: typing.List[ClauseElement]) -> None:
+    async def execute_many(
+        self, queries: typing.List[ClauseElement], values: typing.List[dict]
+    ) -> None:
         raise NotImplementedError()  # pragma: no cover
 
     async def iterate(

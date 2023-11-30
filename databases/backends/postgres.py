@@ -217,14 +217,12 @@ class PostgresConnection(ConnectionBackend):
         query_str, args, result_columns = self._compile(query)
         return await self._connection.fetchval(query_str, *args)
 
-    async def execute_many(self, queries: typing.List[ClauseElement]) -> None:
+    async def execute_many(
+        self, queries: typing.List[ClauseElement], values: typing.List[dict]
+    ) -> None:
         assert self._connection is not None, "Connection is not acquired"
-        # asyncpg uses prepared statements under the hood, so we just
-        # loop through multiple executes here, which should all end up
-        # using the same prepared statement.
-        for single_query in queries:
-            single_query, args, result_columns = self._compile(single_query)
-            await self._connection.execute(single_query, *args)
+        query_str, values = self._compile_many(queries, values)
+        await self._connection.executemany(query_str, values)
 
     async def iterate(
         self, query: ClauseElement
@@ -268,6 +266,30 @@ class PostgresConnection(ConnectionBackend):
             "Query: %s Args: %s", query_message, repr(tuple(args)), extra=LOG_EXTRA
         )
         return compiled_query, args, result_map
+
+    def _compile_many(
+        self, queries: typing.List[ClauseElement], values: typing.List[dict]
+    ) -> typing.Tuple[str, list]:
+        compiled = queries[0].compile(
+            dialect=self._dialect, compile_kwargs={"render_postcompile": True}
+        )
+        new_values = []
+        if not isinstance(queries[0], DDLElement):
+            for args in values:
+                sorted_args = sorted(args.items())
+                mapping = {
+                    key: "$" + str(i) for i, (key, _) in enumerate(sorted_args, start=1)
+                }
+                compiled_query = compiled.string % mapping
+                processors = compiled._bind_processors
+                values = [
+                    processors[key](val) if key in processors else val
+                    for key, val in sorted_args
+                ]
+                new_values.append(values)
+        else:
+            compiled_query = compiled.string
+        return compiled_query, new_values
 
     @staticmethod
     def _create_column_maps(
