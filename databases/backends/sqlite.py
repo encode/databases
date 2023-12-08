@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import sqlite3
 import typing
@@ -149,8 +150,11 @@ class SQLiteConnection(ConnectionBackend):
 
     async def execute_many(self, queries: typing.List[ClauseElement]) -> None:
         assert self._connection is not None, "Connection is not acquired"
-        for single_query in queries:
-            await self.execute(single_query)
+        futures = [
+            self.execute(single_query)
+            for single_query in queries
+        ]
+        await asyncio.gather(*futures)
 
     async def iterate(
         self, query: ClauseElement
