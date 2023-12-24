@@ -91,21 +91,16 @@ class Row(SQLRow):
         the values.
         """
         if isinstance(key, int):
-            field = self._fields[key]
-            return self._mapping[field]
-        return self._mapping[key]
+            return super().__getitem__(key)
+
+        idx = self._key_to_index[key][0]
+        return super().__getitem__(idx)
 
     def keys(self):
         return self._mapping.keys()
 
     def values(self):
         return self._mapping.values()
-
-    def __getattr__(self, name: str) -> typing.Any:
-        try:
-            return self.__getitem__(name)
-        except KeyError as e:
-            raise AttributeError(e.args[0]) from e
 
 
 def create_column_maps(

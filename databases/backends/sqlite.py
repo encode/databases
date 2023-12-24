@@ -87,7 +87,6 @@ class SQLiteConnection(ConnectionBackend):
                     metadata,
                     metadata._processors,
                     metadata._keymap,
-                    Row._default_key_style,
                     row,
                 )
                 for row in rows
@@ -109,7 +108,6 @@ class SQLiteConnection(ConnectionBackend):
                 metadata,
                 metadata._processors,
                 metadata._keymap,
-                Row._default_key_style,
                 row,
             )
             return Record(row, result_columns, dialect, column_maps)
@@ -143,7 +141,6 @@ class SQLiteConnection(ConnectionBackend):
                     metadata,
                     metadata._processors,
                     metadata._keymap,
-                    Row._default_key_style,
                     row,
                 )
                 yield Record(record, result_columns, dialect, column_maps)
