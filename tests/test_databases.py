@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import decimal
+import enum
 import functools
 import gc
 import itertools
@@ -53,6 +54,30 @@ articles = sqlalchemy.Table(
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
     sqlalchemy.Column("title", sqlalchemy.String(length=100)),
     sqlalchemy.Column("published", sqlalchemy.DateTime),
+)
+
+
+class TshirtSize(enum.Enum):
+    SMALL = "SMALL"
+    MEDIUM = "MEDIUM"
+    LARGE = "LARGE"
+    XL = "XL"
+
+
+class TshirtColor(enum.Enum):
+    BLUE = 0
+    GREEN = 1
+    YELLOW = 2
+    RED = 3
+
+
+# Used to test Enum
+tshirt_size = sqlalchemy.Table(
+    "tshirt_size",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("size", sqlalchemy.Enum(TshirtSize)),
+    sqlalchemy.Column("color", sqlalchemy.Enum(TshirtColor))
 )
 
 # Used to test JSON
@@ -957,7 +982,32 @@ async def test_decimal_field(database_url):
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
-async def test_json_field(database_url):
+async def test_enum_field(database_url):
+    """
+    Test JSON columns, to ensure correct cross-database support.
+    """
+
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            # execute()
+            size = TshirtSize.SMALL
+            color = TshirtColor.GREEN
+            values = {"size": size, "color": color}
+            query = tshirt_size.insert()
+            await database.execute(query, values)
+
+            # fetch_all()
+            query = tshirt_size.select()
+            results = await database.fetch_all(query=query)
+
+            assert len(results) == 1
+            assert results[0]["size"] == size
+            assert results[0]["color"] == color
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_json_dict_field(database_url):
     """
     Test JSON columns, to ensure correct cross-database support.
     """
@@ -976,6 +1026,29 @@ async def test_json_field(database_url):
 
             assert len(results) == 1
             assert results[0]["data"] == {"text": "hello", "boolean": True, "int": 1}
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_json_list_field(database_url):
+    """
+    Test JSON columns, to ensure correct cross-database support.
+    """
+
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            # execute()
+            data = ['lemon', 'raspberry', 'lime', 'pumice']
+            values = {"data": data}
+            query = session.insert()
+            await database.execute(query, values)
+
+            # fetch_all()
+            query = session.select()
+            results = await database.fetch_all(query=query)
+
+            assert len(results) == 1
+            assert results[0]["data"] == ['lemon', 'raspberry', 'lime', 'pumice']
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)

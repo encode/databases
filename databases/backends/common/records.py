@@ -1,4 +1,4 @@
-import json
+import enum
 import typing
 from datetime import date, datetime
 
@@ -6,6 +6,7 @@ from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.engine.row import Row as SQLRow
 from sqlalchemy.sql.compiler import _CompileLabel
 from sqlalchemy.sql.schema import Column
+from sqlalchemy.sql.sqltypes import JSON
 from sqlalchemy.types import TypeEngine
 
 from databases.interfaces import Record as RecordInterface
@@ -63,10 +64,10 @@ class Record(RecordInterface):
         processor = datatype._cached_result_processor(self._dialect, None)
 
         if self._dialect.name not in DIALECT_EXCLUDE:
-            if isinstance(raw, dict):
-                raw = json.dumps(raw)
+            if isinstance(datatype, JSON):
+                return raw
 
-        if processor is not None and (not isinstance(raw, (datetime, date))):
+        if processor is not None and not isinstance(raw, (datetime, date, enum.Enum)):
             return processor(raw)
         return raw
 
