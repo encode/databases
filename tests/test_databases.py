@@ -5,7 +5,6 @@ import functools
 import gc
 import itertools
 import os
-import re
 import sqlite3
 from typing import MutableMapping
 from unittest.mock import MagicMock, patch
@@ -179,7 +178,9 @@ async def test_queries(database_url):
             assert result == "example1"
 
             # fetch_val() with no rows
-            query = sqlalchemy.sql.select(*[notes.c.text]).where(notes.c.text == "impossible")
+            query = sqlalchemy.sql.select(*[notes.c.text]).where(
+                notes.c.text == "impossible"
+            )
             result = await database.fetch_val(query=query)
             assert result is None
 
@@ -496,7 +497,9 @@ async def test_transaction_context_child_task_inheritance(database_url):
             assert transaction._transaction is active_transaction
 
         async with database.transaction() as transaction:
-            await asyncio.create_task(check_transaction(transaction, transaction._transaction))
+            await asyncio.create_task(
+                check_transaction(transaction, transaction._transaction)
+            )
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
@@ -509,10 +512,14 @@ async def test_transaction_context_child_task_inheritance_example(database_url):
     async with Database(database_url) as database:
         async with database.transaction():
             # Create a note
-            await database.execute(notes.insert().values(id=1, text="setup", completed=True))
+            await database.execute(
+                notes.insert().values(id=1, text="setup", completed=True)
+            )
 
             # Change the note from the same task
-            await database.execute(notes.update().where(notes.c.id == 1).values(text="prior"))
+            await database.execute(
+                notes.update().where(notes.c.id == 1).values(text="prior")
+            )
 
             # Confirm the change
             result = await database.fetch_one(notes.select().where(notes.c.id == 1))
@@ -520,7 +527,9 @@ async def test_transaction_context_child_task_inheritance_example(database_url):
 
             async def run_update_from_child_task(connection):
                 # Change the note from a child task
-                await connection.execute(notes.update().where(notes.c.id == 1).values(text="test"))
+                await connection.execute(
+                    notes.update().where(notes.c.id == 1).values(text="test")
+                )
 
             await asyncio.create_task(run_update_from_child_task(database.connection()))
 
@@ -573,7 +582,9 @@ async def test_transaction_context_sibling_task_isolation_example(database_url):
 
     async def tx1(connection):
         async with connection.transaction():
-            await db.execute(notes.insert(), values={"id": 1, "text": "tx1", "completed": False})
+            await db.execute(
+                notes.insert(), values={"id": 1, "text": "tx1", "completed": False}
+            )
             setup.set()
             await done.wait()
 
@@ -875,7 +886,9 @@ async def test_transaction_decorator_concurrent(database_url):
 
     @database.transaction()
     async def insert_data():
-        await database.execute(query=notes.insert().values(text="example", completed=True))
+        await database.execute(
+            query=notes.insert().values(text="example", completed=True)
+        )
 
     async with database:
         await asyncio.gather(
