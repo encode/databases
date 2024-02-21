@@ -63,14 +63,10 @@ class Record(RecordInterface):
         raw = self._row[idx]
         processor = datatype._cached_result_processor(self._dialect, None)
 
-        if self._dialect.name not in DIALECT_EXCLUDE:
-            if isinstance(datatype, JSON):
-                return raw
+        if self._dialect.name in DIALECT_EXCLUDE:
+            if processor is not None and isinstance(raw, (int, str, float)):
+                return processor(raw)
 
-        if processor is not None and not isinstance(
-            raw, (datetime, date, time, enum.Enum)
-        ):
-            return processor(raw)
         return raw
 
     def __iter__(self) -> typing.Iterator:
