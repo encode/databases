@@ -40,6 +40,7 @@ class AsyncMyBackend(DatabaseBackend):
         max_size = url_options.get("max_size")
         pool_recycle = url_options.get("pool_recycle")
         ssl = url_options.get("ssl")
+        unix_socket = url_options.get("unix_socket")
 
         if min_size is not None:
             kwargs["minsize"] = int(min_size)
@@ -49,6 +50,8 @@ class AsyncMyBackend(DatabaseBackend):
             kwargs["pool_recycle"] = int(pool_recycle)
         if ssl is not None:
             kwargs["ssl"] = {"true": True, "false": False}[ssl.lower()]
+        if unix_socket is not None:
+            kwargs["unix_socket"] = unix_socket
 
         for key, value in self._options.items():
             # Coerce 'min_size' and 'max_size' for consistency.

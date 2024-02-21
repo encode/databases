@@ -1,6 +1,8 @@
 import logging
+import sqlite3
 import typing
 import uuid
+from urllib.parse import urlencode
 
 import aiosqlite
 from sqlalchemy.dialects.sqlite import pysqlite
@@ -27,11 +29,16 @@ class SQLiteBackend(DatabaseBackend):
         self._dialect.supports_native_decimal = False
         self._pool = SQLitePool(self._database_url, **self._options)
 
-    async def connect(self) -> None:
-        ...
+    async def connect(self) -> None: ...
 
     async def disconnect(self) -> None:
-        ...
+        # if it extsis, remove reference to connection to cached in-memory database on disconnect
+        if self._pool._memref:
+            self._pool._memref = None
+        # assert self._pool is not None, "DatabaseBackend is not running"
+        # self._pool.close()
+        # await self._pool.wait_closed()
+        # self._pool = None
 
     def connection(self) -> "SQLiteConnection":
         return SQLiteConnection(self._pool, self._dialect)
@@ -39,12 +46,20 @@ class SQLiteBackend(DatabaseBackend):
 
 class SQLitePool:
     def __init__(self, url: DatabaseURL, **options: typing.Any) -> None:
-        self._url = url
+        self._database = url.database
+        self._memref = None
+        # add query params to database connection string
+        if url.options:
+            self._database += "?" + urlencode(url.options)
         self._options = options
+
+        if url.options and "cache" in url.options:
+            # reference to a connection to the cached in-memory database must be held to keep it from being deleted
+            self._memref = sqlite3.connect(self._database, **self._options)
 
     async def acquire(self) -> aiosqlite.Connection:
         connection = aiosqlite.connect(
-            database=self._url.database, isolation_level=None, **self._options
+            database=self._database, isolation_level=None, **self._options
         )
         await connection.__aenter__()
         return connection
@@ -126,9 +141,7 @@ class SQLiteConnection(ConnectionBackend):
         for single_query in queries:
             await self.execute(single_query)
 
-    async def iterate(
-        self, query: ClauseElement
-    ) -> typing.AsyncGenerator[typing.Any, None]:
+    async def iterate(self, query: ClauseElement) -> typing.AsyncGenerator[typing.Any, None]:
         assert self._connection is not None, "Connection is not acquired"
         query_str, args, result_columns, context = self._compile(query)
         column_maps = create_column_maps(result_columns)
@@ -178,9 +191,7 @@ class SQLiteConnection(ConnectionBackend):
                 compiled._loose_column_name_matching,
             )
 
-            mapping = {
-                key: "$" + str(i) for i, (key, _) in enumerate(compiled_params, start=1)
-            }
+            mapping = {key: "$" + str(i) for i, (key, _) in enumerate(compiled_params, start=1)}
             compiled_query = compiled.string % mapping
             result_map = compiled._result_columns
 
@@ -188,9 +199,7 @@ class SQLiteConnection(ConnectionBackend):
             compiled_query = compiled.string
 
         query_message = compiled_query.replace(" \n", " ").replace("\n", " ")
-        logger.debug(
-            "Query: %s Args: %s", query_message, repr(tuple(args)), extra=LOG_EXTRA
-        )
+        logger.debug("Query: %s Args: %s", query_message, repr(tuple(args)), extra=LOG_EXTRA)
         return compiled.string, args, result_map, CompilationContext(execution_context)
 
     @property

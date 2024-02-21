@@ -46,10 +46,22 @@ def test_postgres_ssl():
     assert kwargs == {"ssl": True}
 
 
+def test_postgres_ssl_verify_full():
+    backend = PostgresBackend("postgres://localhost/database?ssl=verify-full")
+    kwargs = backend._get_connection_kwargs()
+    assert kwargs == {"ssl": "verify-full"}
+
+
 def test_postgres_explicit_ssl():
     backend = PostgresBackend("postgres://localhost/database", ssl=True)
     kwargs = backend._get_connection_kwargs()
     assert kwargs == {"ssl": True}
+
+
+def test_postgres_explicit_ssl_verify_full():
+    backend = PostgresBackend("postgres://localhost/database", ssl="verify-full")
+    kwargs = backend._get_connection_kwargs()
+    assert kwargs == {"ssl": "verify-full"}
 
 
 def test_postgres_no_extra_options():
@@ -75,6 +87,15 @@ def test_mysql_pool_size():
     backend = MySQLBackend("mysql://localhost/database?min_size=1&max_size=20")
     kwargs = backend._get_connection_kwargs()
     assert kwargs == {"minsize": 1, "maxsize": 20}
+
+
+@pytest.mark.skipif(sys.version_info >= (3, 10), reason="requires python3.9 or lower")
+def test_mysql_unix_socket():
+    backend = MySQLBackend(
+        "mysql+aiomysql://username:password@/testsuite?unix_socket=/tmp/mysqld/mysqld.sock"
+    )
+    kwargs = backend._get_connection_kwargs()
+    assert kwargs == {"unix_socket": "/tmp/mysqld/mysqld.sock"}
 
 
 @pytest.mark.skipif(sys.version_info >= (3, 10), reason="requires python3.9 or lower")
@@ -112,6 +133,15 @@ def test_asyncmy_pool_size():
     )
     kwargs = backend._get_connection_kwargs()
     assert kwargs == {"minsize": 1, "maxsize": 20}
+
+
+@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7 or higher")
+def test_asyncmy_unix_socket():
+    backend = AsyncMyBackend(
+        "mysql+asyncmy://username:password@/testsuite?unix_socket=/tmp/mysqld/mysqld.sock"
+    )
+    kwargs = backend._get_connection_kwargs()
+    assert kwargs == {"unix_socket": "/tmp/mysqld/mysqld.sock"}
 
 
 @pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7 or higher")
