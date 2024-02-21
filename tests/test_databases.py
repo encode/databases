@@ -77,7 +77,7 @@ tshirt_size = sqlalchemy.Table(
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
     sqlalchemy.Column("size", sqlalchemy.Enum(TshirtSize)),
-    sqlalchemy.Column("color", sqlalchemy.Enum(TshirtColor))
+    sqlalchemy.Column("color", sqlalchemy.Enum(TshirtColor)),
 )
 
 # Used to test JSON
@@ -1038,7 +1038,7 @@ async def test_json_list_field(database_url):
     async with Database(database_url) as database:
         async with database.transaction(force_rollback=True):
             # execute()
-            data = ['lemon', 'raspberry', 'lime', 'pumice']
+            data = ["lemon", "raspberry", "lime", "pumice"]
             values = {"data": data}
             query = session.insert()
             await database.execute(query, values)
@@ -1048,7 +1048,7 @@ async def test_json_list_field(database_url):
             results = await database.fetch_all(query=query)
 
             assert len(results) == 1
-            assert results[0]["data"] == ['lemon', 'raspberry', 'lime', 'pumice']
+            assert results[0]["data"] == ["lemon", "raspberry", "lime", "pumice"]
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
