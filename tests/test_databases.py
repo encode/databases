@@ -56,6 +56,23 @@ articles = sqlalchemy.Table(
     sqlalchemy.Column("published", sqlalchemy.DateTime),
 )
 
+# Used to test Date
+events = sqlalchemy.Table(
+    "events",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("date", sqlalchemy.Date),
+)
+
+
+# Used to test Time
+daily_schedule = sqlalchemy.Table(
+    "daily_schedule",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("time", sqlalchemy.Time),
+)
+
 
 class TshirtSize(enum.Enum):
     SMALL = "SMALL"
@@ -955,6 +972,52 @@ async def test_datetime_field(database_url):
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)
 @async_adapter
+async def test_date_field(database_url):
+    """
+    Test Date columns, to ensure records are coerced to/from proper Python types.
+    """
+
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            now = datetime.date.today()
+
+            # execute()
+            query = events.insert()
+            values = {"date": now}
+            await database.execute(query, values)
+
+            # fetch_all()
+            query = events.select()
+            results = await database.fetch_all(query=query)
+            assert len(results) == 1
+            assert results[0]["date"] == now
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
+async def test_time_field(database_url):
+    """
+    Test Time columns, to ensure records are coerced to/from proper Python types.
+    """
+
+    async with Database(database_url) as database:
+        async with database.transaction(force_rollback=True):
+            now = datetime.datetime.now().time().replace(microsecond=0)
+
+            # execute()
+            query = daily_schedule.insert()
+            values = {"time": now}
+            await database.execute(query, values)
+
+            # fetch_all()
+            query = daily_schedule.select()
+            results = await database.fetch_all(query=query)
+            assert len(results) == 1
+            assert results[0]["time"] == now
+
+
+@pytest.mark.parametrize("database_url", DATABASE_URLS)
+@async_adapter
 async def test_decimal_field(database_url):
     """
     Test Decimal (NUMERIC) columns, to ensure records are coerced to/from proper Python types.
@@ -984,7 +1047,7 @@ async def test_decimal_field(database_url):
 @async_adapter
 async def test_enum_field(database_url):
     """
-    Test JSON columns, to ensure correct cross-database support.
+    Test enum columns, to ensure correct cross-database support.
     """
 
     async with Database(database_url) as database:

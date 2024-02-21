@@ -1,6 +1,6 @@
 import enum
 import typing
-from datetime import date, datetime
+from datetime import date, datetime, time
 
 from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.engine.row import Row as SQLRow
@@ -67,7 +67,9 @@ class Record(RecordInterface):
             if isinstance(datatype, JSON):
                 return raw
 
-        if processor is not None and not isinstance(raw, (datetime, date, enum.Enum)):
+        if processor is not None and not isinstance(
+            raw, (datetime, date, time, enum.Enum)
+        ):
             return processor(raw)
         return raw
 
