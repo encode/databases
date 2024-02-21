@@ -47,7 +47,7 @@ setup(
     author_email="tom@tomchristie.com",
     packages=get_packages("databases"),
     package_data={"databases": ["py.typed"]},
-    install_requires=["sqlalchemy>=1.4.42,<1.5"],
+    install_requires=["sqlalchemy>=2.0.7"],
     extras_require={
         "postgresql": ["asyncpg"],
         "asyncpg": ["asyncpg"],
@@ -70,6 +70,7 @@ setup(
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3 :: Only",
     ],
     zip_safe=False,

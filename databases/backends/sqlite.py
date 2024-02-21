@@ -8,17 +8,12 @@ import aiosqlite
 from sqlalchemy.dialects.sqlite import pysqlite
 from sqlalchemy.engine.cursor import CursorResultMetaData
 from sqlalchemy.engine.interfaces import Dialect, ExecutionContext
-from sqlalchemy.engine.row import Row
 from sqlalchemy.sql import ClauseElement
 from sqlalchemy.sql.ddl import DDLElement
 
+from databases.backends.common.records import Record, Row, create_column_maps
 from databases.core import LOG_EXTRA, DatabaseURL
-from databases.interfaces import (
-    ConnectionBackend,
-    DatabaseBackend,
-    Record,
-    TransactionBackend,
-)
+from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend
 
 logger = logging.getLogger("databases")
 
@@ -35,16 +30,7 @@ class SQLiteBackend(DatabaseBackend):
         self._pool = SQLitePool(self._database_url, **self._options)
 
     async def connect(self) -> None:
-        pass
-        # assert self._pool is None, "DatabaseBackend is already running"
-        # self._pool = await aiomysql.create_pool(
-        #     host=self._database_url.hostname,
-        #     port=self._database_url.port or 3306,
-        #     user=self._database_url.username or getpass.getuser(),
-        #     password=self._database_url.password,
-        #     db=self._database_url.database,
-        #     autocommit=True,
-        # )
+        ...
 
     async def disconnect(self) -> None:
         # if it extsis, remove reference to connection to cached in-memory database on disconnect
@@ -105,42 +91,46 @@ class SQLiteConnection(ConnectionBackend):
 
     async def fetch_all(self, query: ClauseElement) -> typing.List[Record]:
         assert self._connection is not None, "Connection is not acquired"
-        query_str, args, context = self._compile(query)
+        query_str, args, result_columns, context = self._compile(query)
+        column_maps = create_column_maps(result_columns)
+        dialect = self._dialect
 
         async with self._connection.execute(query_str, args) as cursor:
             rows = await cursor.fetchall()
             metadata = CursorResultMetaData(context, cursor.description)
-            return [
+            rows = [
                 Row(
                     metadata,
                     metadata._processors,
                     metadata._keymap,
-                    Row._default_key_style,
                     row,
                 )
                 for row in rows
             ]
+            return [Record(row, result_columns, dialect, column_maps) for row in rows]
 
     async def fetch_one(self, query: ClauseElement) -> typing.Optional[Record]:
         assert self._connection is not None, "Connection is not acquired"
-        query_str, args, context = self._compile(query)
+        query_str, args, result_columns, context = self._compile(query)
+        column_maps = create_column_maps(result_columns)
+        dialect = self._dialect
 
         async with self._connection.execute(query_str, args) as cursor:
             row = await cursor.fetchone()
             if row is None:
                 return None
             metadata = CursorResultMetaData(context, cursor.description)
-            return Row(
+            row = Row(
                 metadata,
                 metadata._processors,
                 metadata._keymap,
-                Row._default_key_style,
                 row,
             )
+            return Record(row, result_columns, dialect, column_maps)
 
     async def execute(self, query: ClauseElement) -> typing.Any:
         assert self._connection is not None, "Connection is not acquired"
-        query_str, args, context = self._compile(query)
+        query_str, args, result_columns, context = self._compile(query)
         async with self._connection.cursor() as cursor:
             await cursor.execute(query_str, args)
             if cursor.lastrowid == 0:
@@ -156,34 +146,37 @@ class SQLiteConnection(ConnectionBackend):
         self, query: ClauseElement
     ) -> typing.AsyncGenerator[typing.Any, None]:
         assert self._connection is not None, "Connection is not acquired"
-        query_str, args, context = self._compile(query)
+        query_str, args, result_columns, context = self._compile(query)
+        column_maps = create_column_maps(result_columns)
+        dialect = self._dialect
+
         async with self._connection.execute(query_str, args) as cursor:
             metadata = CursorResultMetaData(context, cursor.description)
             async for row in cursor:
-                yield Row(
+                record = Row(
                     metadata,
                     metadata._processors,
                     metadata._keymap,
-                    Row._default_key_style,
                     row,
                 )
+                yield Record(record, result_columns, dialect, column_maps)
 
     def transaction(self) -> TransactionBackend:
         return SQLiteTransaction(self)
 
-    def _compile(
-        self, query: ClauseElement
-    ) -> typing.Tuple[str, list, CompilationContext]:
+    def _compile(self, query: ClauseElement) -> typing.Tuple[str, list, tuple]:
         compiled = query.compile(
             dialect=self._dialect, compile_kwargs={"render_postcompile": True}
         )
-
         execution_context = self._dialect.execution_ctx_cls()
         execution_context.dialect = self._dialect
 
         args = []
+        result_map = None
 
         if not isinstance(query, DDLElement):
+            compiled_params = sorted(compiled.params.items())
+
             params = compiled.construct_params()
             for key in compiled.positiontup:
                 raw_val = params[key]
@@ -201,11 +194,20 @@ class SQLiteConnection(ConnectionBackend):
                 compiled._loose_column_name_matching,
             )
 
-        query_message = compiled.string.replace(" \n", " ").replace("\n", " ")
+            mapping = {
+                key: "$" + str(i) for i, (key, _) in enumerate(compiled_params, start=1)
+            }
+            compiled_query = compiled.string % mapping
+            result_map = compiled._result_columns
+
+        else:
+            compiled_query = compiled.string
+
+        query_message = compiled_query.replace(" \n", " ").replace("\n", " ")
         logger.debug(
             "Query: %s Args: %s", query_message, repr(tuple(args)), extra=LOG_EXTRA
         )
-        return compiled.string, args, CompilationContext(execution_context)
+        return compiled.string, args, result_map, CompilationContext(execution_context)
 
     @property
     def raw_connection(self) -> aiosqlite.core.Connection:

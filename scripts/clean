@@ -9,6 +9,12 @@ fi
 if [ -d 'databases.egg-info' ] ; then
     rm -r databases.egg-info
 fi
+if [ -d '.mypy_cache' ] ; then
+    rm -r .mypy_cache
+fi
+if [ -d '.pytest_cache' ] ; then
+    rm -r .pytest_cache
+fi
 
 find databases -type f -name "*.py[co]" -delete
 find databases -type d -name __pycache__ -delete

@@ -5,7 +5,6 @@ import functools
 import gc
 import itertools
 import os
-import re
 import sqlite3
 from typing import MutableMapping
 from unittest.mock import MagicMock, patch
@@ -174,24 +173,24 @@ async def test_queries(database_url):
             assert result["completed"] == True
 
             # fetch_val()
-            query = sqlalchemy.sql.select([notes.c.text])
+            query = sqlalchemy.sql.select(*[notes.c.text])
             result = await database.fetch_val(query=query)
             assert result == "example1"
 
             # fetch_val() with no rows
-            query = sqlalchemy.sql.select([notes.c.text]).where(
+            query = sqlalchemy.sql.select(*[notes.c.text]).where(
                 notes.c.text == "impossible"
             )
             result = await database.fetch_val(query=query)
             assert result is None
 
             # fetch_val() with a different column
-            query = sqlalchemy.sql.select([notes.c.id, notes.c.text])
+            query = sqlalchemy.sql.select(*[notes.c.id, notes.c.text])
             result = await database.fetch_val(query=query, column=1)
             assert result == "example1"
 
             # row access (needed to maintain test coverage for Record.__getitem__ in postgres backend)
-            query = sqlalchemy.sql.select([notes.c.text])
+            query = sqlalchemy.sql.select(*[notes.c.text])
             result = await database.fetch_one(query=query)
             assert result["text"] == "example1"
             assert result[0] == "example1"
@@ -251,6 +250,7 @@ async def test_queries_raw(database_url):
             query = "SELECT completed FROM notes WHERE text = :text"
             result = await database.fetch_val(query=query, values={"text": "example1"})
             assert result == True
+
             query = "SELECT * FROM notes WHERE text = :text"
             result = await database.fetch_val(
                 query=query, values={"text": "example1"}, column="completed"
@@ -361,7 +361,7 @@ async def test_results_support_column_reference(database_url):
             await database.execute(query, values)
 
             # fetch_all()
-            query = sqlalchemy.select([articles, custom_date])
+            query = sqlalchemy.select(*[articles, custom_date])
             results = await database.fetch_all(query=query)
             assert len(results) == 1
             assert results[0][articles.c.title] == "Hello, world Article"
@@ -753,6 +753,7 @@ async def test_transaction_commit_serializable(database_url):
 
         query = notes.insert().values(text="example1", completed=True)
         conn.execute(query)
+        conn.close()
 
     def delete_independently():
         engine = sqlalchemy.create_engine(str(database_url))
@@ -760,6 +761,7 @@ async def test_transaction_commit_serializable(database_url):
 
         query = notes.delete()
         conn.execute(query)
+        conn.close()
 
     async with Database(database_url) as database:
         async with database.transaction(force_rollback=True, isolation="serializable"):
@@ -971,6 +973,7 @@ async def test_json_field(database_url):
             # fetch_all()
             query = session.select()
             results = await database.fetch_all(query=query)
+
             assert len(results) == 1
             assert results[0]["data"] == {"text": "hello", "boolean": True, "int": 1}
 
@@ -1453,52 +1456,6 @@ async def test_column_names(database_url, select_query):
             assert sorted(results[0]._mapping.keys()) == ["completed", "id", "text"]
             assert results[0]["text"] == "example1"
             assert results[0]["completed"] == True
-
-
-@pytest.mark.parametrize("database_url", DATABASE_URLS)
-@async_adapter
-async def test_posgres_interface(database_url):
-    """
-    Since SQLAlchemy 1.4, `Row.values()` is removed and `Row.keys()` is deprecated.
-    Custom postgres interface mimics more or less this behaviour by deprecating those
-    two methods
-    """
-    database_url = DatabaseURL(database_url)
-
-    if database_url.scheme not in ["postgresql", "postgresql+asyncpg"]:
-        pytest.skip("Test is only for asyncpg")
-
-    async with Database(database_url) as database:
-        async with database.transaction(force_rollback=True):
-            query = notes.insert()
-            values = {"text": "example1", "completed": True}
-            await database.execute(query, values)
-
-            query = notes.select()
-            result = await database.fetch_one(query=query)
-
-            with pytest.warns(
-                DeprecationWarning,
-                match=re.escape(
-                    "The `Row.keys()` method is deprecated to mimic SQLAlchemy behaviour, "
-                    "use `Row._mapping.keys()` instead."
-                ),
-            ):
-                assert (
-                    list(result.keys())
-                    == [k for k in result]
-                    == ["id", "text", "completed"]
-                )
-
-            with pytest.warns(
-                DeprecationWarning,
-                match=re.escape(
-                    "The `Row.values()` method is deprecated to mimic SQLAlchemy behaviour, "
-                    "use `Row._mapping.values()` instead."
-                ),
-            ):
-                # avoid checking `id` at index 0 since it may change depending on the launched tests
-                assert list(result.values())[1:] == ["example1", True]
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)

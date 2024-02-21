@@ -7,15 +7,15 @@ import aiomysql
 from sqlalchemy.dialects.mysql import pymysql
 from sqlalchemy.engine.cursor import CursorResultMetaData
 from sqlalchemy.engine.interfaces import Dialect, ExecutionContext
-from sqlalchemy.engine.row import Row
 from sqlalchemy.sql import ClauseElement
 from sqlalchemy.sql.ddl import DDLElement
 
+from databases.backends.common.records import Record, Row, create_column_maps
 from databases.core import LOG_EXTRA, DatabaseURL
 from databases.interfaces import (
     ConnectionBackend,
     DatabaseBackend,
-    Record,
+    Record as RecordInterface,
     TransactionBackend,
 )
 
@@ -108,30 +108,34 @@ class MySQLConnection(ConnectionBackend):
         await self._database._pool.release(self._connection)
         self._connection = None
 
-    async def fetch_all(self, query: ClauseElement) -> typing.List[Record]:
+    async def fetch_all(self, query: ClauseElement) -> typing.List[RecordInterface]:
         assert self._connection is not None, "Connection is not acquired"
-        query_str, args, context = self._compile(query)
+        query_str, args, result_columns, context = self._compile(query)
+        column_maps = create_column_maps(result_columns)
+        dialect = self._dialect
         cursor = await self._connection.cursor()
         try:
             await cursor.execute(query_str, args)
             rows = await cursor.fetchall()
             metadata = CursorResultMetaData(context, cursor.description)
-            return [
+            rows = [
                 Row(
                     metadata,
                     metadata._processors,
                     metadata._keymap,
-                    Row._default_key_style,
                     row,
                 )
                 for row in rows
             ]
+            return [Record(row, result_columns, dialect, column_maps) for row in rows]
         finally:
             await cursor.close()
 
-    async def fetch_one(self, query: ClauseElement) -> typing.Optional[Record]:
+    async def fetch_one(self, query: ClauseElement) -> typing.Optional[RecordInterface]:
         assert self._connection is not None, "Connection is not acquired"
-        query_str, args, context = self._compile(query)
+        query_str, args, result_columns, context = self._compile(query)
+        column_maps = create_column_maps(result_columns)
+        dialect = self._dialect
         cursor = await self._connection.cursor()
         try:
             await cursor.execute(query_str, args)
@@ -139,19 +143,19 @@ class MySQLConnection(ConnectionBackend):
             if row is None:
                 return None
             metadata = CursorResultMetaData(context, cursor.description)
-            return Row(
+            row = Row(
                 metadata,
                 metadata._processors,
                 metadata._keymap,
-                Row._default_key_style,
                 row,
             )
+            return Record(row, result_columns, dialect, column_maps)
         finally:
             await cursor.close()
 
     async def execute(self, query: ClauseElement) -> typing.Any:
         assert self._connection is not None, "Connection is not acquired"
-        query_str, args, context = self._compile(query)
+        query_str, args, _, _ = self._compile(query)
         cursor = await self._connection.cursor()
         try:
             await cursor.execute(query_str, args)
@@ -166,7 +170,7 @@ class MySQLConnection(ConnectionBackend):
         cursor = await self._connection.cursor()
         try:
             for single_query in queries:
-                single_query, args, context = self._compile(single_query)
+                single_query, args, _, _ = self._compile(single_query)
                 await cursor.execute(single_query, args)
         finally:
             await cursor.close()
@@ -175,36 +179,37 @@ class MySQLConnection(ConnectionBackend):
         self, query: ClauseElement
     ) -> typing.AsyncGenerator[typing.Any, None]:
         assert self._connection is not None, "Connection is not acquired"
-        query_str, args, context = self._compile(query)
+        query_str, args, result_columns, context = self._compile(query)
+        column_maps = create_column_maps(result_columns)
+        dialect = self._dialect
         cursor = await self._connection.cursor()
         try:
             await cursor.execute(query_str, args)
             metadata = CursorResultMetaData(context, cursor.description)
             async for row in cursor:
-                yield Row(
+                record = Row(
                     metadata,
                     metadata._processors,
                     metadata._keymap,
-                    Row._default_key_style,
                     row,
                 )
+                yield Record(record, result_columns, dialect, column_maps)
         finally:
             await cursor.close()
 
     def transaction(self) -> TransactionBackend:
         return MySQLTransaction(self)
 
-    def _compile(
-        self, query: ClauseElement
-    ) -> typing.Tuple[str, dict, CompilationContext]:
+    def _compile(self, query: ClauseElement) -> typing.Tuple[str, list, tuple]:
         compiled = query.compile(
             dialect=self._dialect, compile_kwargs={"render_postcompile": True}
         )
-
         execution_context = self._dialect.execution_ctx_cls()
         execution_context.dialect = self._dialect
 
         if not isinstance(query, DDLElement):
+            compiled_params = sorted(compiled.params.items())
+
             args = compiled.construct_params()
             for key, val in args.items():
                 if key in compiled._bind_processors:
@@ -217,12 +222,23 @@ class MySQLConnection(ConnectionBackend):
                 compiled._ad_hoc_textual,
                 compiled._loose_column_name_matching,
             )
+
+            mapping = {
+                key: "$" + str(i) for i, (key, _) in enumerate(compiled_params, start=1)
+            }
+            compiled_query = compiled.string % mapping
+            result_map = compiled._result_columns
+
         else:
             args = {}
+            result_map = None
+            compiled_query = compiled.string
 
-        query_message = compiled.string.replace(" \n", " ").replace("\n", " ")
-        logger.debug("Query: %s Args: %s", query_message, repr(args), extra=LOG_EXTRA)
-        return compiled.string, args, CompilationContext(execution_context)
+        query_message = compiled_query.replace(" \n", " ").replace("\n", " ")
+        logger.debug(
+            "Query: %s Args: %s", query_message, repr(tuple(args)), extra=LOG_EXTRA
+        )
+        return compiled.string, args, result_map, CompilationContext(execution_context)
 
     @property
     def raw_connection(self) -> aiomysql.connection.Connection:

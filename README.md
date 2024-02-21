@@ -85,7 +85,7 @@ values = [
 ]
 await database.execute_many(query=query, values=values)
 
-# Run a database query.
+# Run a database query.
 query = "SELECT * FROM HighScores"
 rows = await database.fetch_all(query=query)
 print('High Scores:', rows)
