@@ -1,15 +1,15 @@
 -e .
 
 # Async database drivers
-asyncmy==0.2.7
-aiomysql==0.1.1
-aiopg==1.3.4
-aiosqlite==0.17.0
-asyncpg==0.26.0
+asyncmy==0.2.9
+aiomysql==0.2.0
+aiopg==1.4.0
+aiosqlite==0.20.0
+asyncpg==0.29.0
 
 # Sync database drivers for standard tooling around setup/teardown/migrations.
-psycopg2-binary==2.9.3
-pymysql==1.0.2
+psycopg==3.1.18
+pymysql==1.1.0
 
 # Testing
 autoflake==1.4
@@ -30,3 +30,4 @@ mkautodoc==0.1.0
 # Packaging
 twine==4.0.1
 wheel==0.38.1
+setuptools==69.0.3
