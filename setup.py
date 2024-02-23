@@ -37,7 +37,7 @@ def get_packages(package):
 setup(
     name="databases",
     version=get_version("databases"),
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     url="https://github.com/encode/databases",
     license="BSD",
     description="Async database support for Python.",
