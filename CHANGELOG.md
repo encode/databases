@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## 0.9.0 (February 23th, 2024)
 
+### Changed
+
 * Drop support for Python 3.7 and add support for Python 3.12 ([#583][#583])
 * Add support for SQLAlchemy 2+ ([#540][#540])
 * Allow SSL string parameters in PostgresSQL URL ([#575][#575]) and ([#576][#576])
