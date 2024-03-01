@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 0.9.0 (February 23th, 2024)
+
+### Changed
+
+* Drop support for Python 3.7 and add support for Python 3.12 ([#583][#583])
+* Add support for SQLAlchemy 2+ ([#540][#540])
+* Allow SSL string parameters in PostgresSQL URL ([#575][#575]) and ([#576][#576])
+
+[#583]: https://github.com/encode/databases/pull/583
+[#540]: https://github.com/encode/databases/pull/540
+[#575]: https://github.com/encode/databases/pull/575
+[#576]: https://github.com/encode/databases/pull/576
+
 ## 0.8.0 (August 28th, 2023)
 
 ### Added
