@@ -4,11 +4,10 @@ import typing
 import asyncpg
 from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.sql import ClauseElement
-from sqlalchemy.sql.ddl import DDLElement
 
 from databases.backends.common.records import Record, create_column_maps
-from databases.backends.dialects.psycopg import get_dialect
-from databases.core import LOG_EXTRA, DatabaseURL
+from databases.backends.dialects.psycopg import compile_query, get_dialect
+from databases.core import DatabaseURL
 from databases.interfaces import (
     ConnectionBackend,
     DatabaseBackend,
@@ -88,7 +87,7 @@ class AsyncpgConnection(ConnectionBackend):
 
     async def fetch_all(self, query: ClauseElement) -> typing.List[RecordInterface]:
         assert self._connection is not None, "Connection is not acquired"
-        query_str, args, result_columns = self._compile(query)
+        query_str, args, result_columns = compile_query(query, self._dialect)
         rows = await self._connection.fetch(query_str, *args)
         dialect = self._dialect
         column_maps = create_column_maps(result_columns)
@@ -96,7 +95,7 @@ class AsyncpgConnection(ConnectionBackend):
 
     async def fetch_one(self, query: ClauseElement) -> typing.Optional[RecordInterface]:
         assert self._connection is not None, "Connection is not acquired"
-        query_str, args, result_columns = self._compile(query)
+        query_str, args, result_columns = compile_query(query, self._dialect)
         row = await self._connection.fetchrow(query_str, *args)
         if row is None:
             return None
@@ -124,7 +123,7 @@ class AsyncpgConnection(ConnectionBackend):
 
     async def execute(self, query: ClauseElement) -> typing.Any:
         assert self._connection is not None, "Connection is not acquired"
-        query_str, args, _ = self._compile(query)
+        query_str, args, _ = compile_query(query, self._dialect)
         return await self._connection.fetchval(query_str, *args)
 
     async def execute_many(self, queries: typing.List[ClauseElement]) -> None:
@@ -133,50 +132,20 @@ class AsyncpgConnection(ConnectionBackend):
         # loop through multiple executes here, which should all end up
         # using the same prepared statement.
         for single_query in queries:
-            single_query, args, _ = self._compile(single_query)
+            single_query, args, _ = compile_query(single_query, self._dialect)
             await self._connection.execute(single_query, *args)
 
     async def iterate(
         self, query: ClauseElement
     ) -> typing.AsyncGenerator[typing.Any, None]:
         assert self._connection is not None, "Connection is not acquired"
-        query_str, args, result_columns = self._compile(query)
+        query_str, args, result_columns = compile_query(query, self._dialect)
         column_maps = create_column_maps(result_columns)
         async for row in self._connection.cursor(query_str, *args):
             yield Record(row, result_columns, self._dialect, column_maps)
 
     def transaction(self) -> TransactionBackend:
         return AsyncpgTransaction(connection=self)
-
-    def _compile(self, query: ClauseElement) -> typing.Tuple[str, list, tuple]:
-        compiled = query.compile(
-            dialect=self._dialect, compile_kwargs={"render_postcompile": True}
-        )
-
-        if not isinstance(query, DDLElement):
-            compiled_params = sorted(compiled.params.items())
-
-            mapping = {
-                key: "$" + str(i) for i, (key, _) in enumerate(compiled_params, start=1)
-            }
-            compiled_query = compiled.string % mapping
-
-            processors = compiled._bind_processors
-            args = [
-                processors[key](val) if key in processors else val
-                for key, val in compiled_params
-            ]
-            result_map = compiled._result_columns
-        else:
-            compiled_query = compiled.string
-            args = []
-            result_map = None
-
-        query_message = compiled_query.replace(" \n", " ").replace("\n", " ")
-        logger.debug(
-            "Query: %s Args: %s", query_message, repr(tuple(args)), extra=LOG_EXTRA
-        )
-        return compiled_query, args, result_map
 
     @property
     def raw_connection(self) -> asyncpg.connection.Connection:
