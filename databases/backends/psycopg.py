@@ -156,7 +156,7 @@ class PsycopgConnection(ConnectionBackend):
                 yield Record(row, result_columns, self._dialect, column_maps)
 
     def transaction(self) -> "TransactionBackend":
-        raise NotImplementedError()  # pragma: no cover
+        return PsycopgTransaction(connection=self)
 
     @property
     def raw_connection(self) -> typing.Any:
@@ -166,13 +166,36 @@ class PsycopgConnection(ConnectionBackend):
 
 
 class PsycopgTransaction(TransactionBackend):
+    _connecttion: PsycopgConnection
+    _transaction: typing.Optional[psycopg.AsyncTransaction]
+
+    def __init__(self, connection: PsycopgConnection):
+        self._connection = connection
+        self._transaction: typing.Optional[psycopg.AsyncTransaction] = None
+
     async def start(
         self, is_root: bool, extra_options: typing.Dict[typing.Any, typing.Any]
     ) -> None:
-        raise NotImplementedError()  # pragma: no cover
+        if self._connection._connection is None:
+            raise RuntimeError("Connection is not acquired")
+
+        transaction = psycopg.AsyncTransaction(
+            self._connection._connection, **extra_options
+        )
+        async with transaction._conn.lock:
+            await transaction._conn.wait(transaction._enter_gen())
+        self._transaction = transaction
 
     async def commit(self) -> None:
-        raise NotImplementedError()  # pragma: no cover
+        if self._transaction is None:
+            raise RuntimeError("Transaction was not started")
+
+        async with self._transaction._conn.lock:
+            await self._transaction._conn.wait(self._transaction._commit_gen())
 
     async def rollback(self) -> None:
-        raise NotImplementedError()  # pragma: no cover
+        if self._transaction is None:
+            raise RuntimeError("Transaction was not started")
+
+        async with self._transaction._conn.lock:
+            await self._transaction._conn.wait(self._transaction._rollback_gen(None))
