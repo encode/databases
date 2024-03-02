@@ -58,8 +58,12 @@ def get_dialect() -> Dialect:
     return dialect
 
 
-def compile_query(query: ClauseElement, dialect: Dialect) -> typing.Tuple[str, list, tuple]:
-    compiled = query.compile(dialect=dialect, compile_kwargs={"render_postcompile": True})
+def compile_query(
+    query: ClauseElement, dialect: Dialect
+) -> typing.Tuple[str, list, tuple]:
+    compiled = query.compile(
+        dialect=dialect, compile_kwargs={"render_postcompile": True}
+    )
 
     if not isinstance(query, DDLElement):
         compiled_params = sorted(compiled.params.items())

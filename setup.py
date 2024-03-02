@@ -55,7 +55,7 @@ setup(
         "postgresql": ["asyncpg"],
         "aiopg": ["aiopg"],
         "asyncpg": ["asyncpg"],
-        "psycopg3": ["psycopg"],
+        "psycopg3": ["psycopg", "psycopg-pool"],
         "sqlite": ["aiosqlite"],
         "aiosqlite": ["aiosqlite"],
     },

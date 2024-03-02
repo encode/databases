@@ -8,6 +8,7 @@ aiosqlite==0.20.0
 asyncpg==0.29.0
 psycopg==3.1.18
 psycopg-binary==3.1.18
+psycopg-pool==3.2.1
 
 # Sync database drivers for standard tooling around setup/teardown/migrations.
 psycopg==3.1.18

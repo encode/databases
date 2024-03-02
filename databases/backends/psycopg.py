@@ -37,7 +37,8 @@ class PsycopgBackend(DatabaseBackend):
             return
 
         self._pool = psycopg_pool.AsyncConnectionPool(
-            self._database_url.url, open=False, **self._options)
+            self._database_url._url, open=False, **self._options
+        )
 
         # TODO: Add configurable timeouts
         await self._pool.open()
@@ -86,13 +87,33 @@ class PsycopgConnection(ConnectionBackend):
             raise RuntimeError("Connection is not acquired")
 
         query_str, args, result_columns = compile_query(query, self._dialect)
-        rows = await self._connection.fetch(query_str, *args)
+
+        async with self._connection.cursor() as cursor:
+            await cursor.execute(query_str, args)
+            rows = await cursor.fetchall()
+
         column_maps = create_column_maps(result_columns)
         return [Record(row, result_columns, self._dialect, column_maps) for row in rows]
-        raise NotImplementedError()  # pragma: no cover
 
     async def fetch_one(self, query: ClauseElement) -> typing.Optional[RecordInterface]:
-        raise NotImplementedError()  # pragma: no cover
+        if self._connection is None:
+            raise RuntimeError("Connection is not acquired")
+
+        query_str, args, result_columns = compile_query(query, self._dialect)
+
+        async with self._connection.cursor() as cursor:
+            await cursor.execute(query_str, args)
+            row = await cursor.fetchone()
+
+        if row is None:
+            return None
+
+        return Record(
+            row,
+            result_columns,
+            self._dialect,
+            create_column_maps(result_columns),
+        )
 
     async def fetch_val(
         self, query: ClauseElement, column: typing.Any = 0
@@ -101,25 +122,47 @@ class PsycopgConnection(ConnectionBackend):
         return None if row is None else row[column]
 
     async def execute(self, query: ClauseElement) -> typing.Any:
-        raise NotImplementedError()  # pragma: no cover
+        if self._connection is None:
+            raise RuntimeError("Connection is not acquired")
+
+        query_str, args, _ = compile_query(query, self._dialect)
+
+        async with self._connection.cursor() as cursor:
+            await cursor.execute(query_str, args)
 
     async def execute_many(self, queries: typing.List[ClauseElement]) -> None:
-        raise NotImplementedError()  # pragma: no cover
+        # TODO: Find a way to use psycopg's executemany
+        for query in queries:
+            await self.execute(query)
 
     async def iterate(
         self, query: ClauseElement
     ) -> typing.AsyncGenerator[typing.Mapping, None]:
-        raise NotImplementedError()  # pragma: no cover
-        # mypy needs async iterators to contain a `yield`
-        # https://github.com/python/mypy/issues/5385#issuecomment-407281656
-        yield True  # pragma: no cover
+        if self._connection is None:
+            raise RuntimeError("Connection is not acquired")
+
+        query_str, args, result_columns = compile_query(query, self._dialect)
+        column_maps = create_column_maps(result_columns)
+
+        async with self._connection.cursor() as cursor:
+            await cursor.execute(query_str, args)
+
+            while True:
+                row = await cursor.fetchone()
+
+                if row is None:
+                    break
+
+                yield Record(row, result_columns, self._dialect, column_maps)
 
     def transaction(self) -> "TransactionBackend":
         raise NotImplementedError()  # pragma: no cover
 
     @property
     def raw_connection(self) -> typing.Any:
-        raise NotImplementedError()  # pragma: no cover
+        if self._connection is None:
+            raise RuntimeError("Connection is not acquired")
+        return self._connection
 
 
 class PsycopgTransaction(TransactionBackend):
