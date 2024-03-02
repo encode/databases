@@ -73,7 +73,7 @@ run all of those with lint script
     version: '2.1'
     services:
       postgres:
-        image: postgres:10.8
+        image: postgres:16
         environment:
           POSTGRES_USER: username
           POSTGRES_PASSWORD: password
@@ -82,7 +82,7 @@ run all of those with lint script
           - 5432:5432
     
       mysql:
-        image: mysql:5.7
+        image: mariadb:11
         environment:
           MYSQL_USER: username
           MYSQL_PASSWORD: password
