@@ -43,4 +43,13 @@ class PGDialect_psycopg(PGDialect):
     execution_ctx_cls = PGExecutionContext_psycopg
 
 
-dialect = PGDialect_psycopg
+def get_dialect() -> PGDialect_psycopg:
+    dialect = PGDialect_psycopg(paramstyle="pyformat")
+    dialect.implicit_returning = True
+    dialect.supports_native_enum = True
+    dialect.supports_smallserial = True  # 9.2+
+    dialect._backslash_escapes = False
+    dialect.supports_sane_multi_rowcount = True  # psycopg 2.0.9+
+    dialect._has_native_hstore = True
+    dialect.supports_native_decimal = True
+    return dialect

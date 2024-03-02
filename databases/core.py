@@ -43,12 +43,16 @@ _ACTIVE_TRANSACTIONS: ContextVar[
 
 class Database:
     SUPPORTED_BACKENDS = {
-        "postgresql": "databases.backends.postgres:PostgresBackend",
+        "postgres": "databases.backends.asyncpg:AsyncpgBackend",
+        "postgresql": "databases.backends.asyncpg:AsyncpgBackend",
         "postgresql+aiopg": "databases.backends.aiopg:AiopgBackend",
-        "postgres": "databases.backends.postgres:PostgresBackend",
+        "postgresql+asyncpg": "databases.backends.asyncpg:AsyncpgBackend",
+        "postgresql+psycopg": "databases.backends.psycopg:PsycopgBackend",
         "mysql": "databases.backends.mysql:MySQLBackend",
+        "mysql+aiomysql": "databases.backends.asyncmy:MySQLBackend",
         "mysql+asyncmy": "databases.backends.asyncmy:AsyncMyBackend",
         "sqlite": "databases.backends.sqlite:SQLiteBackend",
+        "sqlite+aiosqlite": "databases.backends.sqlite:SQLiteBackend",
     }
 
     _connection_map: "weakref.WeakKeyDictionary[asyncio.Task, 'Connection']"

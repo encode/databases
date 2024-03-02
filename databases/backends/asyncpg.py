@@ -7,7 +7,7 @@ from sqlalchemy.sql import ClauseElement
 from sqlalchemy.sql.ddl import DDLElement
 
 from databases.backends.common.records import Record, create_column_maps
-from databases.backends.dialects.psycopg import dialect as psycopg_dialect
+from databases.backends.dialects.psycopg import get_dialect
 from databases.core import LOG_EXTRA, DatabaseURL
 from databases.interfaces import (
     ConnectionBackend,
@@ -19,27 +19,14 @@ from databases.interfaces import (
 logger = logging.getLogger("databases")
 
 
-class PostgresBackend(DatabaseBackend):
+class AsyncpgBackend(DatabaseBackend):
     def __init__(
         self, database_url: typing.Union[DatabaseURL, str], **options: typing.Any
     ) -> None:
         self._database_url = DatabaseURL(database_url)
         self._options = options
-        self._dialect = self._get_dialect()
+        self._dialect = get_dialect()
         self._pool = None
-
-    def _get_dialect(self) -> Dialect:
-        dialect = psycopg_dialect(paramstyle="pyformat")
-
-        dialect.implicit_returning = True
-        dialect.supports_native_enum = True
-        dialect.supports_smallserial = True  # 9.2+
-        dialect._backslash_escapes = False
-        dialect.supports_sane_multi_rowcount = True  # psycopg 2.0.9+
-        dialect._has_native_hstore = True
-        dialect.supports_native_decimal = True
-
-        return dialect
 
     def _get_connection_kwargs(self) -> dict:
         url_options = self._database_url.options
@@ -78,12 +65,12 @@ class PostgresBackend(DatabaseBackend):
         await self._pool.close()
         self._pool = None
 
-    def connection(self) -> "PostgresConnection":
-        return PostgresConnection(self, self._dialect)
+    def connection(self) -> "AsyncpgConnection":
+        return AsyncpgConnection(self, self._dialect)
 
 
-class PostgresConnection(ConnectionBackend):
-    def __init__(self, database: PostgresBackend, dialect: Dialect):
+class AsyncpgConnection(ConnectionBackend):
+    def __init__(self, database: AsyncpgBackend, dialect: Dialect):
         self._database = database
         self._dialect = dialect
         self._connection: typing.Optional[asyncpg.connection.Connection] = None
@@ -159,7 +146,7 @@ class PostgresConnection(ConnectionBackend):
             yield Record(row, result_columns, self._dialect, column_maps)
 
     def transaction(self) -> TransactionBackend:
-        return PostgresTransaction(connection=self)
+        return AsyncpgTransaction(connection=self)
 
     def _compile(self, query: ClauseElement) -> typing.Tuple[str, list, tuple]:
         compiled = query.compile(
@@ -197,8 +184,8 @@ class PostgresConnection(ConnectionBackend):
         return self._connection
 
 
-class PostgresTransaction(TransactionBackend):
-    def __init__(self, connection: PostgresConnection):
+class AsyncpgTransaction(TransactionBackend):
+    def __init__(self, connection: AsyncpgConnection):
         self._connection = connection
         self._transaction: typing.Optional[asyncpg.transaction.Transaction] = None
 
