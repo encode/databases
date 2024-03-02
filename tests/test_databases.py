@@ -134,6 +134,7 @@ def create_test_database():
             "postgresql+aiopg",
             "sqlite+aiosqlite",
             "postgresql+asyncpg",
+            "postgresql+psycopg",
         ]:
             url = str(database_url.replace(driver=None))
         engine = sqlalchemy.create_engine(url)
@@ -151,6 +152,7 @@ def create_test_database():
             "postgresql+aiopg",
             "sqlite+aiosqlite",
             "postgresql+asyncpg",
+            "postgresql+psycopg",
         ]:
             url = str(database_url.replace(driver=None))
         engine = sqlalchemy.create_engine(url)
@@ -1354,7 +1356,11 @@ async def test_queries_with_expose_backend_connection(database_url):
                 elif database.url.scheme == "mysql+asyncmy":
                     async with raw_connection.cursor() as cursor:
                         await cursor.execute(insert_query, values)
-                elif database.url.scheme in ["postgresql", "postgresql+asyncpg"]:
+                elif database.url.scheme in [
+                    "postgresql",
+                    "postgresql+asyncpg",
+                    "postgresql+psycopg",
+                ]:
                     await raw_connection.execute(insert_query, *values)
                 elif database.url.scheme in ["sqlite", "sqlite+aiosqlite"]:
                     await raw_connection.execute(insert_query, values)
@@ -1392,7 +1398,11 @@ async def test_queries_with_expose_backend_connection(database_url):
                     async with raw_connection.cursor() as cursor:
                         await cursor.execute(select_query)
                         results = await cursor.fetchall()
-                elif database.url.scheme in ["postgresql", "postgresql+asyncpg"]:
+                elif database.url.scheme in [
+                    "postgresql",
+                    "postgresql+asyncpg",
+                    "postgresql+psycopg",
+                ]:
                     results = await raw_connection.fetch(select_query)
                 elif database.url.scheme in ["sqlite", "sqlite+aiosqlite"]:
                     results = await raw_connection.execute_fetchall(select_query)
@@ -1407,7 +1417,11 @@ async def test_queries_with_expose_backend_connection(database_url):
                 assert results[2][2] == True
 
                 # fetch_one()
-                if database.url.scheme in ["postgresql", "postgresql+asyncpg"]:
+                if database.url.scheme in [
+                    "postgresql",
+                    "postgresql+asyncpg",
+                    "postgresql+psycopg",
+                ]:
                     result = await raw_connection.fetchrow(select_query)
                 elif database.url.scheme == "mysql+asyncmy":
                     async with raw_connection.cursor() as cursor:
