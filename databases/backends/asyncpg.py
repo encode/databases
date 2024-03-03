@@ -2,12 +2,12 @@ import logging
 import typing
 
 import asyncpg
+from sqlalchemy.dialects.postgresql.psycopg import PGDialect_psycopg
 from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.sql import ClauseElement
 from sqlalchemy.sql.ddl import DDLElement
 
 from databases.backends.common.records import Record, create_column_maps
-from databases.backends.dialects.psycopg import dialect as psycopg_dialect
 from databases.core import LOG_EXTRA, DatabaseURL
 from databases.interfaces import (
     ConnectionBackend,
@@ -29,7 +29,7 @@ class AsyncpgBackend(DatabaseBackend):
         self._pool = None
 
     def _get_dialect(self) -> Dialect:
-        dialect = psycopg_dialect(paramstyle="pyformat")
+        dialect = PGDialect_psycopg(paramstyle="pyformat")
         dialect.implicit_returning = True
         dialect.supports_native_enum = True
         dialect.supports_smallserial = True  # 9.2+

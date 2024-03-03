@@ -22,7 +22,7 @@ class PsycopgBackend(DatabaseBackend):
     _database_url: DatabaseURL
     _options: typing.Dict[str, typing.Any]
     _dialect: Dialect
-    _pool: typing.Optional[psycopg_pool.AsyncConnectionPool]
+    _pool: typing.Optional[psycopg_pool.AsyncConnectionPool] = None
 
     def __init__(
         self,
@@ -33,7 +33,6 @@ class PsycopgBackend(DatabaseBackend):
         self._options = options
         self._dialect = PGDialect_psycopg()
         self._dialect.implicit_returning = True
-        self._pool = None
 
     async def connect(self) -> None:
         if self._pool is not None:
@@ -95,7 +94,10 @@ class PsycopgConnection(ConnectionBackend):
             rows = await cursor.fetchall()
 
         column_maps = create_column_maps(result_columns)
-        return [PsycopgRecord(row, result_columns, self._dialect, column_maps) for row in rows]
+        return [
+            PsycopgRecord(row, result_columns, self._dialect, column_maps)
+            for row in rows
+        ]
 
     async def fetch_one(self, query: ClauseElement) -> typing.Optional[RecordInterface]:
         if self._connection is None:
@@ -167,7 +169,8 @@ class PsycopgConnection(ConnectionBackend):
         return self._connection
 
     def _compile(
-        self, query: ClauseElement,
+        self,
+        query: ClauseElement,
     ) -> typing.Tuple[str, typing.Mapping[str, typing.Any], tuple]:
         compiled = query.compile(
             dialect=self._dialect,
@@ -224,7 +227,9 @@ class PsycopgRecord(Record):
 
     def __getitem__(self, key: typing.Any) -> typing.Any:
         if len(self._column_map) == 0:
-            return self._mapping[key]
+            if isinstance(key, str):
+                return self._mapping[key]
+            return self._row[key]
         elif isinstance(key, Column):
             idx, datatype = self._column_map_full[str(key)]
         elif isinstance(key, int):
