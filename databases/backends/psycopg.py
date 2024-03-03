@@ -1,6 +1,5 @@
 import typing
 
-import orjson
 import psycopg
 import psycopg.adapt
 import psycopg.types
@@ -20,15 +19,33 @@ from databases.interfaces import (
     TransactionBackend,
 )
 
+try:
+    import orjson
+
+    def load(data):
+        return orjson.loads(data)
+
+    def dump(data):
+        return orjson.dumps(data)
+
+except ImportError:
+    import json
+
+    def load(data):
+        return json.loads(data.decode("utf-8"))
+
+    def dump(data):
+        return json.dumps(data).encode("utf-8")
+
 
 class JsonLoader(psycopg.adapt.Loader):
     def load(self, data):
-        return orjson.loads(data)
+        return load(data)
 
 
 class JsonDumper(psycopg.adapt.Dumper):
     def dump(self, data):
-        return orjson.dumps(data)
+        return dump(data)
 
 
 class PsycopgBackend(DatabaseBackend):

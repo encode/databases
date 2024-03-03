@@ -58,6 +58,7 @@ setup(
         "psycopg3": ["psycopg", "psycopg-pool"],
         "sqlite": ["aiosqlite"],
         "aiosqlite": ["aiosqlite"],
+        "orjson": ["orjson"],
     },
     classifiers=[
         "Development Status :: 3 - Alpha",
