@@ -1338,6 +1338,7 @@ async def test_queries_with_expose_backend_connection(database_url):
                     "mysql+asyncmy",
                     "mysql+aiomysql",
                     "postgresql+aiopg",
+                    "postgresql+psycopg",
                 ]:
                     insert_query = "INSERT INTO notes (text, completed) VALUES (%s, %s)"
                 else:

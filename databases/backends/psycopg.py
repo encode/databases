@@ -3,10 +3,10 @@ import typing
 import psycopg
 import psycopg_pool
 from sqlalchemy.engine.interfaces import Dialect
+from sqlalchemy.dialects.postgresql.psycopg import PGDialect_psycopg
 from sqlalchemy.sql import ClauseElement
 
 from databases.backends.common.records import Record, create_column_maps
-from databases.backends.dialects.psycopg import compile_query, get_dialect
 from databases.core import DatabaseURL
 from databases.interfaces import (
     ConnectionBackend,
@@ -29,7 +29,7 @@ class PsycopgBackend(DatabaseBackend):
     ) -> None:
         self._database_url = DatabaseURL(database_url)
         self._options = options
-        self._dialect = get_dialect()
+        self._dialect = PGDialect_psycopg()
         self._pool = None
 
     async def connect(self) -> None:
@@ -86,7 +86,7 @@ class PsycopgConnection(ConnectionBackend):
         if self._connection is None:
             raise RuntimeError("Connection is not acquired")
 
-        query_str, args, result_columns = compile_query(query, self._dialect)
+        query_str, args, result_columns = self._compile(query)
 
         async with self._connection.cursor() as cursor:
             await cursor.execute(query_str, args)
@@ -99,7 +99,7 @@ class PsycopgConnection(ConnectionBackend):
         if self._connection is None:
             raise RuntimeError("Connection is not acquired")
 
-        query_str, args, result_columns = compile_query(query, self._dialect)
+        query_str, args, result_columns = self._compile(query)
 
         async with self._connection.cursor() as cursor:
             await cursor.execute(query_str, args)
@@ -125,7 +125,7 @@ class PsycopgConnection(ConnectionBackend):
         if self._connection is None:
             raise RuntimeError("Connection is not acquired")
 
-        query_str, args, _ = compile_query(query, self._dialect)
+        query_str, args, _ = self._compile(query)
 
         async with self._connection.cursor() as cursor:
             await cursor.execute(query_str, args)
@@ -141,7 +141,7 @@ class PsycopgConnection(ConnectionBackend):
         if self._connection is None:
             raise RuntimeError("Connection is not acquired")
 
-        query_str, args, result_columns = compile_query(query, self._dialect)
+        query_str, args, result_columns = self._compile(query)
         column_maps = create_column_maps(result_columns)
 
         async with self._connection.cursor() as cursor:
@@ -163,6 +163,17 @@ class PsycopgConnection(ConnectionBackend):
         if self._connection is None:
             raise RuntimeError("Connection is not acquired")
         return self._connection
+
+    def _compile(
+        self, query: ClauseElement,
+    ) -> typing.Tuple[str, typing.Mapping[str, typing.Any], tuple]:
+        compiled = query.compile(dialect=self._dialect)
+
+        compiled_query = compiled.string
+        params = compiled.params
+        result_map = compiled._result_columns
+
+        return compiled_query, params, result_map
 
 
 class PsycopgTransaction(TransactionBackend):
