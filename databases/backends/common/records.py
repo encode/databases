@@ -39,9 +39,6 @@ class Record(RecordInterface):
 
     @property
     def _mapping(self) -> typing.Mapping:
-        if hasattr(self._row, "_asdict"):
-            return self._row._asdict()
-
         return self._row
 
     def keys(self) -> typing.KeysView:
@@ -52,10 +49,7 @@ class Record(RecordInterface):
 
     def __getitem__(self, key: typing.Any) -> typing.Any:
         if len(self._column_map) == 0:
-            try:
-                return self._row[key]
-            except TypeError:
-                return self._mapping[key]
+            return self._row[key]
         elif isinstance(key, Column):
             idx, datatype = self._column_map_full[str(key)]
         elif isinstance(key, int):

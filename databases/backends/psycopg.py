@@ -1,6 +1,9 @@
 import typing
 
+import orjson
 import psycopg
+import psycopg.adapt
+import psycopg.types
 import psycopg_pool
 from psycopg.rows import namedtuple_row
 from sqlalchemy.dialects.postgresql.psycopg import PGDialect_psycopg
@@ -16,6 +19,16 @@ from databases.interfaces import (
     Record as RecordInterface,
     TransactionBackend,
 )
+
+
+class JsonLoader(psycopg.adapt.Loader):
+    def load(self, data):
+        return orjson.loads(data)
+
+
+class JsonDumper(psycopg.adapt.Dumper):
+    def dump(self, data):
+        return orjson.dumps(data)
 
 
 class PsycopgBackend(DatabaseBackend):
@@ -73,8 +86,13 @@ class PsycopgConnection(ConnectionBackend):
             raise RuntimeError("PsycopgBackend is not running")
 
         # TODO: Add configurable timeouts
-        self._connection = await self._database._pool.getconn()
-        await self._connection.set_autocommit(True)
+        connection = await self._database._pool.getconn()
+        connection.adapters.register_loader("json", JsonLoader)
+        connection.adapters.register_loader("jsonb", JsonLoader)
+        connection.adapters.register_dumper(dict, JsonDumper)
+        connection.adapters.register_dumper(list, JsonDumper)
+        await connection.set_autocommit(True)
+        self._connection = connection
 
     async def release(self) -> None:
         if self._connection is None:
