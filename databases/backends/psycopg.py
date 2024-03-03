@@ -168,7 +168,10 @@ class PsycopgConnection(ConnectionBackend):
     def _compile(
         self, query: ClauseElement,
     ) -> typing.Tuple[str, typing.Mapping[str, typing.Any], tuple]:
-        compiled = query.compile(dialect=self._dialect)
+        compiled = query.compile(
+            dialect=self._dialect,
+            compile_kwargs={"render_postcompile": True},
+        )
 
         compiled_query = compiled.string
         params = compiled.params

@@ -1,4 +1,5 @@
 import typing
+from collections import namedtuple
 
 from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.engine.row import Row as SQLRow
@@ -39,6 +40,9 @@ class Record(RecordInterface):
 
     @property
     def _mapping(self) -> typing.Mapping:
+        if hasattr(self._row, "_asdict"):
+            return self._row._asdict()
+
         return self._row
 
     def keys(self) -> typing.KeysView:
