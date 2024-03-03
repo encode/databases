@@ -2,12 +2,12 @@ import logging
 import typing
 
 import asyncpg
-from sqlalchemy.dialects.postgresql.psycopg import PGDialect_psycopg
 from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.sql import ClauseElement
 from sqlalchemy.sql.ddl import DDLElement
 
 from databases.backends.common.records import Record, create_column_maps
+from databases.backends.dialects.psycopg import dialect as psycopg_dialect
 from databases.core import LOG_EXTRA, DatabaseURL
 from databases.interfaces import (
     ConnectionBackend,
@@ -29,7 +29,8 @@ class AsyncpgBackend(DatabaseBackend):
         self._pool = None
 
     def _get_dialect(self) -> Dialect:
-        dialect = PGDialect_psycopg(paramstyle="pyformat")
+        dialect = psycopg_dialect(paramstyle="pyformat")
+
         dialect.implicit_returning = True
         dialect.supports_native_enum = True
         dialect.supports_smallserial = True  # 9.2+
@@ -37,6 +38,7 @@ class AsyncpgBackend(DatabaseBackend):
         dialect.supports_sane_multi_rowcount = True  # psycopg 2.0.9+
         dialect._has_native_hstore = True
         dialect.supports_native_decimal = True
+
         return dialect
 
     def _get_connection_kwargs(self) -> dict:
@@ -189,10 +191,10 @@ class AsyncpgConnection(ConnectionBackend):
         )
         return compiled_query, args, result_map
 
-        @property
-        def raw_connection(self) -> asyncpg.connection.Connection:
-            assert self._connection is not None, "Connection is not acquired"
-            return self._connection
+    @property
+    def raw_connection(self) -> asyncpg.connection.Connection:
+        assert self._connection is not None, "Connection is not acquired"
+        return self._connection
 
 
 class AsyncpgTransaction(TransactionBackend):

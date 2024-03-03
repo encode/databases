@@ -5,13 +5,14 @@ import typing
 import uuid
 
 import aiopg
-from sqlalchemy.dialects.postgresql.psycopg import PGDialect_psycopg
 from sqlalchemy.engine.cursor import CursorResultMetaData
 from sqlalchemy.engine.interfaces import Dialect, ExecutionContext
 from sqlalchemy.sql import ClauseElement
 from sqlalchemy.sql.ddl import DDLElement
 
 from databases.backends.common.records import Record, Row, create_column_maps
+from databases.backends.compilers.psycopg import PGCompiler_psycopg
+from databases.backends.dialects.psycopg import PGDialect_psycopg
 from databases.core import LOG_EXTRA, DatabaseURL
 from databases.interfaces import (
     ConnectionBackend,
@@ -36,10 +37,12 @@ class AiopgBackend(DatabaseBackend):
         dialect = PGDialect_psycopg(
             json_serializer=json.dumps, json_deserializer=lambda x: x
         )
+        dialect.statement_compiler = PGCompiler_psycopg
         dialect.implicit_returning = True
         dialect.supports_native_enum = True
         dialect.supports_smallserial = True  # 9.2+
         dialect._backslash_escapes = False
+        dialect.supports_sane_multi_rowcount = True  # psycopg 2.0.9+
         dialect._has_native_hstore = True
         dialect.supports_native_decimal = True
 
