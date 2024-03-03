@@ -39,9 +39,8 @@ class PsycopgBackend(DatabaseBackend):
         if self._pool is not None:
             return
 
-        self._pool = psycopg_pool.AsyncConnectionPool(
-            self._database_url._url, open=False, **self._options
-        )
+        url = self._database_url._url.replace("postgresql+psycopg", "postgresql")
+        self._pool = psycopg_pool.AsyncConnectionPool(url, open=False, **self._options)
 
         # TODO: Add configurable timeouts
         await self._pool.open()

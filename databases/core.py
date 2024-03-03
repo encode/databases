@@ -44,10 +44,10 @@ _ACTIVE_TRANSACTIONS: ContextVar[
 class Database:
     SUPPORTED_BACKENDS = {
         "postgres": "databases.backends.asyncpg:AsyncpgBackend",
+        "postgresql": "databases.backends.asyncpg:AsyncpgBackend",
         "postgresql+aiopg": "databases.backends.aiopg:AiopgBackend",
         "postgresql+asyncpg": "databases.backends.asyncpg:AsyncpgBackend",
         "postgresql+psycopg": "databases.backends.psycopg:PsycopgBackend",
-        "postgresql": "databases.backends.psycopg:PsycopgBackend",
         "mysql": "databases.backends.mysql:MySQLBackend",
         "mysql+aiomysql": "databases.backends.asyncmy:MySQLBackend",
         "mysql+asyncmy": "databases.backends.asyncmy:AsyncMyBackend",
