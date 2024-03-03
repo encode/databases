@@ -2,6 +2,7 @@ import typing
 
 import psycopg
 import psycopg_pool
+from psycopg.rows import namedtuple_row
 from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.dialects.postgresql.psycopg import PGDialect_psycopg
 from sqlalchemy.sql import ClauseElement
@@ -58,12 +59,11 @@ class PsycopgBackend(DatabaseBackend):
 class PsycopgConnection(ConnectionBackend):
     _database: PsycopgBackend
     _dialect: Dialect
-    _connection: typing.Optional[psycopg.AsyncConnection]
+    _connection: typing.Optional[psycopg.AsyncConnection] = None
 
     def __init__(self, database: PsycopgBackend, dialect: Dialect) -> None:
         self._database = database
         self._dialect = dialect
-        self._connection = None
 
     async def acquire(self) -> None:
         if self._connection is not None:
@@ -74,6 +74,7 @@ class PsycopgConnection(ConnectionBackend):
 
         # TODO: Add configurable timeouts
         self._connection = await self._database._pool.getconn()
+        await self._connection.set_autocommit(True)
 
     async def release(self) -> None:
         if self._connection is None:
@@ -88,7 +89,7 @@ class PsycopgConnection(ConnectionBackend):
 
         query_str, args, result_columns = self._compile(query)
 
-        async with self._connection.cursor() as cursor:
+        async with self._connection.cursor(row_factory=namedtuple_row) as cursor:
             await cursor.execute(query_str, args)
             rows = await cursor.fetchall()
 
@@ -101,7 +102,7 @@ class PsycopgConnection(ConnectionBackend):
 
         query_str, args, result_columns = self._compile(query)
 
-        async with self._connection.cursor() as cursor:
+        async with self._connection.cursor(row_factory=namedtuple_row) as cursor:
             await cursor.execute(query_str, args)
             row = await cursor.fetchone()
 
@@ -127,7 +128,7 @@ class PsycopgConnection(ConnectionBackend):
 
         query_str, args, _ = self._compile(query)
 
-        async with self._connection.cursor() as cursor:
+        async with self._connection.cursor(row_factory=namedtuple_row) as cursor:
             await cursor.execute(query_str, args)
 
     async def execute_many(self, queries: typing.List[ClauseElement]) -> None:
@@ -144,7 +145,7 @@ class PsycopgConnection(ConnectionBackend):
         query_str, args, result_columns = self._compile(query)
         column_maps = create_column_maps(result_columns)
 
-        async with self._connection.cursor() as cursor:
+        async with self._connection.cursor(row_factory=namedtuple_row) as cursor:
             await cursor.execute(query_str, args)
 
             while True:
