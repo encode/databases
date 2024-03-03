@@ -1,5 +1,4 @@
 import typing
-from collections import namedtuple
 
 from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.engine.row import Row as SQLRow
@@ -53,7 +52,10 @@ class Record(RecordInterface):
 
     def __getitem__(self, key: typing.Any) -> typing.Any:
         if len(self._column_map) == 0:
-            return self._row[key]
+            try:
+                return self._row[key]
+            except TypeError:
+                return self._mapping[key]
         elif isinstance(key, Column):
             idx, datatype = self._column_map_full[str(key)]
         elif isinstance(key, int):
