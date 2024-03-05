@@ -144,7 +144,7 @@ class SQLiteConnection(ConnectionBackend):
 
     async def iterate(
         self, query: ClauseElement
-    ) -> typing.AsyncGenerator[typing.Any, None]:
+    ) -> typing.AsyncGenerator[Record, None]:
         assert self._connection is not None, "Connection is not acquired"
         query_str, args, result_columns, context = self._compile(query)
         column_maps = create_column_maps(result_columns)
