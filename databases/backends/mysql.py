@@ -12,12 +12,7 @@ from sqlalchemy.sql.ddl import DDLElement
 
 from databases.backends.common.records import Record, Row, create_column_maps
 from databases.core import LOG_EXTRA, DatabaseURL
-from databases.interfaces import (
-    ConnectionBackend,
-    DatabaseBackend,
-    Record as RecordInterface,
-    TransactionBackend,
-)
+from databases.interfaces import ConnectionBackend, DatabaseBackend, TransactionBackend
 
 logger = logging.getLogger("databases")
 
@@ -108,7 +103,7 @@ class MySQLConnection(ConnectionBackend):
         await self._database._pool.release(self._connection)
         self._connection = None
 
-    async def fetch_all(self, query: ClauseElement) -> typing.List[RecordInterface]:
+    async def fetch_all(self, query: ClauseElement) -> typing.List[Record]:
         assert self._connection is not None, "Connection is not acquired"
         query_str, args, result_columns, context = self._compile(query)
         column_maps = create_column_maps(result_columns)
@@ -131,7 +126,7 @@ class MySQLConnection(ConnectionBackend):
         finally:
             await cursor.close()
 
-    async def fetch_one(self, query: ClauseElement) -> typing.Optional[RecordInterface]:
+    async def fetch_one(self, query: ClauseElement) -> typing.Optional[Record]:
         assert self._connection is not None, "Connection is not acquired"
         query_str, args, result_columns, context = self._compile(query)
         column_maps = create_column_maps(result_columns)
@@ -177,7 +172,7 @@ class MySQLConnection(ConnectionBackend):
 
     async def iterate(
         self, query: ClauseElement
-    ) -> typing.AsyncGenerator[typing.Any, None]:
+    ) -> typing.AsyncGenerator[Record, None]:
         assert self._connection is not None, "Connection is not acquired"
         query_str, args, result_columns, context = self._compile(query)
         column_maps = create_column_maps(result_columns)
