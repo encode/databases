@@ -1,7 +1,10 @@
+import contextlib
+
 import pytest
 import sqlalchemy
 from starlette.applications import Starlette
 from starlette.responses import JSONResponse
+from starlette.routing import Route
 from starlette.testclient import TestClient
 
 from databases import Database, DatabaseURL
@@ -29,6 +32,7 @@ def create_test_database():
             "postgresql+aiopg",
             "sqlite+aiosqlite",
             "postgresql+asyncpg",
+            "postgresql+psycopg",
         ]:
             url = str(database_url.replace(driver=None))
         engine = sqlalchemy.create_engine(url)
@@ -45,6 +49,7 @@ def create_test_database():
             "postgresql+aiopg",
             "sqlite+aiosqlite",
             "postgresql+asyncpg",
+            "postgresql+psycopg",
         ]:
             url = str(database_url.replace(driver=None))
         engine = sqlalchemy.create_engine(url)
@@ -53,17 +58,13 @@ def create_test_database():
 
 def get_app(database_url):
     database = Database(database_url, force_rollback=True)
-    app = Starlette()
 
-    @app.on_event("startup")
-    async def startup():
+    @contextlib.asynccontextmanager
+    async def lifespan(app):
         await database.connect()
-
-    @app.on_event("shutdown")
-    async def shutdown():
+        yield
         await database.disconnect()
 
-    @app.route("/notes", methods=["GET"])
     async def list_notes(request):
         query = notes.select()
         results = await database.fetch_all(query)
@@ -73,14 +74,18 @@ def get_app(database_url):
         ]
         return JSONResponse(content)
 
-    @app.route("/notes", methods=["POST"])
     async def add_note(request):
         data = await request.json()
         query = notes.insert().values(text=data["text"], completed=data["completed"])
         await database.execute(query)
         return JSONResponse({"text": data["text"], "completed": data["completed"]})
 
-    return app
+    routes = [
+        Route("/notes", list_notes, methods=["GET"]),
+        Route("/notes", add_note, methods=["POST"]),
+    ]
+
+    return Starlette(routes=routes, lifespan=lifespan)
 
 
 @pytest.mark.parametrize("database_url", DATABASE_URLS)

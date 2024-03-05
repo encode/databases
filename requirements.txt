@@ -1,14 +1,21 @@
 -e .
 
+# Speedups
+orjson==3.9.15
+
 # Async database drivers
 asyncmy==0.2.9
 aiomysql==0.2.0
 aiopg==1.4.0
 aiosqlite==0.20.0
 asyncpg==0.29.0
+psycopg==3.1.18
+psycopg-binary==3.1.18
+psycopg-pool==3.2.1
 
 # Sync database drivers for standard tooling around setup/teardown/migrations.
 psycopg==3.1.18
+psycopg-binary==3.1.18
 pymysql==1.1.0
 
 # Testing

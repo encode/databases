@@ -19,7 +19,7 @@ from databases.interfaces import (
 logger = logging.getLogger("databases")
 
 
-class PostgresBackend(DatabaseBackend):
+class AsyncpgBackend(DatabaseBackend):
     def __init__(
         self, database_url: typing.Union[DatabaseURL, str], **options: typing.Any
     ) -> None:
@@ -78,12 +78,12 @@ class PostgresBackend(DatabaseBackend):
         await self._pool.close()
         self._pool = None
 
-    def connection(self) -> "PostgresConnection":
-        return PostgresConnection(self, self._dialect)
+    def connection(self) -> "AsyncpgConnection":
+        return AsyncpgConnection(self, self._dialect)
 
 
-class PostgresConnection(ConnectionBackend):
-    def __init__(self, database: PostgresBackend, dialect: Dialect):
+class AsyncpgConnection(ConnectionBackend):
+    def __init__(self, database: AsyncpgBackend, dialect: Dialect):
         self._database = database
         self._dialect = dialect
         self._connection: typing.Optional[asyncpg.connection.Connection] = None
@@ -159,7 +159,7 @@ class PostgresConnection(ConnectionBackend):
             yield Record(row, result_columns, self._dialect, column_maps)
 
     def transaction(self) -> TransactionBackend:
-        return PostgresTransaction(connection=self)
+        return AsyncpgTransaction(connection=self)
 
     def _compile(self, query: ClauseElement) -> typing.Tuple[str, list, tuple]:
         compiled = query.compile(
@@ -197,8 +197,8 @@ class PostgresConnection(ConnectionBackend):
         return self._connection
 
 
-class PostgresTransaction(TransactionBackend):
-    def __init__(self, connection: PostgresConnection):
+class AsyncpgTransaction(TransactionBackend):
+    def __init__(self, connection: AsyncpgConnection):
         self._connection = connection
         self._transaction: typing.Optional[asyncpg.transaction.Transaction] = None
 

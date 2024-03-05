@@ -33,6 +33,7 @@ Database drivers supported are:
 
 * [asyncpg][asyncpg]
 * [aiopg][aiopg]
+* [psycopg3][psycopg3]
 * [aiomysql][aiomysql]
 * [asyncmy][asyncmy]
 * [aiosqlite][aiosqlite]
@@ -42,6 +43,7 @@ You can install the required database drivers with:
 ```shell
 $ pip install databases[asyncpg]
 $ pip install databases[aiopg]
+$ pip install databases[psycopg3]
 $ pip install databases[aiomysql]
 $ pip install databases[asyncmy]
 $ pip install databases[aiosqlite]
@@ -105,6 +107,7 @@ for examples of how to start using databases together with SQLAlchemy core expre
 [pymysql]: https://github.com/PyMySQL/PyMySQL
 [asyncpg]: https://github.com/MagicStack/asyncpg
 [aiopg]: https://github.com/aio-libs/aiopg
+[psycopg3]: https://github.com/psycopg/psycopg
 [aiomysql]: https://github.com/aio-libs/aiomysql
 [asyncmy]: https://github.com/long2ice/asyncmy
 [aiosqlite]: https://github.com/omnilib/aiosqlite

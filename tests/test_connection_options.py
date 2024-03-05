@@ -6,7 +6,7 @@ import sys
 import pytest
 
 from databases.backends.aiopg import AiopgBackend
-from databases.backends.postgres import PostgresBackend
+from databases.backends.asyncpg import AsyncpgBackend
 from databases.core import DatabaseURL
 from tests.test_databases import DATABASE_URLS, async_adapter
 
@@ -19,7 +19,7 @@ if sys.version_info < (3, 10):  # pragma: no cover
 
 
 def test_postgres_pool_size():
-    backend = PostgresBackend("postgres://localhost/database?min_size=1&max_size=20")
+    backend = AsyncpgBackend("postgres://localhost/database?min_size=1&max_size=20")
     kwargs = backend._get_connection_kwargs()
     assert kwargs == {"min_size": 1, "max_size": 20}
 
@@ -29,43 +29,43 @@ async def test_postgres_pool_size_connect():
     for url in DATABASE_URLS:
         if DatabaseURL(url).dialect != "postgresql":
             continue
-        backend = PostgresBackend(url + "?min_size=1&max_size=20")
+        backend = AsyncpgBackend(url + "?min_size=1&max_size=20")
         await backend.connect()
         await backend.disconnect()
 
 
 def test_postgres_explicit_pool_size():
-    backend = PostgresBackend("postgres://localhost/database", min_size=1, max_size=20)
+    backend = AsyncpgBackend("postgres://localhost/database", min_size=1, max_size=20)
     kwargs = backend._get_connection_kwargs()
     assert kwargs == {"min_size": 1, "max_size": 20}
 
 
 def test_postgres_ssl():
-    backend = PostgresBackend("postgres://localhost/database?ssl=true")
+    backend = AsyncpgBackend("postgres://localhost/database?ssl=true")
     kwargs = backend._get_connection_kwargs()
     assert kwargs == {"ssl": True}
 
 
 def test_postgres_ssl_verify_full():
-    backend = PostgresBackend("postgres://localhost/database?ssl=verify-full")
+    backend = AsyncpgBackend("postgres://localhost/database?ssl=verify-full")
     kwargs = backend._get_connection_kwargs()
     assert kwargs == {"ssl": "verify-full"}
 
 
 def test_postgres_explicit_ssl():
-    backend = PostgresBackend("postgres://localhost/database", ssl=True)
+    backend = AsyncpgBackend("postgres://localhost/database", ssl=True)
     kwargs = backend._get_connection_kwargs()
     assert kwargs == {"ssl": True}
 
 
 def test_postgres_explicit_ssl_verify_full():
-    backend = PostgresBackend("postgres://localhost/database", ssl="verify-full")
+    backend = AsyncpgBackend("postgres://localhost/database", ssl="verify-full")
     kwargs = backend._get_connection_kwargs()
     assert kwargs == {"ssl": "verify-full"}
 
 
 def test_postgres_no_extra_options():
-    backend = PostgresBackend("postgres://localhost/database")
+    backend = AsyncpgBackend("postgres://localhost/database")
     kwargs = backend._get_connection_kwargs()
     assert kwargs == {}
 
@@ -74,7 +74,7 @@ def test_postgres_password_as_callable():
     def gen_password():
         return "Foo"
 
-    backend = PostgresBackend(
+    backend = AsyncpgBackend(
         "postgres://:password@localhost/database", password=gen_password
     )
     kwargs = backend._get_connection_kwargs()
