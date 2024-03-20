@@ -13,7 +13,7 @@ pymysql==1.1.0
 
 # Testing
 autoflake==1.4
-black==22.6.0
+black==24.3.0
 httpx==0.24.1
 isort==5.10.1
 mypy==0.971
