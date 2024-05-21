@@ -9,7 +9,7 @@ asyncpg==0.29.0
 
 # Sync database drivers for standard tooling around setup/teardown/migrations.
 psycopg==3.1.18
-pymysql==1.1.0
+pymysql==1.1.1
 
 # Testing
 autoflake==1.4
